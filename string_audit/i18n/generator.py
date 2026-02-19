@@ -54,3 +54,31 @@ def write_en_js(mapping: Dict[str, str], output: Path) -> None:
 
     output.write_text("\n".join(lines), encoding="utf-8")
 
+def load_existing_dict(path: Path) -> Dict[str, str]:
+    if not path.exists():
+        return {}
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+
+    return {}
+
+def merge_dictionaries(
+    base: Dict[str, str],
+    *existing_dicts: Dict[str, str],
+) -> Dict[str, str]:
+    merged = dict(base)
+
+    for existing in existing_dicts:
+        for key, value in existing.items():
+            # Preserve existing keys
+            if key not in merged:
+                merged[key] = value
+            # If key exists, prefer existing value (non-destructive)
+            # Do nothing
+
+    return dict(sorted(merged.items()))
