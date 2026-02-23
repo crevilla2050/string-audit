@@ -9,7 +9,7 @@ def scan_directory(root: Path) -> List[Finding]:
     findings: List[Finding] = []
     detector = HardcodedStringDetector()
 
-    for file_path in iter_python_files(root):
+    for file_path in iter_python_files(root, git_aware=True):
         try:
             lines = file_path.read_text(encoding="utf-8", errors="ignore").splitlines()
         except Exception:

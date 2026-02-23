@@ -23,6 +23,11 @@ from .i18n.plan import generate_plan, write_plan, default_plan_filename
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="string-audit")
+    parser.add_argument(
+        "--tracked-only",
+        action="store_true",
+        help="Only process Git-tracked files",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     scan = sub.add_parser("scan", help="Scan a directory")
@@ -58,8 +63,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Apply changes from a previously generated plan JSON",
     )
 
-
     return parser
+
+def banner():
+    return "Dennis the Forge — deterministic codemods for Git-native projects"
 
 def main() -> None:
     parser = build_parser()

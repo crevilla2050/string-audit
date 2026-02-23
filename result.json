@@ -917,6 +917,20 @@
     "severity": "warn"
   },
   {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/build/__main__.py",
+    "line": 85,
+    "text": "{bold}{}{reset}', fill(first, initial_indent='* ",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/build/__main__.py",
+    "line": 213,
+    "text": "\\n{dim}{}{reset}\\n', tb.strip('\\n",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
     "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/tqdm/autonotebook.py",
     "line": 15,
     "text": "console",
@@ -1739,6 +1753,69 @@
     "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/websockets/client.py",
     "line": 268,
     "text": "no subprotocols supported",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/packaging/tags.py",
+    "line": 265,
+    "text": "invalid sysconfig.get_config_var('EXT_SUFFIX')",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/packaging/_musllinux.py",
+    "line": 83,
+    "text": "tags:\", end=\" ",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/packaging/pylock.py",
+    "line": 222,
+    "text": "path or url must be provided",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/packaging/pylock.py",
+    "line": 227,
+    "text": "At least one hash must be provided",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/packaging/pylock.py",
+    "line": 229,
+    "text": "Hash values must be strings",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/packaging/_elffile.py",
+    "line": 51,
+    "text": "unable to parse identification",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/packaging/_elffile.py",
+    "line": 88,
+    "text": "unable to parse machine and section information",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/packaging/metadata.py",
+    "line": 224,
+    "text": "duplicate labels in project urls",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/packaging/metadata.py",
+    "line": 246,
+    "text": "payload in an invalid encoding",
     "detector": "hardcoded-string",
     "severity": "warn"
   },
@@ -3104,6 +3181,20 @@
     "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/yaml/serializer.py",
     "line": 50,
     "text": "serializer is closed",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/pyproject_hooks/_impl.py",
+    "line": 111,
+    "text": "paths must be relative",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/pyproject_hooks/_impl.py",
+    "line": 121,
+    "text": "paths must be inside source tree",
     "detector": "hardcoded-string",
     "severity": "warn"
   },
@@ -10741,6 +10832,20 @@
     "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/pathspec/patterns/gitignore/basic.py",
     "line": 75,
     "text": "Pattern normalized to nothing.",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/pyproject_hooks/_in_process/_in_process.py",
+    "line": 224,
+    "text": "No .dist-info folder found in wheel",
+    "detector": "hardcoded-string",
+    "severity": "warn"
+  },
+  {
+    "file": "/home/carlos/scripts/pedro-organiza/venv/lib/python3.12/site-packages/pyproject_hooks/_in_process/_in_process.py",
+    "line": 255,
+    "text": "Found wheel built marker, but no .whl files",
     "detector": "hardcoded-string",
     "severity": "warn"
   },

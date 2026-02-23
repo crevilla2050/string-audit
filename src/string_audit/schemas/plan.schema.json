@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Dennis Plan Schema",
+  "type": "object",
+  "required": ["meta", "changes"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["tool", "version", "generated_at"],
+      "additionalProperties": true,
+      "properties": {
+        "tool": { "type": "string", "const": "dennis" },
+        "version": { "type": "string" },
+        "generated_at": { "type": "string" },
+        "project_root": { "type": ["string", "null"] },
+        "source_plan": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/change" }
+    }
+  },
+  "definitions": {
+    "change": {
+      "type": "object",
+      "required": ["file", "line", "original", "replacement"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "file": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "original": { "type": "string" },
+        "replacement": { "type": "string" },
+        "token": { "type": ["string", "null"] },
+        "original_hash": { "type": ["string", "null"] },
+        "confidence": { "type": ["number", "null"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
