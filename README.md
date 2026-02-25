@@ -141,7 +141,8 @@ It is designed for engineers who want:
 - Control over abstraction
 - Craft over magic
 
-License: MIT
+Licensed under MIT.
+Built with care, shared with trust.
 
 =========================
 
