@@ -10,27 +10,58 @@ Goals:
 
 import json
 from typing import Any, IO
+from collections import OrderedDict
+
+CHANGE_FIELD_ORDER = [
+    "id",
+    "file",
+    "line",
+    "original",
+    "replacement",
+    "token",
+    "confidence",
+    "notes",
+]
+
+META_FIELD_ORDER = [
+    "tool",
+    "version",
+    "generated_at",
+]
 
 
-def dump_json(data: Any, fp: IO[str]) -> None:
-    """
-    Write deterministic JSON to a file-like object.
+def canonical_change(change: dict) -> dict:
+    ordered = OrderedDict()
+    for key in CHANGE_FIELD_ORDER:
+        if key in change:
+            ordered[key] = change[key]
+    return ordered
 
-    Guarantees:
-    - Sorted keys
-    - 2-space indentation
-    - Unix newlines
-    - Trailing newline (POSIX-friendly)
-    """
-    json.dump(
-        data,
-        fp,
-        indent=2,
-        sort_keys=True,
-        ensure_ascii=False,
-    )
-    fp.write("\n")  # POSIX-friendly newline
 
+def canonical_meta(meta: dict) -> dict:
+    ordered = OrderedDict()
+    for key in META_FIELD_ORDER:
+        if key in meta:
+            ordered[key] = meta[key]
+    return ordered
+
+
+def canonicalize_plan(plan: dict) -> dict:
+    out = OrderedDict()
+
+    if "meta" in plan:
+        out["meta"] = canonical_meta(plan["meta"])
+
+    if "changes" in plan:
+        out["changes"] = [canonical_change(c) for c in plan["changes"]]
+
+    return out
+
+
+def dump_json(plan: dict, fh):
+    canonical = canonicalize_plan(plan)
+    json.dump(canonical, fh, indent=2, ensure_ascii=False)
+    fh.write("\n")
 
 def dumps_json(data: Any) -> str:
     """
