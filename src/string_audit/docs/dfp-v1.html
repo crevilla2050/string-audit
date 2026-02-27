@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dennis Forge Protocol (DFP) v1</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Dennis Forge Protocol v1 — canonical specification for deterministic, content-addressed transformation identity." />
+
+  <style>
+    :root {
+      --bg: #0f1416;
+      --surface: #172025;
+      --text: #e6f1f0;
+      --muted: #8fa3a2;
+      --accent: #2fd4c6;
+      --border: rgba(255,255,255,0.08);
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(circle at top, #172025 0%, #0f1416 70%);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 40px;
+      backdrop-filter: blur(8px);
+    }
+
+    h1, h2, h3 {
+      color: var(--accent);
+      margin-top: 40px;
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-top: 0;
+    }
+
+    p, li {
+      color: var(--muted);
+    }
+
+    code, pre {
+      background: #0b0f11;
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 6px;
+      display: block;
+      overflow-x: auto;
+      color: var(--accent);
+      font-family: monospace;
+      margin: 16px 0;
+    }
+
+    table {
+      border-collapse: collapse;
+      margin: 16px 0;
+      width: 100%;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      color: var(--accent);
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    footer {
+      margin-top: 60px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <h1>Dennis Forge Protocol (DFP) v1</h1>
+    <div class="meta">
+      Status: Frozen • Version: 1.0 • Stability: Permanent
+    </div>
+
+    <h2>Overview</h2>
+    <p>
+      The Dennis Forge Protocol (DFP) defines a deterministic, content-addressed
+      identity layer for transformation plans used by Dennis the Forge.
+    </p>
+
+    <h2>Identity Model</h2>
+    <pre>SHA-256(canonical_plan_json)</pre>
+    <p>
+      Lowercase hex, 64 characters. This hash is the sole identity of a plan.
+    </p>
+
+    <h2>Canonical URI Format</h2>
+    <pre>dfp://v1/forge/&lt;plan_hash&gt;</pre>
+
+    <h3>Example</h3>
+    <pre>dfp://v1/forge/1aad05c1a7f1564661c3c18c56773219839ddfd60676929e7b554375f6b8ef34</pre>
+
+    <h2>Validation Rules</h2>
+    <ul>
+      <li>Prefix must be <code>dfp://</code></li>
+      <li>Version must be <code>v1</code></li>
+      <li>Namespace must be <code>forge</code></li>
+      <li>Hash must be lowercase SHA-256</li>
+    </ul>
+
+    <h2>Namespaces</h2>
+    <table>
+      <tr><th>Namespace</th><th>Status</th></tr>
+      <tr><td>forge</td><td>Defined in v1</td></tr>
+      <tr><td>plan, diff, branch, meta</td><td>Reserved</td></tr>
+    </table>
+
+    <h2>Transport Model</h2>
+    <p>
+      DFP defines identity, not transport. Payloads remain valid across files,
+      URLs, QR codes, ASCII text, and printed media.
+    </p>
+
+    <h2>QR Payload Specification</h2>
+    <pre>dfp://v1/forge/&lt;hash&gt;</pre>
+    <p>No JSON. No compression. Pure string protocol.</p>
+
+    <h2>QR Decoding Modes</h2>
+
+    <h3>ASCII Mode</h3>
+    <pre>dennis scan-qr --ascii --from-file &lt;path&gt;</pre>
+    <ul>
+      <li>Raw payload strings</li>
+      <li>ASCII QR blocks</li>
+    </ul>
+
+    <h3>Image Mode</h3>
+    <pre>dennis scan-qr --image --from-file &lt;path&gt;</pre>
+    <ul>
+      <li>PNG QR codes</li>
+      <li>JPEG QR codes</li>
+    </ul>
+
+    <h2>Cross-Transport Integrity</h2>
+    <pre>
+dennis scan-qr --ascii --from-file plan.txt
+dennis scan-qr --image --from-file plan.png
+    </pre>
+    <p>Matching hashes confirm transport integrity.</p>
+
+    <h2>CLI Guarantees</h2>
+    <pre>
+dennis qr &lt;hash&gt;
+dennis qr --ascii &lt;hash&gt;
+
+dennis scan-qr --ascii --from-file file
+dennis scan-qr --image --from-file file
+    </pre>
+
+    <h2>Versioning Policy</h2>
+    <ul>
+      <li>DFP v1 payloads remain valid forever</li>
+      <li>No breaking changes allowed</li>
+      <li>Future versions must not reinterpret v1</li>
+    </ul>
+
+    <h2>Test Vectors</h2>
+
+    <h3>Valid</h3>
+    <pre>dfp://v1/forge/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</pre>
+
+    <h3>Invalid</h3>
+    <pre>
+dfp://v1/forge/short
+dfp://v2/forge/hash
+dfp://v1/unknown/hash
+dfp://v1/forge/HASH
+    </pre>
+
+    <h2>Security Considerations</h2>
+    <p>
+      DFP provides identity, not authenticity. Combine with signatures where required.
+    </p>
+
+    <h2>Summary</h2>
+    <p>
+      DFP v1 establishes deterministic identity, transport independence,
+      explicit decoding semantics, and immutable version guarantees.
+    </p>
+
+    <footer>
+      Dennis Forge Protocol v1 • Frozen Specification<br>
+      Part of the Dennis the Forge ecosystem
+    </footer>
+
+  </div>
+</body>
+</html>

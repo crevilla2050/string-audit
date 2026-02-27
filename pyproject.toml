@@ -11,6 +11,9 @@ requires-python = ">=3.9"
 dependencies = [
     "lxml>=4.9",
     "jsonschema>=4.0",
+    "segno>=1.6.0",
+    "qrcode[pil]>=7.4",
+    "pynacl>=1.5", # for ed25519
 ]
 
 [build-system]
