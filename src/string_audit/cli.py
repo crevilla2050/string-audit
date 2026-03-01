@@ -17,12 +17,12 @@ from .i18n.generator import (
 )
 
 from .i18n.plan import generate_plan, write_plan, default_plan_filename
-from string_audit.core.export_html import export_html
-from string_audit.core.export_xml import export_xml
-from string_audit.core.import_xml import import_xml
-from string_audit.core.serialize import dump_json
-from string_audit.core.export_xsd import export_xsd
-from string_audit.core.validate_xml import validate_xml_file
+from dennis.core.export_html import export_html
+from dennis.core.export_xml import export_xml
+from dennis.core.import_xml import import_xml
+from dennis.core.serialize import dump_json
+from dennis.core.export_xsd import export_xsd
+from dennis.core.validate_xml import validate_xml_file
 
 # QR
 from string_audit.qr import (
@@ -139,8 +139,8 @@ def main() -> None:
     # EXPORT
     # --------------------------------------------------------
     elif args.command == "export":
-        from string_audit.core.csvio import write_csv_from_plan
-        from string_audit.core.export_js import export_js
+        from dennis.core.csvio import write_csv_from_plan
+        from dennis.core.export_js import export_js
 
         plan = json.loads(Path(args.plan).read_text())
 
@@ -221,10 +221,33 @@ def main() -> None:
     # --------------------------------------------------------
     elif args.command == "qr":
         from string_audit.qr.encode import make_qr_uri, generate_ascii_qr, generate_png_qr
+        from string_audit.forge.hash.canonical import canonical_hash
 
-        plan_hash = args.hash.strip()
+        value = args.hash.strip()
+        p = Path(value)
+
+        # ----------------------------------------------------
+        # File input → auto-hash
+        # ----------------------------------------------------
+        if p.exists():
+            try:
+                obj = json.loads(p.read_text())
+            except Exception as e:
+                raise SystemExit(f"Not a valid Dennis plan (expected JSON plan): {p} ({e})")
+
+            plan_hash = canonical_hash(obj)
+            print(f"Computed hash: {plan_hash}")
+
+        # ----------------------------------------------------
+        # Raw hash input
+        # ----------------------------------------------------
+        else:
+            plan_hash = value
+
+        # ----------------------------------------------------
+        # Generate QR
+        # ----------------------------------------------------
         uri = make_qr_uri(plan_hash)
-
         print(f"URI: {uri}")
 
         ascii_qr = generate_ascii_qr(plan_hash)
