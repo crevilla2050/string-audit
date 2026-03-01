@@ -13,7 +13,8 @@ dependencies = [
     "jsonschema>=4.0",
     "segno>=1.6.0",
     "qrcode[pil]>=7.4",
-    "pynacl>=1.5", # for ed25519
+    "pynacl>=1.5",
+    "pyzipper",
 ]
 
 [build-system]
@@ -21,4 +22,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/string_audit"]
+packages = ["src/string_audit", "src/dennis"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/string_audit",
+    "src/dennis",
+    "tests",
+    "examples",
+    "README.md",
+    "LICENSE",
+]
