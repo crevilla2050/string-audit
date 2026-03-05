@@ -1,0 +1,29 @@
+import json
+import hashlib
+from typing import Any
+
+
+def _canonical_json(obj: Any) -> bytes:
+    """
+    Deterministic JSON serialization.
+
+    Guarantees:
+    - Sorted keys
+    - No whitespace differences
+    - Stable hashing across platforms
+    """
+    return json.dumps(
+        obj,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+
+
+def canonical_hash(obj: Any) -> str:
+    """
+    Compute deterministic SHA-256 hash of a Python object.
+
+    This is the core identity primitive of Dennis.
+    """
+    return hashlib.sha256(_canonical_json(obj)).hexdigest()

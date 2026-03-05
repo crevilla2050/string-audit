@@ -24,6 +24,11 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/string_audit", "src/dennis"]
 
+include = [
+    "src/dennis/schemas/*.json",
+    "src/string_audit/schemas/*.json"
+]
+
 [tool.hatch.build.targets.sdist]
 include = [
     "src/string_audit",

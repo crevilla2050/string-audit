@@ -27,3 +27,8 @@ testbed/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+*.db
+*.dex
+*.tar.gz
+*.sql
