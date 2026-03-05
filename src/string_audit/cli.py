@@ -100,6 +100,19 @@ def build_parser() -> argparse.ArgumentParser:
     scan_qr.add_argument("--image", action="store_true")
     scan_qr.add_argument("--from-file", required=True)
 
+    # DEX group (sign / verify)
+    dex = sub.add_parser("dex", help="DEX artifact actions")
+    dex_sub = dex.add_subparsers(dest="dex_command", required=True)
+
+    dex_sign = dex_sub.add_parser("sign", help="Sign a DEX artifact")
+    dex_sign.add_argument("artifact", help="Path to artifact.dex")
+    dex_sign.add_argument("--key", required=True, help="Private key file (ed25519)")
+    dex_sign.add_argument("--key-id", default="dev", help="Key identifier to store in signatures/<key_id>.pub")
+
+    dex_verify = dex_sub.add_parser("verify", help="Verify signatures on a DEX artifact")
+    dex_verify.add_argument("artifact", help="Path to artifact.dex")
+    dex_verify.add_argument("--verbose", action="store_true", help="Show extra verification info (counts only)")
+
     return parser
 
 
@@ -278,3 +291,51 @@ def main() -> None:
         print("\nParsed:")
         for k, v in parsed.items():
             print(f"{k}: {v}")
+
+    # --------------------------------------------------------
+    # DEX: sign / verify
+    # --------------------------------------------------------
+    elif args.command == "dex":
+        if args.dex_command == "sign":
+            from dennis.dex.sign import sign_dex
+            artifact = args.artifact
+            key_path = args.key
+            key_id = args.key_id
+            sign_dex(artifact, key_path, key_id=key_id)
+            print(f"Signed: {artifact} (key_id={key_id})")
+
+        elif args.dex_command == "verify":
+            from dennis.dex.sign import verify_dex
+            artifact = args.artifact
+
+            results = verify_dex(artifact)  # returns list of (key_id, bool) in manifest order
+
+            if not results:
+                print("DEX verification FAILED: no signatures present.")
+                raise SystemExit(1)
+
+            total = len(results)
+            valid_count = sum(1 for _, ok in results if ok)
+            authoritative_valid = results[-1][1]  # last signature is authoritative per policy
+
+            # Policy:
+            # - if no valid signatures -> fail exit 1
+            # - if authoritative valid -> OK exit 0
+            # - if authoritative invalid but some legacy valid -> WARNING + exit 0 (do not reveal which ones)
+            if valid_count == 0:
+                print("DEX verification FAILED: no valid signatures found.")
+                raise SystemExit(1)
+
+            if authoritative_valid:
+                print("DEX verification OK — authoritative signature valid.")
+                if getattr(args, "verbose", False):
+                    print(f"{valid_count} of {total} signatures are valid.")
+                raise SystemExit(0)
+            else:
+                # authoritative invalid but at least one legacy valid
+                print("WARNING: authoritative signature invalid.")
+                print("However, at least one legacy signature is valid.")
+                print("Please review the artifact and sign again if appropriate.")
+                if getattr(args, "verbose", False):
+                    print(f"{valid_count} of {total} signatures are valid (not revealing which).")
+                raise SystemExit(0)

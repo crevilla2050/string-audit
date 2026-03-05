@@ -12,6 +12,7 @@ import io
 from pathlib import Path
 
 from dennis.core.hash import canonical_hash
+from dennis.dex.validate import validate_manifest
 
 
 ALLOWED_FILES = {
@@ -81,9 +82,18 @@ def import_dex(path):
         payload_name = _validate_structure(members)
 
         manifest_file = tar.extractfile("manifest.json")
-        manifest = json.load(manifest_file)
 
+        if manifest_file is None:
+            raise ValueError("manifest.json could not be read")
+
+        manifest = json.load(manifest_file)
+        
+        validate_manifest(manifest)
         payload_file = tar.extractfile(payload_name)
+
+        if payload_file is None:
+            raise ValueError("payload could not be read")
+
         payload_bytes = payload_file.read()
 
     # --------------------------------------------------------
