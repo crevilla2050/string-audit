@@ -44,7 +44,6 @@ def _tarinfo(name, data):
     ti.mode = 0o644
     return ti
 
-
 def sign_dex(dex_path, private_key_path, key_id="dev"):
     """
     Append a signature to an existing DEX artifact.

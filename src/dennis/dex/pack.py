@@ -93,3 +93,19 @@ def pack_dex(payload_path, output_path, payload_type="dennis.plan.v1"):
             gz.write(tar_bytes)
 
     return output_path
+
+if __name__ == "__main__":
+    import sys
+    from pathlib import Path
+    from dennis.dex.pack import pack_dex   # adjust if function name differs
+
+    if len(sys.argv) != 3:
+        print("Usage: python -m dennis.dex.pack <plan.json> <artifact.dex>")
+        sys.exit(1)
+
+    plan = Path(sys.argv[1])
+    out = Path(sys.argv[2])
+
+    pack_dex(plan, out)
+
+    print(f"DEX artifact written → {out}")
