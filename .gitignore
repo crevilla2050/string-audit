@@ -31,4 +31,4 @@ Thumbs.db
 *.db
 *.dex
 *.tar.gz
-*.sql
+*.egg

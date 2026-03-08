@@ -1,5 +1,5 @@
 import argparse
-import json
+import re
 from pathlib import Path
 from datetime import datetime
 
@@ -219,6 +219,22 @@ def build_parser() -> argparse.ArgumentParser:
     unpack_cmd.add_argument("artifact")
     unpack_cmd.add_argument("--out", default=None)
 
+    # REGISTRY GROUP
+    registry = sub.add_parser("registry", help="Registry federation commands")
+    registry_sub = registry.add_subparsers(dest="registry_command", required=True)
+
+    # registry add
+    reg_add = registry_sub.add_parser("add", help="Add remote registry")
+    reg_add.add_argument("url")
+    add_remote_argument(reg_add)
+
+    # registry list
+    reg_list = registry_sub.add_parser("list", help="List remote registries")
+    add_remote_argument(reg_list)
+
+    # registry sync
+    reg_sync = registry_sub.add_parser("sync", help="Sync remote registries")
+    add_remote_argument(reg_sync)
 
     return parser
 
@@ -230,11 +246,22 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    value = args.hash.strip()
+
+    # Extract hash from URL
+    m = re.search(r"/artifact/([0-9a-f]{64})", value)
+
+    if m:
+        artifact_hash = m.group(1)
+    else:
+        artifact_hash = value
+
     # --------------------------------------------------------
     # PLAN
     # --------------------------------------------------------
     if args.command == "plan":
         from string_audit.forge.hash.canonical import canonical_hash
+        from pathlib import Path
 
         root = Path(args.root)
         dict_path = Path(args.dict)
@@ -246,10 +273,70 @@ def main() -> None:
         print(f"Plan hash: {canonical_hash(plan)}")
 
     # --------------------------------------------------------
+    # REGISTRY COMMANDS
+    # --------------------------------------------------------
+    elif args.command == "registry":
+
+        import urllib.request
+        import json
+
+        if args.registry_command == "add":
+
+            url = args.remote.rstrip("/") + "/api/registry/remotes"
+
+            payload = json.dumps({"url": args.url}).encode()
+
+            req = urllib.request.Request(
+                url,
+                data=payload,
+                method="POST",
+                headers={"Content-Type": "application/json"},
+            )
+
+            with urllib.request.urlopen(req) as resp:
+                data = json.loads(resp.read())
+
+            print("Remote registry added:")
+            print(data)
+
+        elif args.registry_command == "list":
+
+            url = args.remote.rstrip("/") + "/api/registry/remotes"
+
+            with urllib.request.urlopen(url) as resp:
+                data = json.loads(resp.read())
+
+            remotes = data.get("remotes", [])
+
+            if not remotes:
+                print("No remote registries configured.")
+                return
+
+            print("\nRemote registries\n-----------------\n")
+
+            for r in remotes:
+                print(f"{r.get('name','?'):20} {r.get('url')}")
+
+        elif args.registry_command == "sync":
+
+            url = args.remote.rstrip("/") + "/api/registry/sync"
+
+            req = urllib.request.Request(url, method="POST")
+
+            with urllib.request.urlopen(req) as resp:
+                data = json.loads(resp.read())
+
+            print("Federation sync started")
+            print(data)
+
+    # --------------------------------------------------------
     # HASH
     # --------------------------------------------------------
     elif args.command == "hash":
         from string_audit.forge.hash.canonical import canonical_hash
+        from pathlib import Path
+        import json
+        
 
         obj = json.loads(Path(args.file).read_text())
         print(canonical_hash(obj))
@@ -260,6 +347,8 @@ def main() -> None:
     elif args.command == "export":
         from dennis.core.csvio import write_csv_from_plan
         from dennis.core.export_js import export_js
+        from pathlib import Path
+        import json
 
         plan = json.loads(Path(args.plan).read_text())
 
@@ -285,6 +374,8 @@ def main() -> None:
     elif args.command == "push":
         import urllib.request
         from string_audit.forge.hash.canonical import canonical_hash
+        from pathlib import Path
+        import json
 
         plan = json.loads(Path(args.plan).read_text())
         plan_hash = canonical_hash(plan)
@@ -323,37 +414,13 @@ def main() -> None:
             print(f"  {png}")
 
     # --------------------------------------------------------
-    # PULL
-    # --------------------------------------------------------
-    elif args.command == "pull":
-        import urllib.request
-
-        artifact_hash = args.hash.strip()
-
-        if len(artifact_hash) != 64:
-            raise SystemExit("Error: full artifact hash required (64 hex chars)")
-
-        url = args.remote.rstrip("/") + f"/api/artifacts/{artifact_hash}"
-
-        with urllib.request.urlopen(url) as resp:
-            data = resp.read()
-            disposition = resp.headers.get("Content-Disposition")
-
-        if disposition and "filename=" in disposition:
-            filename = disposition.split("filename=")[1].strip('"')
-        else:
-            filename = f"{artifact_hash}.dex"
-
-        Path(filename).write_bytes(data)
-
-        print(f"Downloaded → {filename}")
-
-    # --------------------------------------------------------
     # QR GENERATION
     # --------------------------------------------------------
     elif args.command == "qr":
         from string_audit.qr.encode import make_qr_uri, generate_ascii_qr, generate_png_qr
         from string_audit.forge.hash.canonical import canonical_hash
+        from pathlib import Path
+        import json
 
         value = args.hash.strip()
         p = Path(value)
@@ -393,6 +460,7 @@ def main() -> None:
     # SCAN QR
     # --------------------------------------------------------
     elif args.command == "scan-qr":
+        from pathlib import Path
         if args.ascii:
             text = Path(args.from_file).read_text()
             uri = extract_uri_from_ascii(text)
@@ -465,6 +533,7 @@ def main() -> None:
     elif args.command == "search":
         import urllib.request
         import urllib.parse
+        import json
 
         params = {
             "limit": args.limit,
@@ -493,7 +562,7 @@ def main() -> None:
         for a in artifacts:
             print(
                 f"{a['artifact_hash']}  "
-                f"{a.get('payload_type','?'):20}  "
+                f"{a.get('payload_type','?')}  "
                 f"{a.get('created_at','')}"
             )
 
@@ -503,6 +572,8 @@ def main() -> None:
     elif args.command == "publish":
         import urllib.request
         import uuid
+        from pathlib import Path
+        import json
 
         artifact_path = Path(args.artifact)
 
@@ -539,6 +610,7 @@ def main() -> None:
     # --------------------------------------------------------
     elif args.command == "pull":
         import urllib.request
+        from pathlib import Path
 
         artifact_hash = args.hash.strip()
 
@@ -565,8 +637,8 @@ def main() -> None:
     # --------------------------------------------------------
     elif args.command == "inspect":
         import urllib.request
+        import json
         
-
         artifact_hash = args.hash.strip()
 
         if len(artifact_hash) != 64:
@@ -576,6 +648,10 @@ def main() -> None:
 
         with urllib.request.urlopen(url) as resp:
             data = json.loads(resp.read())
+
+        if args.format == "json":
+            print(json.dumps(data, indent=2))
+            return
 
         print("\nArtifact")
         print("--------")
@@ -611,11 +687,31 @@ def main() -> None:
                     f"{s.get('created_at')}"
                 )
 
+        # --------------------------------------------------------
+        # Registry metadata (if available)
+        # --------------------------------------------------------
+
+        registry = data.get("registry")
+
+        if registry:
+
+            print("\nRegistry")
+            print("--------")
+
+            origin = registry.get("origin_registry") or "local"
+            chain = registry.get("chain_status")
+            stored = registry.get("stored_at")
+
+            print(f"Origin:     {origin}")
+            print(f"Chain:      {chain}")
+            print(f"Stored:     {stored}")
+
     # --------------------------------------------------------
     # SIGNATURES
     # --------------------------------------------------------
     elif args.command == "signatures":
         import urllib.request
+        import json
 
         url = args.remote.rstrip("/") + f"/api/artifacts/{args.hash}/signatures"
 
@@ -639,7 +735,7 @@ def main() -> None:
     # LINEAGE
     # --------------------------------------------------------
     elif args.command == "lineage":
-
+        import json
         import urllib.request
         url = args.remote.rstrip("/") + f"/api/artifacts/{args.hash}/lineage"
 
@@ -662,7 +758,7 @@ def main() -> None:
     # DIFF
     # --------------------------------------------------------
     elif args.command == "diff":
-
+        import json
         from dennis.dex.importer import import_dex
 
         semantic = not args.ignore_semantics

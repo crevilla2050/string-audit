@@ -5,6 +5,7 @@ import shutil
 import hashlib
 import uuid
 
+from dennis.dex import manifest
 from dennis.dex.importer import import_dex
 from dennis.server.storage import artifact_path, ensure_artifact_dirs
 from dennis.server.db import get_connection
@@ -13,12 +14,18 @@ router = APIRouter()
 
 
 @router.post("/api/artifacts")
-async def upload_artifact(file: UploadFile = File(...)):
+async def upload_artifact(file: UploadFile, origin: str | None = None):
 
     if not file.filename.endswith(".dex"):
         raise HTTPException(status_code=400, detail="Only .dex artifacts allowed")
 
     try:
+        # ----------------------------------------
+        # Normalize origin registry
+        # ----------------------------------------
+
+        origin_registry = origin.strip() if origin else None
+
         # ----------------------------------------
         # Save uploaded artifact temporarily
         # ----------------------------------------
@@ -45,6 +52,13 @@ async def upload_artifact(file: UploadFile = File(...)):
 
         payload_hash = payload.get("hash", {}).get("value")
         payload_type = payload.get("type")
+
+        # -------------------------------------------------
+        # Extract lineage parent
+        # -------------------------------------------------
+
+        provenance = manifest.get("provenance", {})
+        parent_hash = provenance.get("parent")
 
         # ----------------------------------------
         # Determine storage path
@@ -79,9 +93,10 @@ async def upload_artifact(file: UploadFile = File(...)):
                 chr_chain_status,
                 chr_payload_hash,
                 chr_payload_type,
-                int_size_bytes
+                int_size_bytes,
+                chr_origin_registry
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 artifact_uuid,
@@ -91,6 +106,7 @@ async def upload_artifact(file: UploadFile = File(...)):
                 payload_hash,
                 payload_type,
                 file_size,
+                origin_registry,
             ),
         )
 
@@ -131,19 +147,20 @@ async def upload_artifact(file: UploadFile = File(...)):
             "status": "stored",
             "payload_type": manifest["payload"]["type"],
             "size_bytes": file_size,
+            "origin_registry": origin_registry or "local",
         }
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+    
 from fastapi.responses import FileResponse
 from datetime import datetime
 import hashlib
 
 from dennis.server.storage import artifact_path
 from dennis.dex.importer import import_dex
-
 
 @router.get("/api/artifacts")
 def list_artifacts(
@@ -209,6 +226,56 @@ def list_artifacts(
         "artifacts": artifacts
     }
 
+from fastapi.responses import HTMLResponse
+
+
+@router.get("/artifact/{artifact_hash}", response_class=HTMLResponse)
+def artifact_page(artifact_hash: str):
+
+    path = artifact_path(artifact_hash)
+
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    return f"""
+    <html>
+    <head>
+        <title>Dennis Artifact {artifact_hash[:8]}</title>
+        <style>
+        body {{
+            font-family: monospace;
+            background: #0e1117;
+            color: #e6edf3;
+            padding: 40px;
+        }}
+        a {{ color: #58a6ff; }}
+        </style>
+    </head>
+
+    <body>
+
+    <h2>Dennis Artifact</h2>
+
+    <p><b>Hash:</b><br>{artifact_hash}</p>
+
+    <p>
+    <a href="/api/artifacts/{artifact_hash}">Download DEX</a>
+    </p>
+
+    <p>
+    Metadata:
+    <br>
+    <a href="/api/artifacts/{artifact_hash}/metadata">metadata</a>
+    <br>
+    <a href="/api/artifacts/{artifact_hash}/signatures">signatures</a>
+    <br>
+    <a href="/api/artifacts/{artifact_hash}/lineage">lineage</a>
+    </p>
+
+    </body>
+    </html>
+    """
+
 from fastapi.responses import FileResponse
 
 @router.get("/api/artifacts/{artifact_hash}")
@@ -245,6 +312,43 @@ def artifact_metadata(artifact_hash: str):
         provenance = manifest.get("provenance", {})
         signatures = manifest.get("signatures", [])
 
+        # ----------------------------------------
+        # Registry metadata lookup
+        # ----------------------------------------
+
+        conn = get_connection()
+        cur = conn.cursor(dictionary=True)
+
+        cur.execute(
+            """
+            SELECT
+                chr_origin_registry,
+                chr_chain_status,
+                ts_created
+            FROM tbl_artifact_objects
+            WHERE chr_artifact_hash = %s
+            """,
+            (artifact_hash,),
+        )
+
+        row = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        registry_meta = None
+
+        if row:
+            registry_meta = {
+                "origin_registry": row["chr_origin_registry"] or "local",
+                "chain_status": row["chr_chain_status"],
+                "stored_at": row["ts_created"].isoformat() if row["ts_created"] else None,
+            }
+
+        # ----------------------------------------
+        # Response
+        # ----------------------------------------
+
         metadata = {
             "artifact_hash": artifact_hash,
 
@@ -263,6 +367,9 @@ def artifact_metadata(artifact_hash: str):
 
             "provenance": provenance,
             "signatures": signatures,
+
+            # registry context (not part of artifact)
+            "registry": registry_meta,
         }
 
         return metadata
@@ -270,48 +377,7 @@ def artifact_metadata(artifact_hash: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("/api/artifacts")
-def list_artifacts(limit: int = 20, offset: int = 0):
-
-    conn = get_connection()
-    cur = conn.cursor(dictionary=True)
-
-    cur.execute(
-        """
-        SELECT
-            chr_artifact_hash,
-            chr_payload_hash,
-            int_size_bytes,
-            ts_created
-        FROM tbl_artifact_objects
-        ORDER BY ts_created DESC
-        LIMIT %s OFFSET %s
-        """,
-        (limit, offset)
-    )
-
-    rows = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    artifacts = []
-
-    for r in rows:
-        artifacts.append({
-            "artifact_hash": r["chr_artifact_hash"],
-            "payload_hash": r["chr_payload_hash"],
-            "size_bytes": r["int_size_bytes"],
-            "created_at": r["ts_created"],
-        })
-
-    return {
-        "count": len(artifacts),
-        "limit": limit,
-        "offset": offset,
-        "artifacts": artifacts
-    }
-
+    
 @router.get("/api/artifacts/{artifact_hash}/signatures")
 def artifact_signatures(artifact_hash: str):
 
