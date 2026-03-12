@@ -55,6 +55,10 @@ def canonicalize_plan(plan: dict) -> dict:
     if "changes" in plan:
         out["changes"] = [canonical_change(c) for c in plan["changes"]]
 
+    # Preserve patches section if present
+    if "patches" in plan:
+        out["patches"] = plan["patches"]
+
     return out
 
 

@@ -3,10 +3,9 @@ CSV IO for Dennis plans.
 
 CSV is a human-editable projection of the canonical JSON plan.
 """
-
+from pathlib import Path
 import csv
 from typing import List, Dict
-
 
 FIELDNAMES = [
     "id",
@@ -19,18 +18,26 @@ FIELDNAMES = [
     "notes",
 ]
 
-
 # -------------------------
 # JSON → CSV
 # -------------------------
-def write_csv_from_plan(plan: Dict, path: str) -> None:
-    with open(path, "w", newline="", encoding="utf-8") as f:
+
+def write_csv_from_plan(plan: Dict, path: Path) -> None:
+    if "changes" not in plan:
+        raise ValueError("Invalid plan: missing 'changes'")
+        
+    
+    with open(path, "w", newline="\n", encoding="utf-8-sig") as f:
+    
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
 
-        for ch in plan["changes"]:
+        for i, ch in enumerate(
+                sorted(plan["changes"], key=lambda c: (c["file"], c["line"])),
+                start=1
+        ):
             row = {
-                "id": ch.get("id"),
+                "id": ch.get("id", i),
                 "file": ch.get("file"),
                 "line": ch.get("line"),
                 "original": ch.get("original"),
@@ -53,7 +60,7 @@ def read_csv_changes(path: str) -> List[Dict]:
             changes.append({
                 "id": row["id"],
                 "file": row["file"],
-                "line": int(row["line"]),
+                "line": int(row["line"]) if row["line"] else None,
                 "original": row["original"],
                 "replacement": row["replacement"],
                 "token": row["token"],

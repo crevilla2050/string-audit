@@ -3,29 +3,55 @@ from .sort import sort_changes
 import json
 import sys
 from .serialize import dump_json
+import datetime
 
 
 def invert_plan(plan: dict) -> dict:
-    new_plan = deepcopy(plan)
 
-    # meta adjustments
-    meta = new_plan.setdefault("meta", {})
-    meta["source_plan"] = meta.get("source_plan") or "inverted"
-    meta["generated_at"] = meta.get("generated_at")
+    new_plan = {}
+
+    # --------------------------------------
+    # meta
+    # --------------------------------------
+
+    meta = deepcopy(plan.get("meta", {}))
+    meta["generated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+    meta["operation"] = "invert"
+
+    new_plan["meta"] = meta
+
+    # --------------------------------------
+    # invert transformations
+    # --------------------------------------
 
     inverted = []
-    for c in plan["changes"]:
+
+    for c in plan.get("changes", []):
         inv = dict(c)
+
         inv["original"], inv["replacement"] = c["replacement"], c["original"]
 
-        # Optional lineage
         if "id" in inv:
             inv["id"] = f"{inv['id']}-inv"
 
         inverted.append(inv)
 
     new_plan["changes"] = sort_changes(inverted)
+
+    # --------------------------------------
+    # invert helper patches
+    # --------------------------------------
+
+    patches = plan.get("patches")
+
+    if patches and "helpers" in patches:
+
+        new_plan["patches"] = {
+            "remove_helpers": patches["helpers"]
+        }
+       
     return new_plan
+
 
 def cmd_invert(path, stdout=False):
     with open(path) as f:

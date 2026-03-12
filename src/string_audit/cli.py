@@ -1,7 +1,9 @@
 import argparse
+from marshal import version
+from os import path
 import re
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .scanner import scan_directory
 from .reporters.human import print_human_report
@@ -16,7 +18,13 @@ from .i18n.generator import (
     merge_dictionaries,
 )
 
-from .i18n.plan import generate_plan, write_plan, default_plan_filename
+from .i18n.plan import (
+    generate_plan,
+    write_plan,
+    default_plan_filename,
+    load_helper
+)
+
 from dennis.core.export_html import export_html
 from dennis.core.export_xml import export_xml
 from dennis.core.import_xml import import_xml
@@ -33,7 +41,10 @@ from string_audit.qr import (
 )
 from string_audit.qr.encode import make_qr_uri, generate_ascii_qr, generate_png_qr
 from string_audit.qr.parse import parse_dfp_uri
+from dennis.core.invert import cmd_invert
 
+def timestamp():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
 
 def banner():
     return "Dennis the Forge — deterministic codemods"
@@ -69,29 +80,19 @@ def index_changes(plan, semantic=True):
 
     return result
 
-def add_format_argument(cmd):
-    """
-    Attach a standard output format argument to a CLI command.
-
-    This keeps format handling consistent across commands.
-    """
-
-    cmd.add_argument(
-        "-f", "--format",
-        default="text",
-        choices=OUTPUT_FORMATS,
-        help="Output format (default: text)"
+def add_format_argument(parser):
+    parser.add_argument(
+        "--format",
+        choices=["csv", "html", "xml", "txt"],
+        default="csv",
+        help="Dictionary format"
     )
 
-def add_remote_argument(cmd):
-    """
-    Attach a standard remote registry argument to a CLI command.
-    """
-
-    cmd.add_argument(
+def add_remote_argument(parser):
+    parser.add_argument(
         "--remote",
-        required=True,
-        help="Registry URL (example: http://dennis.local)"
+        default="http://127.0.0.1:8000",
+        help="Remote registry URL"
     )
 
 # ============================================================
@@ -99,27 +100,145 @@ def add_remote_argument(cmd):
 # ============================================================
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="dennis", description=banner())
-    sub = parser.add_subparsers(dest="command", required=True)
+    parser = argparse.ArgumentParser(
+        prog="dennis",
+        description="Dennis Forge — deterministic codemod engine and artifact system.",
+        epilog="Forged slowly. Built for trust.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        "-v", "--version",
+        action="store_true",
+        help="Show Dennis version"
+    )
+    parser.epilog = """
+        Examples:
 
-    # PLAN
-    plan = sub.add_parser("plan")
-    plan.add_argument("root")
-    plan.add_argument("--dict", required=True)
-    plan.add_argument("--out")
+        dennis plan . --dict dictionary.json
+        dennis dex pack plan.json artifact.dex
+        dennis dex sign artifact.dex --key dev.key
+        dennis inspect artifact.dex
+        dennis encrypt artifact.dex
 
-    # EXPORT
-    export = sub.add_parser("export")
-    export.add_argument("plan")
-    export.add_argument("--csv")
-    export.add_argument("--js")
-    export.add_argument("--html")
-    export.add_argument("--xml")
+        Forged slowly. Built for trust.
+    """
+
+    parser.usage = """
+        dennis [command] [options]
+
+        Core workflow:
+        plan       generate transformation plan
+        pack       create DEX artifact
+        sign       sign artifact
+        inspect    inspect artifact metadata
+        verify     verify signatures
+
+        Security:
+        encrypt    convert DEX → XDEX
+        decrypt    convert XDEX → DEX
+
+        Execution:
+        rehydrate  restore project context from artifact
+        apply      execute transformation plan
+    """
+
+    sub = parser.add_subparsers(dest="command")
+
+    # PLAN & EXPORT
+    plan_cmd = sub.add_parser("plan", help="Plan operations")
+
+    plan_sub = plan_cmd.add_subparsers(dest="plan_command")
+    plan_cmd.description = "Plan operations:\n  Generate transformation plan or\n  export: export plan to other formats"
+    plan_sub.required = False
+
+
+    # --------------------------------------------------------
+    # PLAN RUN (default)
+    # --------------------------------------------------------
+
+    plan_run = plan_sub.add_parser(
+        "run",
+        help="Generate transformation plan"
+    )
+
+    plan_run.add_argument(
+        "root",
+        help="Project root directory"
+    )
+
+    plan_run.add_argument(
+        "--dict",
+        required=True,
+        help="Dictionary JSON file"
+    )
+
+    plan_run.add_argument(
+        "--out",
+        help="Output plan filename"
+    )
+
+    plan_run.add_argument(
+        "--add-helper",
+        action="append",
+        help="Helper file to insert"
+    )
+
+    plan_run.add_argument(
+        "--target-file",
+        action="append",
+        help="Target file for helper"
+    )
+
+    plan_run.add_argument(
+        "--line",
+        action="append",
+        type=int,
+        help="Insertion line for helper"
+    )
+
+
+    # --------------------------------------------------------
+    # PLAN EXPORT
+    # --------------------------------------------------------
+
+    plan_export = plan_sub.add_parser(
+        "export",
+        help="Export plan to other formats"
+    )
+
+    plan_export.add_argument(
+        "plan",
+        help="Plan JSON file"
+    )
+
+    plan_export.add_argument(
+        "--format",
+        choices=["csv", "html", "xml", "txt"],
+        default="csv",
+        help="Export format"
+    )
+
+    plan_export.add_argument(
+        "--file",
+        help="Output filename"
+    )
 
     # REHYDRATE
-    rehydrate = sub.add_parser("rehydrate")
-    rehydrate.add_argument("csv")
-    rehydrate.add_argument("--out", required=True)
+    rehydrate = sub.add_parser(
+    "rehydrate",
+        help="Restore project context from DEX artifact"
+    )
+
+    rehydrate.add_argument(
+        "artifact",
+        help="Path to <artifact.dex> to rehydrate from"
+    )
+
+    rehydrate.add_argument(
+        "--out",
+        default=".",
+        help="Output directory (default: current directory)"
+    )
 
     # VALIDATE
     validate = sub.add_parser("validate")
@@ -190,7 +309,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # INSPECT
     inspect_cmd = sub.add_parser("inspect", help="Inspect artifact metadata")
-    inspect_cmd.add_argument("hash", help="Full artifact hash")
+    inspect_cmd.add_argument("target", help="Artifact hash or .dex file")
     
     add_remote_argument(inspect_cmd)
     add_format_argument(inspect_cmd)
@@ -214,6 +333,16 @@ def build_parser() -> argparse.ArgumentParser:
     diff_cmd.add_argument("--ignore-semantics", action="store_true")
     add_format_argument(diff_cmd)
 
+    # PACK
+    pack_cmd = sub.add_parser("pack", help="Create deterministic DEX artifact")
+    pack_cmd.add_argument("payload", help="Path to plan.json payload")
+    pack_cmd.add_argument("out", help="Output artifact.dex")
+    pack_cmd.add_argument(
+        "--type",
+        default="dennis.plan.v1",
+        help="Payload type (default: dennis.plan.v1)"
+    )
+
     # UNPACK
     unpack_cmd = sub.add_parser("unpack", help="Extract DEX artifact")
     unpack_cmd.add_argument("artifact")
@@ -236,6 +365,63 @@ def build_parser() -> argparse.ArgumentParser:
     reg_sync = registry_sub.add_parser("sync", help="Sync remote registries")
     add_remote_argument(reg_sync)
 
+    # apply
+    apply_cmd = sub.add_parser(
+        "apply",
+        help="Execute transformation plan"
+    )
+
+    # Export
+    dict_cmd = sub.add_parser("dict", help="Dictionary utilities")
+
+    dict_sub = dict_cmd.add_subparsers(dest="dict_command")
+
+    export_cmd = dict_sub.add_parser("export", help="Export dictionary")
+
+    export_cmd.add_argument(
+        "dictionary",
+        help="Source dictionary.json"
+    )
+
+    export_cmd.add_argument(
+        "--file",
+        help="Output filename"
+    )
+
+    add_format_argument(export_cmd)
+
+    import_cmd = dict_sub.add_parser("import", help="Import dictionary")
+    import_cmd.add_argument("input")
+    import_cmd.add_argument("dictionary")
+    add_format_argument(import_cmd)
+
+    apply_cmd.add_argument("plan", help="Plan JSON file")
+
+    keygen_cmd = sub.add_parser(
+        "keygen",
+        help="Generate a Dennis signing keypair"
+    )
+
+    # --------------------------------------------------------
+    # INVERT
+    # --------------------------------------------------------
+
+    invert_cmd = sub.add_parser(
+        "invert",
+        help="Generate inverse plan (undo plan)"
+    )
+
+    invert_cmd.add_argument(
+        "plan",
+        help="Plan JSON file"
+    )
+
+    invert_cmd.add_argument(
+        "--stdout",
+        action="store_true",
+        help="Write inverse plan to stdout"
+    )
+
     return parser
 
 # ============================================================
@@ -245,16 +431,60 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    
+    if args.command == "plan" and args.plan_command is None:
+        args.plan_command = "run"
 
-    value = args.hash.strip()
+    # --------------------------------------------------------
+    # Validate helper arguments
+    # --------------------------------------------------------
 
-    # Extract hash from URL
-    m = re.search(r"/artifact/([0-9a-f]{64})", value)
+    if args.command == "plan" and args.plan_command == "run":
 
-    if m:
-        artifact_hash = m.group(1)
-    else:
-        artifact_hash = value
+        helpers = args.add_helper or []
+        targets = args.target_file or []
+        lines = args.line or []
+
+        if helpers:
+
+            if not targets:
+                raise SystemExit(
+                    "Error: --target-file required when using --add-helper"
+                )
+
+            if len(targets) != len(helpers):
+                raise SystemExit(
+                    "Error: number of --target-file must match --add-helper"
+                )
+
+            if lines and len(lines) != len(helpers):
+                raise SystemExit(
+                    "Error: number of --line must match --add-helper"
+                )
+
+            # default line numbers
+            if not lines:
+                lines = [1] * len(helpers)
+
+            args.helper_specs = [
+                {
+                    "helper": h,
+                    "target": t,
+                    "line": l
+                }
+                for h, t, l in zip(helpers, targets, lines)
+            ]
+    
+    if args.version:
+        from importlib.metadata import version
+
+        print(f"Dennis Forge {version('dennis')}")
+        print("Forged slowly. Built for trust.")
+        return
+    
+    if args.command is None:
+        parser.print_help()
+        return
 
     # --------------------------------------------------------
     # PLAN
@@ -267,7 +497,16 @@ def main() -> None:
         dict_path = Path(args.dict)
         output = Path(args.out) if args.out else Path(default_plan_filename())
 
-        plan = generate_plan(root, dict_path)
+        helpers = []
+
+        for spec in getattr(args, "helper_specs", []):
+            helper = load_helper(Path(spec["helper"]))
+            helper["file"] = spec["target"]
+            helper["line"] = spec["line"]
+            helpers.append(helper)
+
+        plan = generate_plan(root, dict_path, helpers=helpers)
+        
         write_plan(plan, output)
         print(f"Plan written → {output}")
         print(f"Plan hash: {canonical_hash(plan)}")
@@ -344,29 +583,46 @@ def main() -> None:
     # --------------------------------------------------------
     # EXPORT
     # --------------------------------------------------------
-    elif args.command == "export":
-        from dennis.core.csvio import write_csv_from_plan
-        from dennis.core.export_js import export_js
+    elif args.command == "plan" and args.plan_command == "export":
+
         from pathlib import Path
         import json
+        from datetime import datetime, timezone
+
+        from dennis.core.csvio import write_csv_from_plan
+        from dennis.core.export_html import export_html
+        from dennis.core.export_xml import export_xml
+        from dennis.core.export_txt import export_txt
 
         plan = json.loads(Path(args.plan).read_text())
 
-        if args.csv:
-            write_csv_from_plan(plan, args.csv)
-            print(f"CSV → {args.csv}")
+        def ts():
+            return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
 
-        if args.js:
-            export_js(plan, open(args.js, "w"))
-            print(f"JS → {args.js}")
+        fmt = args.format
 
-        if args.html:
-            export_html(plan, open(args.html, "w"))
-            print(f"HTML → {args.html}")
+        if args.file:
+            out_path = Path(args.file)
+        else:
+            out_path = Path(f"plan-{ts()}.{fmt}")
 
-        if args.xml:
-            export_xml(plan, open(args.xml, "w"))
-            print(f"XML → {args.xml}")
+        if fmt == "csv":
+            write_csv_from_plan(plan, out_path)
+
+        elif fmt == "html":
+            export_html(plan, open(out_path, "w"))
+
+        elif fmt == "xml":
+            export_xml(plan, open(out_path, "w"))
+
+        elif fmt == "txt":
+            export_txt(plan, open(out_path, "w"))
+
+        else:
+            raise SystemExit(f"Unsupported format: {fmt}")
+
+        print(f"Plan exported → {out_path}")
+
 
     # --------------------------------------------------------
     # PUSH
@@ -636,18 +892,141 @@ def main() -> None:
     # INSPECT
     # --------------------------------------------------------
     elif args.command == "inspect":
+
         import urllib.request
         import json
-        
-        artifact_hash = args.hash.strip()
+        import gzip
+        import tarfile
+        import io
+        from pathlib import Path
 
-        if len(artifact_hash) != 64:
-            raise SystemExit("Error: full artifact hash required (64 hex chars)")
+        target = args.target.strip()
 
-        url = args.remote.rstrip("/") + f"/api/artifacts/{artifact_hash}/metadata"
+        # --------------------------------------------------------
+        # LOCAL FILE INSPECTION
+        # --------------------------------------------------------
 
-        with urllib.request.urlopen(url) as resp:
-            data = json.loads(resp.read())
+        if Path(target).exists():
+
+            path = Path(target)
+
+            if not path.is_file():
+                raise SystemExit(f"Artifact file not found: {path}")
+
+            # --------------------------------------------------------
+            # Detect encrypted artifact
+            # --------------------------------------------------------
+
+            with open(path, "rb") as f:
+                magic = f.read(5)
+
+            if magic == b"XDEX1":
+
+                dex_name = path.with_suffix(".dex").name
+
+                print("\nArtifact")
+                print("--------")
+                print(f"File:        {path.name}")
+                print("Type:        XDEX (encrypted Dennis artifact)")
+                print()
+
+                print("Status")
+                print("------")
+                print("Content is encrypted.")
+                print()
+
+                print("To inspect contents:")
+                print(f"  dennis decrypt {path.name}")
+                print("Then inspect the decrypted .dex file with:")
+                print(f"  dennis inspect {dex_name}")
+                print()
+
+                return
+
+            # --------------------------------------------------------
+            # Inspect normal DEX
+            # --------------------------------------------------------
+
+            try:
+
+                with gzip.open(path, "rb") as gz:
+                    tar_bytes = gz.read()
+
+                tar_buffer = io.BytesIO(tar_bytes)
+
+                files = {}
+
+                with tarfile.open(fileobj=tar_buffer, mode="r") as tar:
+                    for m in tar.getmembers():
+                        f = tar.extractfile(m)
+                        if f:
+                            files[m.name] = f.read()
+
+                manifest = json.loads(files["manifest.json"])
+
+                plan_bytes = files.get("payload/plan.json")
+                patch_info = {}
+
+                if plan_bytes:
+                    try:
+                        plan = json.loads(plan_bytes)
+                        patches = plan.get("patches", {})
+                        patch_info = {
+                            "helpers": len(patches.get("helpers", [])),
+                            "remove_helpers": len(patches.get("remove_helpers", []))
+                        }
+                    except Exception:
+                        patch_info = {}
+
+                data = {
+                    "artifact_hash": "local-file",
+                    "meta": manifest.get("meta", {}),
+                    "payload": {
+                        "type": manifest.get("payload", {}).get("type"),
+                        "hash": manifest.get("payload", {}).get("hash", {}).get("value"),
+                        "size_bytes": len(files.get("payload/plan.json", b"")),
+                    },
+                    "signatures": manifest.get("signatures", []),
+                }
+
+            except Exception:
+                raise SystemExit("Not a Dennis artifact or unsupported file")
+
+        # --------------------------------------------------------
+        # REGISTRY INSPECTION
+        # --------------------------------------------------------
+
+        else:
+
+            artifact_hash = target
+
+            if len(artifact_hash) != 64:
+                raise SystemExit("Error: full artifact hash required (64 hex chars)")
+
+            url = args.remote.rstrip("/") + f"/api/artifacts/{artifact_hash}/metadata"
+
+            import urllib.error
+
+            try:
+                with urllib.request.urlopen(url) as resp:
+                    data = json.loads(resp.read())
+
+            except urllib.error.URLError:
+
+                print("\n[Dennis] Unable to reach registry.")
+                print(f"Attempted URL: {url}")
+
+                print("\n[Dennis] If you want to inspect a local artifact, use:")
+                print("  dennis inspect <artifact.dex>")
+
+                print("\n[Dennis] To inspect a registry artifact, specify a registry:")
+                print("  dennis inspect <hash> --remote http://localhost:8000")
+
+                raise SystemExit(1)
+
+        # --------------------------------------------------------
+        # OUTPUT
+        # --------------------------------------------------------
 
         if args.format == "json":
             print(json.dumps(data, indent=2))
@@ -655,7 +1034,7 @@ def main() -> None:
 
         print("\nArtifact")
         print("--------")
-        print(f"Hash:        {data['artifact_hash']}")
+        print(f"Hash:        {data.get('artifact_hash')}")
 
         meta = data.get("meta", {})
         print("\nMeta")
@@ -687,10 +1066,6 @@ def main() -> None:
                     f"{s.get('created_at')}"
                 )
 
-        # --------------------------------------------------------
-        # Registry metadata (if available)
-        # --------------------------------------------------------
-
         registry = data.get("registry")
 
         if registry:
@@ -705,6 +1080,14 @@ def main() -> None:
             print(f"Origin:     {origin}")
             print(f"Chain:      {chain}")
             print(f"Stored:     {stored}")
+
+        if patch_info:
+            print("\nPatches")
+            print("-------")
+            if patch_info.get("helpers"):
+                print(f"Helpers:     {patch_info['helpers']}")
+            if patch_info.get("remove_helpers"):
+                print(f"Removals:    {patch_info['remove_helpers']}")
 
     # --------------------------------------------------------
     # SIGNATURES
@@ -817,6 +1200,38 @@ def main() -> None:
         print(json.dumps(result, indent=2))
 
     # --------------------------------------------------------
+    # PACK
+    # --------------------------------------------------------
+    elif args.command == "pack":
+
+        from pathlib import Path
+        import json
+        from dennis.dex.pack import pack_dex
+        #from string_audit.forge.hash.canonical import canonical_hash
+        from dennis.core.hash import canonical_hash
+
+        payload_path = Path(args.payload)
+        output_path = Path(args.out)
+
+        if not payload_path.exists():
+            raise SystemExit(f"Payload file not found: {payload_path}")
+
+        # load payload to compute hash
+        payload = json.loads(payload_path.read_text())
+        payload_hash = canonical_hash(payload)
+
+        print("Forging artifact...")
+        print(f"Payload hash: {payload_hash}")
+
+        pack_dex(
+            payload_path,
+            output_path,
+            payload_type=args.type
+        )
+
+        print(f"Artifact written → {output_path}")
+
+    # --------------------------------------------------------
     # UNPACK
     # --------------------------------------------------------
     elif args.command == "unpack":
@@ -841,3 +1256,122 @@ def main() -> None:
             tar.extractall(out_dir)
 
         print(f"Artifact extracted → {out_dir}")
+
+    # --------------------------------------------------------
+    # KEYGEN COMMAND
+    # --------------------------------------------------------
+    elif args.command == "keygen":
+
+        from dennis.dex.keygen import generate_keypair
+
+        generate_keypair()
+
+    # --------------------------------------------------------
+    # REHYDRATE
+    # --------------------------------------------------------
+    elif args.command == "rehydrate":
+
+        from pathlib import Path
+        import json
+        import re
+        from dennis.dex.importer import import_dex
+
+        artifact = Path(args.artifact)
+        out_dir = Path(args.out)
+
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        manifest, payload_bytes = import_dex(artifact)
+        plan = json.loads(payload_bytes)
+
+        # --------------------------------------------------
+        # Write plan
+        # --------------------------------------------------
+
+        plan_path = out_dir / "rehydrated-plan.json"
+
+        plan_path.write_text(
+            json.dumps(plan, indent=2, ensure_ascii=False) + "\n"
+        )
+
+        print(f"Plan restored → {plan_path}")
+
+        # --------------------------------------------------
+        # Reconstruct dictionary
+        # --------------------------------------------------
+
+        dictionary = {}
+
+        for change in plan.get("changes", []):
+
+            token = change.get("token")
+            original = change.get("original")
+
+            if not token or not original:
+                continue
+
+            match = re.search(r'["\'](.+?)["\']', original)
+
+            if match:
+                dictionary[token] = match.group(1)
+
+        if dictionary:
+
+            dict_path = out_dir / "dictionary.json"
+
+            dict_path.write_text(
+                json.dumps(dictionary, indent=2, ensure_ascii=False) + "\n"
+            )
+
+            print(f"Dictionary restored → {dict_path}")
+
+        print("\nNext step:")
+        print(f"  dennis apply {plan_path.name}")
+
+    elif args.command == "apply":
+
+        from pathlib import Path
+        from string_audit.i18n.apply import apply_plan
+
+        plan_path = Path(args.plan)
+
+        changes = apply_plan(plan_path)
+
+
+    elif args.command == "dict":
+
+        from pathlib import Path
+        from string_audit.i18n.csvio import (
+            export_dictionary_to_csv,
+            import_dictionary_from_csv
+        )
+
+        fmt = args.format
+
+        if args.dict_command == "export":
+
+            if fmt == "csv":
+                export_dictionary_to_csv(
+                    Path(args.dictionary),
+                    Path(args.output)
+                )
+            else:
+                raise SystemExit(f"Format not implemented yet: {fmt}")
+
+        elif args.dict_command == "import":
+
+            if fmt == "csv":
+                import_dictionary_from_csv(
+                    Path(args.input),
+                    Path(args.dictionary)
+                )
+            else:
+                raise SystemExit(f"Format not implemented yet: {fmt}")
+            
+    # --------------------------------------------------------
+    # INVERT
+    # --------------------------------------------------------
+
+    elif args.command == "invert":
+        cmd_invert(args.plan, stdout=args.stdout)
+        return

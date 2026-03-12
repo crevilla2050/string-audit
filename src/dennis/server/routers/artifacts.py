@@ -1,3 +1,5 @@
+print("ARTIFACTS MODULE LOADED FROM:", __file__)
+
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pathlib import Path
 import tempfile
@@ -13,6 +15,7 @@ from dennis.server.db import get_connection
 router = APIRouter()
 
 
+
 @router.post("/api/artifacts")
 async def upload_artifact(file: UploadFile, origin: str | None = None):
 
@@ -20,6 +23,7 @@ async def upload_artifact(file: UploadFile, origin: str | None = None):
         raise HTTPException(status_code=400, detail="Only .dex artifacts allowed")
 
     try:
+        print("----- DEBUG DEX INGEST V.2 -----")
         # ----------------------------------------
         # Normalize origin registry
         # ----------------------------------------
@@ -34,24 +38,45 @@ async def upload_artifact(file: UploadFile, origin: str | None = None):
             shutil.copyfileobj(file.file, tmp)
             tmp_path = Path(tmp.name)
 
-        dex_bytes = tmp_path.read_bytes()
-
-        # ----------------------------------------
-        # Compute artifact hash
-        # ----------------------------------------
-
-        artifact_hash = hashlib.sha256(dex_bytes).hexdigest()
 
         # ----------------------------------------
         # Validate artifact
         # ----------------------------------------
-
+        
         manifest, payload_bytes = import_dex(tmp_path)
 
-        payload = manifest.get("payload", {})
+        print("----- DEBUG DEX INGEST -----")
+        print("Manifest payload:", manifest["payload"])
+        print("Payload bytes length:", len(payload_bytes))
+        print("Payload bytes preview:", payload_bytes[:200])
+        
+        payload = manifest["payload"]
 
-        payload_hash = payload.get("hash", {}).get("value")
-        payload_type = payload.get("type")
+        artifact_hash = payload["hash"]["value"]
+        payload_hash = artifact_hash
+        payload_type = payload["type"]
+
+        if not manifest:
+            raise Exception("manifest missing payload hash")
+        
+        # compute canonical payload hash
+        import json
+        from dennis.core.hash import canonical_hash
+        
+        payload_obj = json.loads(payload_bytes)
+        
+        computed_hash = canonical_hash(payload_obj)
+        # manifest_hash = manifest["payload"]["hash"]
+
+        print("Computed hash:", computed_hash)
+        print("Manifest hash:", manifest_hash)
+        print("-----------------------------")
+        
+        if computed_hash != manifest_hash:
+            raise Exception("payload hash mismatch")
+        
+        artifact_hash = computed_hash
+        payload_hash = computed_hash
 
         # -------------------------------------------------
         # Extract lineage parent

@@ -79,7 +79,15 @@ def import_dex(path):
         for m in members:
             _safe_member_name(m.name)
 
-        payload_name = _validate_structure(members)
+        payload_name = None
+
+        for m in members:
+            if m.name.startswith("payload/") and m.isfile():
+                payload_name = m.name
+                break
+
+        if payload_name is None:
+            raise ValueError("payload file missing")
 
         manifest_file = tar.extractfile("manifest.json")
 
@@ -103,6 +111,10 @@ def import_dex(path):
     payload_hash_expected = manifest["payload"]["hash"]["value"]
 
     payload_hash_actual = canonical_hash(json.loads(payload_bytes))
+
+    print("EXPECTED:", payload_hash_expected)
+    print("ACTUAL:", payload_hash_actual)
+    print("PAYLOAD:", payload_bytes[:200])
 
     if payload_hash_actual != payload_hash_expected:
         raise ValueError("Payload hash mismatch")

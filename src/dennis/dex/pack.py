@@ -49,7 +49,14 @@ def pack_dex(payload_path, output_path, payload_type="dennis.plan.v1"):
     payload_path = Path(payload_path)
     output_path = Path(output_path)
 
-    payload_bytes = payload_path.read_bytes()
+    payload_obj = json.loads(payload_path.read_text())
+
+    payload_bytes = json.dumps(
+        payload_obj,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False
+    ).encode("utf-8")
 
     # compute payload hash
     payload_hash = canonical_hash(json.loads(payload_bytes))
@@ -61,7 +68,8 @@ def pack_dex(payload_path, output_path, payload_type="dennis.plan.v1"):
 
     manifest_bytes = json.dumps(
         manifest,
-        indent=2,
+        sort_keys=True,
+        separators=(",", ":"),
         ensure_ascii=False
     ).encode("utf-8")
 
@@ -74,7 +82,7 @@ def pack_dex(payload_path, output_path, payload_type="dennis.plan.v1"):
     with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
 
         # payload
-        payload_name = f"payload/{payload_path.name}"
+        payload_name = "payload/plan.json"
         ti = _tarinfo_for_bytes(payload_name, payload_bytes)
         tar.addfile(ti, io.BytesIO(payload_bytes))
 
