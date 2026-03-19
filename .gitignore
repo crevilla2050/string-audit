@@ -32,3 +32,8 @@ Thumbs.db
 *.dex
 *.tar.gz
 *.egg
+*.sql
+*.log
+*.bak
+*.swp
+*.json  

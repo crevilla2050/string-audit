@@ -111,157 +111,32 @@ For development:
 
 ``` bash
 pip install -e .
-```
 
-This exposes the `dennis` CLI.
+This exposes the dennis CLI.
 
-------------------------------------------------------------------------
+CLI Overview
+Run:
+dennis --help
 
-## Core Workflow
+Core Commands
 
-### 1. Generate a transformation plan
+dennis plan Generate deterministic transformation plan
+dennis validate Validate a plan against schema
+dennis export Export projections (CSV / JS)
+dennis rehydrate CSV → JSON canonical
+dennis apply Apply transformations
+dennis undo Revert transformations
 
-This applies for the example project at: https://github.com/crevilla2050/hello-dennis, just
-clone project and build from scratch a plan:
-``` bash
+Legacy Commands (compatibility layer)
 
-dennis plan run . --dict messages_en.json   --add-helper helper.py   --target-file hello.py   --line 12
+Dennis evolved from earlier tooling and maintains compatibility:
+- scan
+- generate-i18n
+- apply-i18n
 
-```
+These remain available during the transition phase.
 
-This creates a deterministic transformation plan that you can open and review in any text editor.
-
-No code is modified yet.
-
-------------------------------------------------------------------------
-
-### 2. Forge an artifact
-
-``` bash
-dennis pack plan_generated.json artifact.dex
-```
-
-Artifacts are portable transformation capsules.
-
-------------------------------------------------------------------------
-
-### 3. Sign the artifact (optional)
-In order to sign your artifact, create a public and private keys, and apply signature:
-
-``` bash
-dennis keygen
-...
-...
-dennis dex sign artifact.dex --key dev.key
-```
-
-Artifacts can be cryptographically verified.
-
-------------------------------------------------------------------------
-
-### 4. Inspect the artifact
-You can rename the .dex file to tar.gz and examine it's contents. There is nothing hidden, no tricks.
-
-``` bash
-dennis inspect artifact.dex
-```
-
-Artifacts are transparent and inspectable.
-
-------------------------------------------------------------------------
-
-### 5. Rehydrate the plan
-
-``` bash
-dennis rehydrate artifact.dex
-```
-
-This restores the transformation plan locally.
-
-------------------------------------------------------------------------
-
-### 6. Apply the transformation
-
-``` bash
-dennis apply rehydrated-plan.json
-```
-
-Dennis executes the deterministic plan.
-
-------------------------------------------------------------------------
-
-### 7. Undo if necessary
-
-Dennis transformations are reversible.
-
-If the result is not what you expected, you can always return the
-repository to its original state without resetting your Git branch or
-pulling the project again.
-
-``` bash
-dennis invert rehydrated-plan.json
-dennis apply rehydrated-plan.undo.json
-```
-
-Dennis guarantees the invariant:
-
-    apply(plan)
-    apply(invert(plan))
-    → filesystem returns to its original state
-
-------------------------------------------------------------------------
-
-## Human Review Workflows
-
-Dennis plans are designed to be **human‑reviewable**.
-
-Plans can be exported to CSV and reviewed in spreadsheets or
-collaborative tools.
-
-``` bash
-dennis plan export plan.json --format csv --file plan.csv
-```
-
-This allows teams to:
-
--   inspect planned changes\
--   annotate transformations\
--   collaborate outside the CLI
-
-After review, the plan can be rehydrated back into canonical JSON.
-
-``` bash
-dennis rehydrate plan.csv --out reviewed-plan.json
-```
-
-Dennis ensures the resulting plan remains deterministic and
-schema‑valid.
-
-------------------------------------------------------------------------
-
-## Artifact Model
-
-Dennis transformations are packaged as **DEX artifacts**.
-
-A DEX artifact contains:
-
-    manifest.json
-    payload/plan.json
-    signatures/
-
-Artifacts can be:
-
--   inspected\
--   verified\
--   distributed\
--   applied\
--   reversed
-
-Artifacts make transformations **portable and auditable**.
-
-------------------------------------------------------------------------
-
-## Design Principles
+Design Principles
 
 Dennis is intentionally:
 

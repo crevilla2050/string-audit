@@ -79,3 +79,27 @@ def iter_python_files(root: Path, git_aware: bool = True):
     for path in root.rglob("*.py"):
         if path.is_file():
             yield path
+
+def iter_files(root: Path, git_aware=True):
+    if git_aware:
+        import subprocess
+
+        try:
+            result = subprocess.run(
+                ["git", "ls-files"],
+                cwd=root,
+                capture_output=True,
+                text=True
+            )
+
+            for line in result.stdout.splitlines():
+                yield root / line
+
+            return
+        except Exception:
+            pass
+
+    # fallback: walk filesystem
+    for path in root.rglob("*"):
+        if path.is_file():
+            yield path

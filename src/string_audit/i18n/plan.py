@@ -7,6 +7,8 @@ from typing import Dict, List
 from .apply import load_dictionary, iter_python_files, replace_line
 from string_audit.detectors.hardcoded_strings import HardcodedStringDetector
 from string_audit.i18n.generator import build_dictionary, write_en_json
+from string_audit.scanner import scan_directory
+
 
 def load_helper(helper_path: Path) -> Dict:
     """
@@ -54,17 +56,13 @@ def generate_plan(
 
         print("[Dennis] Dictionary empty. Scanning project for strings...")
 
-        detector = HardcodedStringDetector()
-        discovered: List[str] = []
+        findings = scan_directory(root)
 
-        for py_file in iter_python_files(root):
-            lines = py_file.read_text(encoding="utf-8", errors="ignore").splitlines()
-
-            findings = detector.scan_file(py_file, lines)
-
-            for f in findings:
-                if f.text:
-                    discovered.append(f.text)
+        discovered = [
+            f["original"]
+            for f in findings
+            if f.get("original")
+        ]
 
         if discovered:
             mapping = build_dictionary(discovered)
@@ -77,7 +75,7 @@ def generate_plan(
     # Prepare replacement mapping (string → token)
     # --------------------------------------------------
 
-    reverse_mapping = mapping
+    reverse_mapping = {v: k for k, v in mapping.items()}
 
     changes: List[Dict] = []
 
@@ -85,52 +83,50 @@ def generate_plan(
     # Generate transformation plan
     # --------------------------------------------------
 
-    for py_file in iter_python_files(root):
-        file_hash = sha256_file(py_file)
+    for f in scan_directory(root):
 
-        lines = py_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+        file_path = Path(f["file"])
+        file_hash = sha256_file(file_path)
 
-        for idx, line in enumerate(lines, start=1):
+        file_path = Path(f["file"])
+        lines = file_path.read_text(encoding="utf-8", errors="ignore").splitlines()
 
-            new_line = line
-            token = None
+        original_line = lines[f["line"] - 1]
 
-            for text, key in reverse_mapping.items():
+        token = None
 
-                if text in line:
+        for text, key in reverse_mapping.items():
 
-                    # handle double quotes
-                    if f'"{text}"' in line:
-                        new_line = line.replace(
-                            f'"{text}"',
-                            f'messages["{key}"]'
-                        )
+            if text in original_line:
 
-                    # handle single quotes
-                    elif f"'{text}'" in line:
-                        new_line = line.replace(
-                            f"'{text}'",
-                            f'messages["{key}"]'
-                        )
+                if f'"{text}"' in original_line:
+                    new_line = original_line.replace(
+                        f'"{text}"',
+                        f'messages["{key}"]'
+                    )
 
-                    else:
-                        continue
+                elif f"'{text}'" in original_line:
+                    new_line = original_line.replace(
+                        f"'{text}'",
+                        f'messages["{key}"]'
+                    )
 
-                    token = key
-                    break
+                else:
+                    continue
 
-            if new_line != line:
+                token = key
 
-                changes.append(
-                    {
-                        "file": str(py_file),
-                        "line": idx,
-                        "file_hash": file_hash,
-                        "original": line,
-                        "replacement": new_line,
-                        "token": token,
-                    }
-                )
+                changes.append({
+                    "file": f["file"],
+                    "line": f["line"],
+                    "file_hash": file_hash,
+                    "original": original_line,
+                    "replacement": new_line,
+                    "token": token,
+                })
+
+                break
+
     patches = {}
 
     if helpers:

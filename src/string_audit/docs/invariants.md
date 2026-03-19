@@ -8,6 +8,15 @@
 
 These are non-negotiable properties of the engine.
 
+## Payload identity is canonical.
+
+Two DEX artifacts with identical payload hashes represent the same transformation regardless of metadata, signatures, or container structure.
+
+DEX container generation must be deterministic.
+
+Given identical payload and metadata inputs, the resulting DEX artifact
+must be byte-for-byte reproducible.
+
 ## Deterministic Output
 
 - Sorted file traversal
@@ -95,3 +104,93 @@ The `undo` command should:
 - Require explicit flags for mutation
 
 No undo operation should apply changes silently.
+
+## Signatures must not alter payload identity.
+
+Adding or removing signatures must never alter the payload hash or transformation semantics.
+
+## Plan Signatures
+
+Plans must be signable.
+
+Signatures must be verifiable.
+
+Signatures must not alter payload identity.
+
+## Plan Metadata
+
+Plans must support arbitrary metadata (for future extensions for different ingestors).
+
+Metadata must not alter payload identity.
+
+## Plan Container
+
+Plans must be container-agnostic.
+
+The same plan must work in:
+- Git repos
+- Filesystems
+- Archives
+- Databases
+
+## Plan Portability
+
+Plans must be portable across systems.
+
+No system-specific assumptions.
+
+## Plan Reproducibility
+
+Plans must be reproducible.
+
+The same plan must produce identical output on any system.
+
+## Plan Isolation
+
+Plan execution must be isolated.
+
+Plan execution must not rely on implicit external state.
+
+All inputs required for execution must be explicitly defined by the plan.
+
+## Plan Validation
+
+Plans must be self-validating.
+
+Dennis must validate plans before execution.
+
+## Plan Execution
+
+Plan execution must be atomic.
+
+Either:
+- All changes succeed
+- Or none do
+
+No partial execution.
+
+## Plan Execution Order
+
+Plan execution must be deterministic.
+
+Independent operations may execute in parallel, but the final result
+must be identical to deterministic sequential execution.
+
+## Plan Execution Parallelism
+
+Plan execution must support parallelism.
+
+Dennis must execute independent operations in parallel.
+
+## Plan Execution Retry
+
+Plan execution must support safe retry.
+
+If execution fails partway through, the plan must be able to run again
+without producing inconsistent state.
+
+## Plan Execution Rollback
+
+Plan execution must support rollback.
+
+If execution fails, the system must be able to roll back to a consistent state.

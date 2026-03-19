@@ -48,6 +48,7 @@ def prompt_password(confirm=False) -> bytes:
 # --------------------------------------------------------
 
 def encrypt_dex(dex_path, out_path=None):
+    import hashlib
 
     dex_path = Path(dex_path)
 
@@ -80,7 +81,13 @@ def encrypt_dex(dex_path, out_path=None):
 
     with open(out_path, "wb") as f:
 
+        # ----------------------------------------
+        # Header hash (mucho strong!)
+        # ----------------------------------------
+        header_hash = hashlib.sha256(MAGIC + salt).digest()
+
         f.write(MAGIC)
+        f.write(header_hash)
         f.write(salt)
         f.write(encrypted)
 
@@ -107,7 +114,18 @@ def decrypt_xdex(xdex_path, out_path=None):
         if magic != MAGIC:
             raise SystemExit("Invalid XDEX file")
 
+        header_hash = f.read(32)
         salt = f.read(SALT_SIZE)
+
+        # ----------------------------------------
+        # Validate header integrity
+        # ----------------------------------------
+        import hashlib
+
+        expected_hash = hashlib.sha256(MAGIC + salt).digest()
+
+        if header_hash != expected_hash:
+            raise SystemExit("Corrupted XDEX header")
 
         ciphertext = f.read()
 

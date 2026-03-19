@@ -223,6 +223,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output filename"
     )
 
+    # --------------------------------------------------------
+    # ENCRYPT
+    # --------------------------------------------------------
+
+    encrypt_cmd = sub.add_parser(
+        "encrypt",
+        help="Convert DEX → XDEX (encrypt artifact)"
+    )
+
+    encrypt_cmd.add_argument(
+        "artifact",
+        help="Path to .dex artifact"
+    )
+
+    encrypt_cmd.add_argument(
+        "--out",
+        help="Output .xdex file (optional)"
+    )
+
+
+    # --------------------------------------------------------
+    # DECRYPT
+    # --------------------------------------------------------
+
+    decrypt_cmd = sub.add_parser(
+        "decrypt",
+        help="Convert XDEX → DEX (decrypt artifact)"
+    )
+
+    decrypt_cmd.add_argument(
+        "artifact",
+        help="Path to .xdex artifact"
+    )
+
+    decrypt_cmd.add_argument(
+        "--out",
+        help="Output .dex file (optional)"
+    )
+
+
     # REHYDRATE
     rehydrate = sub.add_parser(
     "rehydrate",
@@ -241,8 +281,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # VALIDATE
-    validate = sub.add_parser("validate")
-    validate.add_argument("plan")
+    validate = sub.add_parser("validate", help="Validate a DEX artifact")
+    validate.add_argument("path", help="Path to .dex file")
+    validate.add_argument(
+        "--signature-file",
+        action="append",
+        help="External public key file(s) to use for signature verification"
+    )
 
     # HASH
     hash_cmd = sub.add_parser("hash")
@@ -422,6 +467,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write inverse plan to stdout"
     )
 
+    add_plugin = sub.add_parser("install-plugin", help="Install a plugin for Dennis Forge")
+    add_plugin.add_argument("file")
+
     return parser
 
 # ============================================================
@@ -431,6 +479,46 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    # --------------------------------------------------------
+    # VALIDATE
+    # --------------------------------------------------------
+    if args.command == "validate":
+
+        from dennis.dex.validate import validate_dex_file
+
+        results = validate_dex_file(args.path, signature_files=args.signature_file)
+
+        print("\n[ Dennis Validate ]\n")
+
+        # Schema
+        if results["schema"]:
+            print("[OK] Schema valid")
+        else:
+            print("[FAIL] Schema invalid")
+
+        # Signatures
+        sig_ok = sum(1 for _, ok in results["signatures"] if ok)
+        sig_total = len(results["signatures"])
+
+        print(f"[OK] Signatures valid ({sig_ok}/{sig_total})")
+
+        # Provenance
+        if results["provenance"]:
+            print(f"[OK] Provenance chain valid ({results['provenance_steps']} steps)")
+        else:
+            print("[FAIL] Provenance chain invalid")
+
+        # Identity
+        print("\nPayload Hash:", results.get("payload_hash"))
+        print("Trust State:", results.get("provenance_hash"))
+        print("Container:", results.get("container", "unknown"))
+
+        if results.get("container") == "xdex":
+            print("Header:", "valid" if results.get("header_valid") else "invalid") 
+        print()
+
+        return
     
     if args.command == "plan" and args.plan_command is None:
         args.plan_command = "run"
@@ -512,6 +600,29 @@ def main() -> None:
         print(f"Plan hash: {canonical_hash(plan)}")
 
     # --------------------------------------------------------
+    # ENCRYPT
+    # --------------------------------------------------------
+    elif args.command == "encrypt":
+
+        from dennis.dex.crypto import encrypt_dex
+
+        out = encrypt_dex(args.artifact, args.out)
+
+        print(f"Encrypted → {out}")
+
+
+    # --------------------------------------------------------
+    # DECRYPT
+    # --------------------------------------------------------
+    elif args.command == "decrypt":
+
+        from dennis.dex.crypto import decrypt_xdex
+
+        out = decrypt_xdex(args.artifact, args.out)
+
+        print(f"Decrypted → {out}")
+
+    # --------------------------------------------------------
     # REGISTRY COMMANDS
     # --------------------------------------------------------
     elif args.command == "registry":
@@ -567,6 +678,41 @@ def main() -> None:
 
             print("Federation sync started")
             print(data)
+
+    # --------------------------------------------------------
+    # VALIDATE
+    # --------------------------------------------------------
+    elif args.command == "validate":
+
+        from dennis.dex.validate import validate_dex_file
+
+        results = validate_dex_file(args.path)
+
+        print("\n[ Dennis Validate ]\n")
+
+        # Schema
+        if results["schema"]:
+            print("[OK] Schema valid")
+        else:
+            print("[FAIL] Schema invalid")
+
+        # Signatures
+        sig_ok = sum(1 for _, ok in results["signatures"] if ok)
+        sig_total = len(results["signatures"])
+
+        print(f"[OK] Signatures valid ({sig_ok}/{sig_total})")
+
+        # Provenance
+        if results["provenance"]:
+            print(f"[OK] Provenance chain valid ({results['provenance_steps']} steps)")
+        else:
+            print("[FAIL] Provenance chain invalid")
+
+        # Identity
+        print("\nPayload Hash:", results.get("payload_hash"))
+        print("Trust State:", results.get("provenance_hash"))
+
+        print()
 
     # --------------------------------------------------------
     # HASH
@@ -917,31 +1063,22 @@ def main() -> None:
             # Detect encrypted artifact
             # --------------------------------------------------------
 
+            import hashlib
+
             with open(path, "rb") as f:
                 magic = f.read(5)
 
-            if magic == b"XDEX1":
+                if magic == b"XDEX1":
 
-                dex_name = path.with_suffix(".dex").name
+                    header_hash = f.read(32)
+                    salt = f.read(16)
 
-                print("\nArtifact")
-                print("--------")
-                print(f"File:        {path.name}")
-                print("Type:        XDEX (encrypted Dennis artifact)")
-                print()
+                    expected_hash = hashlib.sha256(magic + salt).digest()
 
-                print("Status")
-                print("------")
-                print("Content is encrypted.")
-                print()
-
-                print("To inspect contents:")
-                print(f"  dennis decrypt {path.name}")
-                print("Then inspect the decrypted .dex file with:")
-                print(f"  dennis inspect {dex_name}")
-                print()
-
-                return
+                    if header_hash != expected_hash:
+                        print("\n[ Dennis ]")
+                        print("XDEX header is INVALID. The file may be corrupted or tampered with.")
+                        raise SystemExit(1)
 
             # --------------------------------------------------------
             # Inspect normal DEX
@@ -1375,3 +1512,23 @@ def main() -> None:
     elif args.command == "invert":
         cmd_invert(args.plan, stdout=args.stdout)
         return
+
+
+    elif args.command == "install-plugin":
+
+        from pathlib import Path
+        import shutil
+
+        src = Path(args.file)
+
+        if not src.exists():
+            raise SystemExit("Plugin file not found")
+
+        dst_dir = Path.home() / ".dennis/plugins"
+        dst_dir.mkdir(parents=True, exist_ok=True)
+
+        dst = dst_dir / src.name
+
+        shutil.copy(src, dst)
+
+        print(f"Plugin installed → {dst}")
