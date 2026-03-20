@@ -33,11 +33,7 @@ Thumbs.db
 *.tar.gz
 *.egg
 *.sql
-<<<<<<< HEAD
 *.log
 *.bak
 *.swp
 *.json  
-=======
-*.json
->>>>>>> 3a53156 (modified .gitignore)
