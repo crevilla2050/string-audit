@@ -447,6 +447,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="Generate a Dennis signing keypair"
     )
 
+    filter_cmd = sub.add_parser(
+        "filter",
+        help="Clean dictionary using semantic filters"
+    )
+
+    filter_cmd.add_argument("file")
+
+    filter_cmd.add_argument(
+        "--filters",
+        nargs="+",
+        default=["sql", "css", "url", "code", "dict"],
+        help="Filters to apply (default: sql css url)"
+    )
+
+    filter_cmd.add_argument(
+        "--out",
+        help="Optional output file (otherwise auto-named)"
+    )
+
     # --------------------------------------------------------
     # INVERT
     # --------------------------------------------------------
@@ -467,8 +486,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write inverse plan to stdout"
     )
 
-    add_plugin = sub.add_parser("install-plugin", help="Install a plugin for Dennis Forge")
+    add_plugin = sub.add_parser(
+        "install-plugin",
+        help="Install a plugin or dictionary for Dennis"
+    )
+
     add_plugin.add_argument("file")
+
+    add_plugin.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing file"
+    )
+
+    add_plugin.add_argument(
+        "--backup",
+        action="store_true",
+        help="Backup existing file before installing"
+    )
 
     return parser
 
@@ -1518,17 +1553,62 @@ def main() -> None:
 
         from pathlib import Path
         import shutil
+        from datetime import datetime
+        from string_audit.utils import (
+            ensure_dennis_dirs,
+            get_plugin_dir,
+            get_dict_dir,
+        )
 
         src = Path(args.file)
 
         if not src.exists():
-            raise SystemExit("Plugin file not found")
+            raise SystemExit(f"File not found: {src}")
 
-        dst_dir = Path.home() / ".dennis/plugins"
-        dst_dir.mkdir(parents=True, exist_ok=True)
+        ensure_dennis_dirs()
 
-        dst = dst_dir / src.name
+        # ----------------------------------------
+        # Decide destination
+        # ----------------------------------------
 
-        shutil.copy(src, dst)
+        if src.suffix == ".py":
+            dest_dir = get_plugin_dir()
 
-        print(f"Plugin installed → {dst}")
+        elif src.suffix == ".dict":
+            dest_dir = get_dict_dir()
+
+        else:
+            raise SystemExit(
+                f"Unsupported file type: {src.suffix} (only .py and .dict allowed)"
+            )
+
+        dest = dest_dir / src.name
+
+        # ----------------------------------------
+        # Handle existing file
+        # ----------------------------------------
+
+        if dest.exists():
+            from string_audit.utils import get_backup_dir
+            from datetime import datetime
+
+            backup_dir = get_backup_dir()
+            timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M")
+
+            kind = "plugin" if src.suffix == ".py" else "dict"
+
+            backup_name = f"{kind}__{dest.name}.backup_{timestamp}"
+            backup_path = backup_dir / backup_name
+
+            shutil.move(dest, backup_path)
+
+            print(f"[Dennis] Backup created: {backup_path}")
+
+        # ----------------------------------------
+        # Copy file
+        # ----------------------------------------
+
+        shutil.copy2(src, dest)
+
+        print(f"[Dennis] Installed: {src.name}")
+        print(f"[Dennis] Location: {dest}")

@@ -6,7 +6,6 @@ from ..models import Finding
 from string_audit.classifiers.sql import is_sql
 from string_audit.classifiers.url import is_url
 
-
 class HardcodedStringDetector:
     name = "hardcoded-string"
 
@@ -16,7 +15,7 @@ class HardcodedStringDetector:
         re.compile(r'logging\.(info|warning|error|debug)\((["\'])(.+?)\2\)'),
     ]
 
-    GENERIC_STRING = re.compile(r'(["\'])(.+?)\1')
+    GENERIC_STRING = re.compile(r'(["\'])(.*?)(?<!\\)\1')
 
     def classify_string(self,text: str) -> str:
 
@@ -86,7 +85,7 @@ class HardcodedStringDetector:
         kind = self.classify_string(text)
 
         if kind != "human":
-            return True
+            return False
 
         if len(text) < 3:
             return False
@@ -104,22 +103,7 @@ class HardcodedStringDetector:
     # --------------------------------------------------------
     # CSS DETECTION
     # --------------------------------------------------------
-    def looks_like_css(self, text: str) -> bool:
 
-        if not text:
-            return False
-
-        # col-md-6
-        if re.fullmatch(r"[a-z]+(-[a-z0-9]+)+", text):
-            return True
-
-        # multiple classes
-        if " " in text:
-            parts = text.split()
-            if all(re.fullmatch(r"[a-z]+(-[a-z0-9]+)*", p) for p in parts):
-                return True
-
-        return False
 
     # --------------------------------------------------------
     # GENERIC SKIP RULES (NON-HUMAN)
@@ -128,6 +112,11 @@ class HardcodedStringDetector:
     def should_skip(self, text: str) -> bool:
 
         if not text:
+            return True
+        
+        kind = self.classify_string(text)
+
+        if kind in {"url", "sql", "css", "identifier", "code"}:
             return True
 
         # --------------------------------------------------------
@@ -215,7 +204,7 @@ class HardcodedStringDetector:
         for idx, line in enumerate(lines, start=1):
             stripped = line.strip()
 
-            if stripped.startswith("#"):
+            if stripped.startswith(("#", "//", "/*", "*","'",)):
                 continue
 
             matched_specific = False
@@ -247,14 +236,35 @@ class HardcodedStringDetector:
             # ----------------------------------------
             # 2. Generic detection
             # ----------------------------------------
+            
+            from string_audit.utils import (
+                looks_like_binary,
+                looks_like_html,
+                looks_like_css,
+                contains_sql_token_like
+            )
+            from string_audit.filters.code_filter import looks_like_code as looks_like_code_filter
+
             for match in self.GENERIC_STRING.finditer(line):
+                
                 text = match.group(2).strip()
 
-                # 🔥 ORDER MATTERS
+                if looks_like_binary(text):
+                    continue
+                    
                 if self.should_skip(text):
                     continue
 
                 if not self.is_valid_string(text):
+                    continue
+
+                if looks_like_html(text):
+                    continue
+
+                if contains_sql_token_like(text):
+                    continue
+
+                if looks_like_code_filter(text):
                     continue
 
                 findings.append(
@@ -267,3 +277,4 @@ class HardcodedStringDetector:
                 )
 
         return findings
+    

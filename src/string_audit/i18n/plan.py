@@ -9,7 +9,6 @@ from string_audit.detectors.hardcoded_strings import HardcodedStringDetector
 from string_audit.i18n.generator import build_dictionary, write_en_json
 from string_audit.scanner import scan_directory
 
-
 def load_helper(helper_path: Path) -> Dict:
     """
     Load helper file and return helper patch structure.
@@ -59,17 +58,49 @@ def generate_plan(
         findings = scan_directory(root)
 
         discovered = [
-            f["original"]
+            f.text
             for f in findings
-            if f.get("original")
+            if getattr(f, "text", None)
         ]
 
         if discovered:
             mapping = build_dictionary(discovered)
+
+            # ----------------------------------------
+            # DEBUG (optional but useful)
+            # ----------------------------------------
+            print(f"[DEBUG] Raw dictionary entries: {len(mapping)}")
+
+            # ----------------------------------------
+            # WRITE RAW DICTIONARY
+            # ----------------------------------------
             write_en_json(mapping, dict_path)
 
             print(f"[Dennis] Dictionary generated → {dict_path}")
+
+            # ----------------------------------------
+            # CLEAN SECOND PASS
+            # ----------------------------------------
+            from string_audit.utils import (
+                apply_all_filters,
+                cleaned_filename    
+            )
+
+            cleaned = apply_all_filters(mapping)
+
+            print(f"[DEBUG] Cleaned dictionary entries: {len(cleaned)}")
+
+            clean_path = cleaned_filename(dict_path)
+
+            write_en_json(cleaned, clean_path)
+
+            print(f"[Dennis] Cleaned dictionary → {clean_path}")
             print("[Dennis] Continuing with plan generation...")
+
+            # ----------------------------------------
+            # IMPORTANT: Use CLEANED mapping going forward
+            # ----------------------------------------
+            mapping = cleaned
 
     # --------------------------------------------------
     # Prepare replacement mapping (string → token)
@@ -85,13 +116,12 @@ def generate_plan(
 
     for f in scan_directory(root):
 
-        file_path = Path(f["file"])
+        file_path = Path(f.file)
         file_hash = sha256_file(file_path)
-
-        file_path = Path(f["file"])
+        
         lines = file_path.read_text(encoding="utf-8", errors="ignore").splitlines()
 
-        original_line = lines[f["line"] - 1]
+        original_line = lines[f.line - 1]
 
         token = None
 
@@ -117,8 +147,8 @@ def generate_plan(
                 token = key
 
                 changes.append({
-                    "file": f["file"],
-                    "line": f["line"],
+                    "file": f.file,
+                    "line": f.line,
                     "file_hash": file_hash,
                     "original": original_line,
                     "replacement": new_line,
