@@ -1110,10 +1110,17 @@ def main() -> None:
 
                     expected_hash = hashlib.sha256(magic + salt).digest()
 
+                    print("\n[ Dennis ]")
+
                     if header_hash != expected_hash:
-                        print("\n[ Dennis ]")
                         print("XDEX header is INVALID. The file may be corrupted or tampered with.")
                         raise SystemExit(1)
+
+                    print("XDEX artifact detected")
+                    print("Payload: encrypted")
+                    print("Decryption required for full inspection")
+
+                    return
 
             # --------------------------------------------------------
             # Inspect normal DEX

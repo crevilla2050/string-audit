@@ -103,13 +103,14 @@ def import_dex(path):
             raise ValueError("payload could not be read")
 
         payload_bytes = payload_file.read()
+    
+
 
     # --------------------------------------------------------
     # Verify payload hash
     # --------------------------------------------------------
 
     payload_hash_expected = manifest["payload"]["hash"]["value"]
-
     payload_hash_actual = canonical_hash(json.loads(payload_bytes))
 
     print("EXPECTED:", payload_hash_expected)
@@ -120,3 +121,39 @@ def import_dex(path):
         raise ValueError("Payload hash mismatch")
 
     return manifest, payload_bytes
+
+def is_xdex(path):
+    try:
+        with open(path, "rb") as f:
+            magic = f.read(5)
+            return magic == b"XDEX1"
+    except Exception:
+        return False
+    
+
+def load_xdex(path):
+    import hashlib
+    from nacl.pwhash import argon2id
+
+    path = Path(path)
+
+    with open(path, "rb") as f:
+        magic = f.read(5)
+
+        if magic != b"XDEX1":
+            raise SystemExit("Invalid XDEX file")
+
+        header_hash = f.read(32)
+        salt = f.read(argon2id.SALTBYTES)
+
+        expected = hashlib.sha256(magic + salt).digest()
+
+        if header_hash != expected:
+            raise SystemExit("XDEX header is INVALID. The file may be corrupted or tampered with.")
+
+    return {
+        "type": "xdex",
+        "encrypted": True,
+        "header_valid": True,
+        "path": str(path)
+    }
