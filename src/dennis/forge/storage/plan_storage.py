@@ -3,7 +3,7 @@ import hashlib
 import json
 import os
 import tempfile
-from string_audit.forge.hash.canonical import canonical_hash_bytes
+from dennis.forge.hash.canonical import canonical_hash_bytes
 
 class PlanStorage:
     def __init__(self, root: Path):

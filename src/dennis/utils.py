@@ -324,7 +324,7 @@ def contains_dict_word(text: str, words: set) -> bool:
 def apply_all_filters(mapping: dict) -> dict:
     cleaned = {}
 
-    from string_audit.classifiers.url import is_url
+    from dennis.classifiers.url import is_url
 
     sql_words = load_sql_dictionary()
 

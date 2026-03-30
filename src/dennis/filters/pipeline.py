@@ -1,4 +1,4 @@
-# src/string_audit/filters/pipeline.py
+# src/dennis/filters/pipeline.py
 
 from .sql_filter import filter_sql
 from .css_filter import filter_css

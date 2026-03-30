@@ -1,4 +1,4 @@
-# src/string_audit/filters/url_filter.py
+# src/dennis/filters/url_filter.py
 
 def is_url(text: str) -> bool:
     if not text:

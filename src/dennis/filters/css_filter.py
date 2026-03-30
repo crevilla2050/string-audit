@@ -1,5 +1,5 @@
 import re
-from string_audit.utils import load_dictionary
+from dennis.utils import load_dictionary
 
 
 # --------------------------------------------------------

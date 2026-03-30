@@ -1,6 +1,6 @@
 import re
-from string_audit.classifiers.sql import is_sql
-from string_audit.classifiers.url import is_url
+from dennis.classifiers.sql import is_sql
+from dennis.classifiers.url import is_url
 
 def contains_dict_words(text: str, words: set[str]) -> int:
     upper = text.upper()

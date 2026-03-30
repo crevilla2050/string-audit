@@ -1,4 +1,4 @@
-# src/string_audit/qr/uri.py
+# src/dennis/qr/uri.py
 from urllib.parse import urlparse
 
 class DFPURIError(ValueError):

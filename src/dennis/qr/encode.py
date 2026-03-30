@@ -1,4 +1,4 @@
-# src/string_audit/qr/encode.py
+# src/dennis/qr/encode.py
 
 import segno
 from .dfp import build_dfp_uri

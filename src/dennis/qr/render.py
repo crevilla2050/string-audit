@@ -1,9 +1,9 @@
-# src/string_audit/qr/render.py
+# src/dennis/qr/render.py
 
 import qrcode
 from pathlib import Path
 
-from string_audit.utils.time import iso_timestamp_filename
+from dennis.utils.time import iso_timestamp_filename
 
 def render_ascii_matrix(data: str):
     qr = qrcode.QRCode(border=1)

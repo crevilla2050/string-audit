@@ -1,4 +1,4 @@
-# src/string_audit/qr/decode.py
+# src/dennis/qr/decode.py
 import re
 from .dfp import parse_dfp_uri
 from PIL import Image

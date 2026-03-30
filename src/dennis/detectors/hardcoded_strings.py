@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import List
 
 from ..models import Finding
-from string_audit.classifiers.sql import is_sql
-from string_audit.classifiers.url import is_url
+from dennis.classifiers.sql import is_sql
+from dennis.classifiers.url import is_url
 
 class HardcodedStringDetector:
     name = "hardcoded-string"
@@ -237,13 +237,13 @@ class HardcodedStringDetector:
             # 2. Generic detection
             # ----------------------------------------
             
-            from string_audit.utils import (
+            from dennis.utils import (
                 looks_like_binary,
                 looks_like_html,
                 looks_like_css,
                 contains_sql_token_like
             )
-            from string_audit.filters.code_filter import looks_like_code as looks_like_code_filter
+            from dennis.filters.code_filter import looks_like_code as looks_like_code_filter
 
             for match in self.GENERIC_STRING.finditer(line):
                 

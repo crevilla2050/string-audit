@@ -1,5 +1,5 @@
-from string_audit.forge.storage.plan_storage import PlanStorage
-from string_audit.forge.sync.client import SyncClient
+from dennis.forge.storage.plan_storage import PlanStorage
+from dennis.forge.sync.client import SyncClient
 
 
 def push_all(storage: PlanStorage, remote: str):

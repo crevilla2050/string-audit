@@ -614,7 +614,7 @@ def main() -> None:
     # PLAN
     # --------------------------------------------------------
     if args.command == "plan":
-        from string_audit.forge.hash.canonical import canonical_hash
+        from dennis.forge.hash.canonical import canonical_hash
         from pathlib import Path
 
         root = Path(args.root)
@@ -754,7 +754,7 @@ def main() -> None:
     # HASH
     # --------------------------------------------------------
     elif args.command == "hash":
-        from string_audit.forge.hash.canonical import canonical_hash
+        from dennis.forge.hash.canonical import canonical_hash
         from pathlib import Path
         import json
         
@@ -811,7 +811,7 @@ def main() -> None:
     # --------------------------------------------------------
     elif args.command == "push":
         import urllib.request
-        from string_audit.forge.hash.canonical import canonical_hash
+        from dennis.forge.hash.canonical import canonical_hash
         from pathlib import Path
         import json
 
@@ -833,7 +833,7 @@ def main() -> None:
 
         # ---------- AUTO QR ----------
         if args.qr:
-            from string_audit.qr.encode import generate_ascii_qr, generate_png_qr
+            from dennis.qr.encode import generate_ascii_qr, generate_png_qr
             out_dir = Path(args.qr_path) if args.qr_path else Path(args.plan).parent
             out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -855,8 +855,8 @@ def main() -> None:
     # QR GENERATION
     # --------------------------------------------------------
     elif args.command == "qr":
-        from string_audit.qr.encode import make_qr_uri, generate_ascii_qr, generate_png_qr
-        from string_audit.forge.hash.canonical import canonical_hash
+        from dennis.qr.encode import make_qr_uri, generate_ascii_qr, generate_png_qr
+        from dennis.forge.hash.canonical import canonical_hash
         from pathlib import Path
         import json
 
@@ -1387,7 +1387,7 @@ def main() -> None:
         from pathlib import Path
         import json
         from dennis.dex.pack import pack_dex
-        #from string_audit.forge.hash.canonical import canonical_hash
+        #from dennis.forge.hash.canonical import canonical_hash
         from dennis.core.hash import canonical_hash
 
         payload_path = Path(args.payload)
@@ -1511,7 +1511,7 @@ def main() -> None:
     elif args.command == "apply":
 
         from pathlib import Path
-        from string_audit.i18n.apply import apply_plan
+        from dennis.i18n.apply import apply_plan
 
         plan_path = Path(args.plan)
 
@@ -1521,7 +1521,7 @@ def main() -> None:
     elif args.command == "dict":
 
         from pathlib import Path
-        from string_audit.i18n.csvio import (
+        from dennis.i18n.csvio import (
             export_dictionary_to_csv,
             import_dictionary_from_csv
         )
@@ -1562,7 +1562,7 @@ def main() -> None:
         from pathlib import Path
         import shutil
         from datetime import datetime
-        from string_audit.utils import (
+        from dennis.utils import (
             ensure_dennis_dirs,
             get_plugin_dir,
             get_dict_dir,
@@ -1597,7 +1597,7 @@ def main() -> None:
         # ----------------------------------------
 
         if dest.exists():
-            from string_audit.utils import get_backup_dir
+            from dennis.utils import get_backup_dir
             from datetime import datetime
 
             backup_dir = get_backup_dir()

@@ -1,4 +1,4 @@
-# src/string_audit/qr/dfp.py
+# src/dennis/qr/dfp.py
 
 import re
 

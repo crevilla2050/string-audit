@@ -10,7 +10,7 @@ def _load_schema():
             return json.load(f)
     except ModuleNotFoundError:
         # Backward compatibility fallback
-        with resources.files("string_audit.schemas").joinpath("plan.schema.json").open("r") as f:
+        with resources.files("dennis.schemas").joinpath("plan.schema.json").open("r") as f:
             return json.load(f)
         
 def validate_plan(plan):

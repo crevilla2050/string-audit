@@ -63,7 +63,7 @@ class ForgeHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400, "Invalid JSON")
             return
 
-        from string_audit.forge.hash.canonical import canonical_hash
+        from dennis.forge.hash.canonical import canonical_hash
 
         hash_hex = canonical_hash(obj)
         path = plan_path(hash_hex)

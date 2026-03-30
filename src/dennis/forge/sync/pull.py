@@ -1,5 +1,5 @@
-from string_audit.forge.storage.plan_storage import PlanStorage
-from string_audit.forge.sync.client import SyncClient
+from dennis.forge.storage.plan_storage import PlanStorage
+from dennis.forge.sync.client import SyncClient
 
 
 def pull_hashes(storage: PlanStorage, remote: str, hashes: list[str]):

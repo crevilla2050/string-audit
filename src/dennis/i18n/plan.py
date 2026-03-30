@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Dict, List
 
 from .apply import load_dictionary, iter_python_files, replace_line
-from string_audit.detectors.hardcoded_strings import HardcodedStringDetector
-from string_audit.i18n.generator import build_dictionary, write_en_json
-from string_audit.scanner import scan_directory
+from dennis.detectors.hardcoded_strings import HardcodedStringDetector
+from dennis.i18n.generator import build_dictionary, write_en_json
+from dennis.scanner import scan_directory
 
 def load_helper(helper_path: Path) -> Dict:
     """
@@ -81,7 +81,7 @@ def generate_plan(
             # ----------------------------------------
             # CLEAN SECOND PASS
             # ----------------------------------------
-            from string_audit.utils import (
+            from dennis.utils import (
                 apply_all_filters,
                 cleaned_filename    
             )

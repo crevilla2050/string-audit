@@ -1,8 +1,8 @@
-# string_audit/forge/bundle/build.py
+# dennis/forge/bundle/build.py
 
 from datetime import datetime, timezone
-from string_audit.forge.hash.canonical import canonical_hash
-from string_audit.qr.encode import make_qr_uri
+from dennis.forge.hash.canonical import canonical_hash
+from dennis.qr.encode import make_qr_uri
 
 
 def build_bundle(plan: dict, include_qr=False, sign_key=None) -> dict:

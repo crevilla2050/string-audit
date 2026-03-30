@@ -1,4 +1,4 @@
-# src/string_audit/utils/time.py
+# src/dennis/utils/time.py
 from datetime import datetime, timezone
 
 
