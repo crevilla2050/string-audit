@@ -5,11 +5,11 @@ import re
 from pathlib import Path
 from datetime import datetime, timezone
 
-from .scanner import scan_directory
-from .reporters.human import print_human_report
-from .reporters.json_reporter import write_json_report
+from dennis.scanner import scan_directory
+from dennis.reporters.human import print_human_report
+from dennis.reporters.json_reporter import write_json_report
 
-from .i18n.generator import (
+from dennis.i18n.generator import (
     load_findings,
     build_dictionary,
     write_en_json,
@@ -18,7 +18,7 @@ from .i18n.generator import (
     merge_dictionaries,
 )
 
-from .i18n.plan import (
+from dennis.i18n.plan import (
     generate_plan,
     write_plan,
     default_plan_filename,
@@ -33,14 +33,15 @@ from dennis.core.export_xsd import export_xsd
 from dennis.core.validate_xml import validate_xml_file
 
 # QR
-from string_audit.qr import (
+from dennis.qr import (
     decode_ascii_payload,
     decode_image_qr,
     extract_uri_from_ascii,
     extract_uri_from_image,
 )
-from string_audit.qr.encode import make_qr_uri, generate_ascii_qr, generate_png_qr
-from string_audit.qr.parse import parse_dfp_uri
+from dennis.qr.encode import make_qr_uri, generate_ascii_qr, generate_png_qr
+from dennis.qr.parse import parse_dfp_uri
+
 from dennis.core.invert import cmd_invert
 
 def timestamp():
