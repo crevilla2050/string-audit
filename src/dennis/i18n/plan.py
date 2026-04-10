@@ -8,6 +8,48 @@ from .apply import load_dictionary, iter_python_files, replace_line
 from dennis.detectors.hardcoded_strings import HardcodedStringDetector
 from dennis.i18n.generator import build_dictionary, write_en_json
 from dennis.scanner import scan_directory
+from dennis.plugins import PLUGINS
+
+import subprocess
+
+LANG_EXTENSIONS = {
+    "python": [".py"],
+    "php": [".php"],
+    "javascript": [".js"],
+    "html": [".html"],
+    "css": [".css"],
+    "sql": [".sql"],
+    "java": [".java"],
+    "csharp": [".cs"],
+    "ruby": [".rb"],
+    "go": [".go"],
+    "rust": [".rs"],
+    "text": [".txt"],
+    "office XML": [".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp"],
+}
+
+def get_git_changed_files(root: Path) -> list[Path]:
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        files = [
+            root / line.strip()
+            for line in result.stdout.splitlines()
+            if line.strip()
+        ]
+
+        return [f for f in files if f.exists()]
+
+    except Exception:
+        print("[Dennis] WARNING: git diff failed, falling back to full scan")
+        return []
+    
 
 def load_helper(helper_path: Path) -> Dict:
     """
@@ -15,13 +57,17 @@ def load_helper(helper_path: Path) -> Dict:
     """
     lines = helper_path.read_text(encoding="utf-8").splitlines()
 
-    h = hashlib.sha256()
-    h.update("\n".join(lines).encode("utf-8"))
+    helper_content = "\n".join(lines).encode("utf-8")
+
+    helper_hash = hashlib.sha256(helper_content).hexdigest()
+    helper_id = helper_hash[:12]
+
+    helper_name = f"helper_{helper_id}.py"
 
     return {
-        "id": helper_path.stem,
-        "hash": h.hexdigest(),
-        "lines": lines,
+        "id": helper_id,
+        "hash": helper_hash,
+        "path": f"helpers/{helper_name}",
     }
 
 def sha256_file(path: Path) -> str:
@@ -34,12 +80,16 @@ def sha256_file(path: Path) -> str:
 def generate_plan(
     root: Path,
     dict_path: Path,
-    helpers: List[Dict] | None = None
+    helpers: List[Dict] | None = None,
+    git_mode: str = "tracked",
+    lang: str = "python",
+    exclude_langs: set[str] | None = None
 ) -> Dict:
 
     # --------------------------------------------------
     # Ensure dictionary file exists
     # --------------------------------------------------
+    plugin = PLUGINS.get(lang, PLUGINS["python"])
 
     if not dict_path.exists():
         print(f"[Dennis] Dictionary not found. Creating new dictionary: {dict_path}")
@@ -53,7 +103,7 @@ def generate_plan(
 
     if not mapping:
 
-        print("[Dennis] Dictionary empty. Scanning project for strings...")
+        print("[Dennis] Dictionary empty. Scanning project for dennis to work with...")
 
         findings = scan_directory(root)
 
@@ -69,7 +119,7 @@ def generate_plan(
             # ----------------------------------------
             # DEBUG (optional but useful)
             # ----------------------------------------
-            print(f"[DEBUG] Raw dictionary entries: {len(mapping)}")
+            # print(f"[DEBUG] Raw dictionary entries: {len(mapping)}")
 
             # ----------------------------------------
             # WRITE RAW DICTIONARY
@@ -114,53 +164,85 @@ def generate_plan(
     # Generate transformation plan
     # --------------------------------------------------
 
-    for f in scan_directory(root):
+    findings = scan_directory(root, git_mode=git_mode)
+
+    for f in findings:
 
         file_path = Path(f.file)
+
+        if exclude_langs:
+            ext = file_path.suffix.lower()
+
+            if any(
+                ext in LANG_EXTENSIONS.get(lang_name, [])
+                for lang_name in exclude_langs
+            ):
+                continue  # skip THIS finding/file
+
         file_hash = sha256_file(file_path)
         
         lines = file_path.read_text(encoding="utf-8", errors="ignore").splitlines()
 
+        if f.line < 1 or f.line > len(lines):
+            continue
         original_line = lines[f.line - 1]
+        
+        # --------------------------------------
+        # 🚨 NEW: HARD FILTER 
+        # --------------------------------------
+        
+        # Skip empty or whitespace-only lines
+        if not original_line or not original_line.strip():
+            continue
+
+        
+        # Validate line index
+        if f.line < 1 or f.line > len(lines):
+            continue
+
+        if not any(text in original_line for text in reverse_mapping):
+            continue
 
         token = None
+        new_line = None
 
-        for text, key in reverse_mapping.items():
+        new_line, token = plugin.transform_line(original_line, reverse_mapping)
 
-            if text in original_line:
+        if not token:
+            continue
 
-                if f'"{text}"' in original_line:
-                    new_line = original_line.replace(
-                        f'"{text}"',
-                        f'messages["{key}"]'
-                    )
-
-                elif f"'{text}'" in original_line:
-                    new_line = original_line.replace(
-                        f"'{text}'",
-                        f'messages["{key}"]'
-                    )
-
-                else:
-                    continue
-
-                token = key
-
-                changes.append({
-                    "file": f.file,
-                    "line": f.line,
-                    "file_hash": file_hash,
-                    "original": original_line,
-                    "replacement": new_line,
-                    "token": token,
-                })
-
-                break
-
-    patches = {}
-
+        # --------------------------------------
+        # ONLY append if transformation is valid
+        # --------------------------------------
+        if token and new_line and new_line != original_line:
+            changes.append({
+                "file": f.file,
+                "line": f.line,
+                "file_hash": file_hash,
+                "original": original_line,
+                "replacement": new_line,
+                "token": token,
+            })
+    
+    # --------------------------------------------------
+    # Link helpers to changes (NEW)
+    # --------------------------------------------------
+    print("[DEBUG] helpers received:", helpers)
+    
     if helpers:
-        patches["helpers"] = helpers
+        print("[DEBUG] entering helper append block")
+        for h in helpers:
+            helper_change = {
+                "type": "helper",
+                "helper_id": h.get("id") or h.get("helper_id"),
+                "file": h.get("file"),
+                "line": h.get("line"),
+                "helper_ref": h.get("helper_ref") or h.get("path"),
+                "helper_source": h.get("helper_source") or h.get("helper"),
+            }
+            print("[DEBUG] appending helper:", helper_change)
+            changes.append(helper_change)
+            print("[DEBUG] helper change added:", changes[-1])
 
     plan = {
         "meta": {
@@ -170,9 +252,6 @@ def generate_plan(
         },
         "changes": changes,
     }
-
-    if patches:
-        plan["patches"] = patches
 
     return plan
 

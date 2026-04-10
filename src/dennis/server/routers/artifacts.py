@@ -1,6 +1,8 @@
 print("ARTIFACTS MODULE LOADED FROM:", __file__)
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import HTMLResponse, FileResponse
+
 from pathlib import Path
 import tempfile
 import shutil
@@ -11,10 +13,26 @@ from dennis.dex import manifest
 from dennis.dex.importer import import_dex
 from dennis.server.storage import artifact_path, ensure_artifact_dirs
 from dennis.server.db import get_connection
+from dennis.dex.diff import diff_dex
+
+from datetime import datetime
+
 
 router = APIRouter()
 
 
+@router.get("/api/artifacts/diff")
+def artifact_diff(a: str, b: str, ignore_semantics: bool = False):
+
+    path_a = artifact_path(a)
+    path_b = artifact_path(b)
+
+    if not path_a.exists() or not path_b.exists():
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    result = diff_dex(path_a, path_b, ignore_semantics=ignore_semantics)
+
+    return result
 
 @router.post("/api/artifacts")
 async def upload_artifact(file: UploadFile, origin: str | None = None):
@@ -66,11 +84,11 @@ async def upload_artifact(file: UploadFile, origin: str | None = None):
         payload_obj = json.loads(payload_bytes)
         
         computed_hash = canonical_hash(payload_obj)
-        # manifest_hash = manifest["payload"]["hash"]
+        manifest_hash = manifest["payload"]["hash"]["value"]
 
-        print("Computed hash:", computed_hash)
-        print("Manifest hash:", manifest_hash)
-        print("-----------------------------")
+        # print("Computed hash:", computed_hash)
+        # print("Manifest hash:", manifest_hash)
+        # print("-----------------------------")
         
         if computed_hash != manifest_hash:
             raise Exception("payload hash mismatch")
@@ -83,7 +101,7 @@ async def upload_artifact(file: UploadFile, origin: str | None = None):
         # -------------------------------------------------
 
         provenance = manifest.get("provenance", {})
-        parent_hash = provenance.get("parent")
+        parent_hash = provenance.get("parent_hash")
 
         # ----------------------------------------
         # Determine storage path
@@ -126,7 +144,7 @@ async def upload_artifact(file: UploadFile, origin: str | None = None):
             (
                 artifact_uuid,
                 artifact_hash,
-                None,
+                parent_hash,
                 "valid",
                 payload_hash,
                 payload_type,
@@ -178,14 +196,6 @@ async def upload_artifact(file: UploadFile, origin: str | None = None):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
-    
-from fastapi.responses import FileResponse
-from datetime import datetime
-import hashlib
-
-from dennis.server.storage import artifact_path
-from dennis.dex.importer import import_dex
 
 @router.get("/api/artifacts")
 def list_artifacts(
@@ -251,7 +261,7 @@ def list_artifacts(
         "artifacts": artifacts
     }
 
-from fastapi.responses import HTMLResponse
+
 
 
 @router.get("/artifact/{artifact_hash}", response_class=HTMLResponse)

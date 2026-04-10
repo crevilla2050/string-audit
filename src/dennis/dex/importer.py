@@ -38,7 +38,7 @@ def _safe_member_name(name: str):
 
 def _validate_structure(members):
     """
-    Ensure expected archive layout.
+    Ensure expected archive layout (v1 + v2 compatible).
     """
 
     files = {m.name for m in members}
@@ -46,12 +46,23 @@ def _validate_structure(members):
     if "manifest.json" not in files:
         raise ValueError("DEX missing manifest.json")
 
-    payload_files = [f for f in files if f.startswith("payload/")]
+    # ----------------------------------------
+    # Detect payload/plan.json
+    # ----------------------------------------
 
-    if len(payload_files) != 1:
-        raise ValueError("DEX must contain exactly one payload file")
+    if "payload/plan.json" not in files:
+        raise ValueError("DEX missing payload/plan.json")
 
-    return payload_files[0]
+    # ----------------------------------------
+    # Detect mode
+    # ----------------------------------------
+
+    has_files = any(f.startswith("payload/files/") for f in files)
+
+    if has_files:
+        return "state", "payload/plan.json"
+
+    return "plan", "payload/plan.json"
 
 
 def import_dex(path):
@@ -73,18 +84,16 @@ def import_dex(path):
 
         members = tar.getmembers()
 
-        if len(members) > 10:
-            raise ValueError("Archive suspiciously large")
-
         for m in members:
             _safe_member_name(m.name)
 
-        payload_name = None
+        mode, payload_name = _validate_structure(members)
+        
+        if mode == "state":
+            print("[Dennis] DEX mode: STATE (files + plan)")
+        else:
+            print("[Dennis] DEX mode: PLAN (legacy)")
 
-        for m in members:
-            if m.name.startswith("payload/") and m.isfile():
-                payload_name = m.name
-                break
 
         if payload_name is None:
             raise ValueError("payload file missing")
@@ -103,7 +112,6 @@ def import_dex(path):
             raise ValueError("payload could not be read")
 
         payload_bytes = payload_file.read()
-    
 
 
     # --------------------------------------------------------

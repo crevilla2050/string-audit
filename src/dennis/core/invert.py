@@ -27,6 +27,19 @@ def invert_plan(plan: dict) -> dict:
     inverted = []
 
     for c in plan.get("changes", []):
+    
+        # --------------------------------------
+        # Skip helper changes (handled via patches)
+        # --------------------------------------
+        if c.get("type") == "helper":
+            inverted.append({
+                "type": "helper_remove",
+                "helper_id": c.get("helper_id") or c.get("id"),
+                "file": c.get("file"),
+                "line": c.get("line"),
+            })
+            continue
+
         inv = dict(c)
 
         inv["original"], inv["replacement"] = c["replacement"], c["original"]
@@ -38,21 +51,9 @@ def invert_plan(plan: dict) -> dict:
 
     new_plan["changes"] = sort_changes(inverted)
 
-    # --------------------------------------
-    # invert helper patches
-    # --------------------------------------
-
-    patches = plan.get("patches")
-
-    if patches and "helpers" in patches:
-
-        new_plan["patches"] = {
-            "remove_helpers": patches["helpers"]
-        }
-       
     return new_plan
 
-
+    
 def cmd_invert(path, stdout=False):
     with open(path) as f:
         plan = json.load(f)

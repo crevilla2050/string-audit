@@ -3,6 +3,7 @@ from marshal import version
 from os import path
 import re
 from pathlib import Path
+import json
 from datetime import datetime, timezone
 
 from dennis.scanner import scan_directory
@@ -113,115 +114,175 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show Dennis version"
     )
     parser.epilog = """
-        Examples:
+    Examples:
 
-        dennis plan . --dict dictionary.json
-        dennis dex pack plan.json artifact.dex
-        dennis dex sign artifact.dex --key dev.key
-        dennis inspect artifact.dex
-        dennis encrypt artifact.dex
+    dennis plan .
+    dennis plan . --dict dictionary.json
+    dennis dex pack plan.json artifact.dex
+    (optional) dennis keygen
+    dennis dex sign artifact.dex --key my_key.key
+    dennis inspect artifact.dex
+    dennis encrypt artifact.dex
 
-        Forged slowly. Built for trust.
+    Forged slowly. Built for trust.
     """
 
     parser.usage = """
-        dennis [command] [options]
+    dennis [command] [options]
 
-        Core workflow:
-        plan       generate transformation plan
-        pack       create DEX artifact
-        sign       sign artifact
-        inspect    inspect artifact metadata
-        verify     verify signatures
+    Core workflow:
+    plan       generate transformation plan
+    pack       create DEX artifact
+    sign       sign artifact
+    inspect    inspect artifact metadata
+    verify     verify signatures
 
-        Security:
-        encrypt    convert DEX → XDEX
-        decrypt    convert XDEX → DEX
+    Security:
+    encrypt    convert DEX → XDEX
+    decrypt    convert XDEX → DEX
 
-        Execution:
-        rehydrate  restore project context from artifact
-        apply      execute transformation plan
+    Execution:
+    rehydrate  restore project context from artifact
+    apply      execute transformation plan
     """
+
+    parser.add_argument(
+        "--accept-lineage",
+        help="Override lineage mismatch (must match artifact lineage_id)"
+    )
+
+    parser.add_argument(
+        "--accept-detached",
+        action="store_true",
+        help="Allow applying detached artifact (no lineage)"
+    )
+
 
     sub = parser.add_subparsers(dest="command")
 
-    # PLAN & EXPORT
-    plan_cmd = sub.add_parser("plan", help="Plan operations")
-
-    plan_sub = plan_cmd.add_subparsers(dest="plan_command")
-    plan_cmd.description = "Plan operations:\n  Generate transformation plan or\n  export: export plan to other formats"
-    plan_sub.required = False
-
 
     # --------------------------------------------------------
-    # PLAN RUN (default)
+    # PLAN (DEFAULT + EXPORT)
     # --------------------------------------------------------
 
-    plan_run = plan_sub.add_parser(
-        "run",
-        help="Generate transformation plan"
+    plan_cmd = sub.add_parser(
+        "plan",
+        help="Generate transformation plan or export plan"
     )
 
-    plan_run.add_argument(
+    plan_cmd.description = """
+    Plan operations:
+
+    Default:
+    Generate transformation plan from a project directory
+
+    Subcommands:
+    export    export plan to other formats
+    import    import helper mappings from CSV
+    """
+
+    # ---------------------------------------------------------
+    # CORE ARGUMENTS (RUN MODE)
+    # ---------------------------------------------------------
+
+    plan_cmd.add_argument(
         "root",
-        help="Project root directory"
+        nargs="?",
+        help="Project root directory (default: current directory)"
     )
 
-    plan_run.add_argument(
+    plan_cmd.add_argument(
         "--dict",
-        required=True,
-        help="Dictionary JSON file"
+        help="Dictionary JSON file (optional, auto-generated if omitted)"
     )
 
-    plan_run.add_argument(
+    plan_cmd.add_argument(
+        "--baseline",
+        help="Baseline DEX artifact for diff-based plan generation"
+    )
+
+    plan_cmd.add_argument(
         "--out",
         help="Output plan filename"
     )
 
-    plan_run.add_argument(
+    plan_cmd.add_argument(
         "--add-helper",
         action="append",
         help="Helper file to insert"
     )
 
-    plan_run.add_argument(
+    plan_cmd.add_argument(
         "--target-file",
         action="append",
         help="Target file for helper"
     )
 
-    plan_run.add_argument(
+    plan_cmd.add_argument(
         "--line",
         action="append",
         type=int,
         help="Insertion line for helper"
     )
 
+    # ---------------------------------------------------------
+    # MANUAL SUBCOMMAND (KEY FIX)
+    # ---------------------------------------------------------
 
-    # --------------------------------------------------------
-    # PLAN EXPORT
-    # --------------------------------------------------------
-
-    plan_export = plan_sub.add_parser(
-        "export",
-        help="Export plan to other formats"
+    plan_cmd.add_argument(
+        "plan_command",
+        nargs="?",
+        choices=["export", "import"],
+        help="Optional subcommand"
     )
 
-    plan_export.add_argument(
+    # ---------------------------------------------------------
+    # EXPORT ARGUMENTS
+    # ---------------------------------------------------------
+
+    plan_cmd.add_argument(
         "plan",
-        help="Plan JSON file"
+        nargs="?",
+        help="Plan JSON file (for export)"
     )
 
-    plan_export.add_argument(
+    plan_cmd.add_argument(
         "--format",
         choices=["csv", "html", "xml", "txt"],
         default="csv",
         help="Export format"
     )
 
-    plan_export.add_argument(
+    plan_cmd.add_argument(
         "--file",
         help="Output filename"
+    )
+
+    plan_cmd.add_argument(
+        "--use-git",
+        action="store_true",
+        help="Limit scan to files changed according to git"
+    )
+
+    # ---------------------------------------------------------
+    # IMPORT ARGUMENTS
+    # ---------------------------------------------------------
+
+    plan_cmd.add_argument(
+        "import_file",
+        nargs="?",
+        help="CSV file with helper mappings (for import)"
+    )
+
+    plan_cmd.add_argument(
+        "--lang",
+        default="python",
+        help="Language plugin to use (default: python)"
+    )
+
+    plan_cmd.add_argument(
+        "--exclude-lang",
+        help="Comma-separated list of programming languages to exclude"
     )
 
     # --------------------------------------------------------
@@ -388,6 +449,16 @@ def build_parser() -> argparse.ArgumentParser:
         default="dennis.plan.v1",
         help="Payload type (default: dennis.plan.v1)"
     )
+    pack_cmd.add_argument(
+        "--parent",
+        help="Path to parent artifact.dex to inherit lineage from (optional)"
+    )
+    pack_cmd.add_argument(
+        "--detached",
+        action="store_true",
+        help="Create a detached signature (optional)"
+    )
+
 
     # UNPACK
     unpack_cmd = sub.add_parser("unpack", help="Extract DEX artifact")
@@ -416,6 +487,12 @@ def build_parser() -> argparse.ArgumentParser:
         "apply",
         help="Execute transformation plan"
     )
+    apply_cmd.add_argument("plan", help="Path to plan.json or artifact.dex")
+
+    apply_cmd.add_argument(
+        "--confirm",
+        help="Confirm execution using payload hash prefix"
+    )
 
     # Export
     dict_cmd = sub.add_parser("dict", help="Dictionary utilities")
@@ -440,8 +517,6 @@ def build_parser() -> argparse.ArgumentParser:
     import_cmd.add_argument("input")
     import_cmd.add_argument("dictionary")
     add_format_argument(import_cmd)
-
-    apply_cmd.add_argument("plan", help="Plan JSON file")
 
     keygen_cmd = sub.add_parser(
         "keygen",
@@ -506,7 +581,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="Backup existing file before installing"
     )
 
+    # --------------------------------------------------------
+    # key management and encryption utilities (moved from crypto.py for better CLI integration)
+    # --------------------------------------------------------
+
+    key_cmd = sub.add_parser("key", help="Key management")
+
+    key_sub = key_cmd.add_subparsers(dest="key_command")
+
+    # bootstrap
+
+    key_boot = key_sub.add_parser("bootstrap")
+    key_boot.add_argument("pub")
+
+    # approve
+
+    key_app = key_sub.add_parser("approve")
+    key_app.add_argument("pub")
+    key_app.add_argument("--signer", required=True)
+
+    # list
+
+    key_list = key_sub.add_parser("list")
+
     return parser
+
+
 
 # ============================================================
 # MAIN
@@ -556,18 +656,43 @@ def main() -> None:
 
         return
     
-    if args.command == "plan" and args.plan_command is None:
-        args.plan_command = "run"
+    
+    if args.command == "plan":
 
-    # --------------------------------------------------------
-    # Validate helper arguments
-    # --------------------------------------------------------
+        from pathlib import Path
+        from datetime import datetime, timezone
+        import tempfile
+        import json
 
-    if args.command == "plan" and args.plan_command == "run":
+        def ts():
+            return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
+
+        # ----------------------------------------
+        # Detect mode (manual subcommands)
+        # ----------------------------------------
+
+        if args.root in ("export", "import"):
+            args.plan_command = args.root
+            args.root = None
+
+        if args.plan_command is None:
+            args.plan_command = "run"
+        
+        excluded_langs = set()
+
+        if args.exclude_lang:
+            excluded_langs = {
+                lang.strip() for lang in args.exclude_lang.split(",")
+            }
+        # ----------------------------------------
+        # Helper validation (FIXED PIPELINE)
+        # ----------------------------------------
 
         helpers = args.add_helper or []
         targets = args.target_file or []
         lines = args.line or []
+
+        args.helper_specs = []
 
         if helpers:
 
@@ -586,7 +711,6 @@ def main() -> None:
                     "Error: number of --line must match --add-helper"
                 )
 
-            # default line numbers
             if not lines:
                 lines = [1] * len(helpers)
 
@@ -598,42 +722,158 @@ def main() -> None:
                 }
                 for h, t, l in zip(helpers, targets, lines)
             ]
-    
-    if args.version:
-        from importlib.metadata import version
 
-        print(f"Dennis Forge {version('dennis')}")
-        print("Forged slowly. Built for trust.")
-        return
-    
-    if args.command is None:
-        parser.print_help()
-        return
+        # ----------------------------------------
+        # EXPORT MODE
+        # ----------------------------------------
 
-    # --------------------------------------------------------
-    # PLAN
-    # --------------------------------------------------------
-    if args.command == "plan":
+        if args.plan_command == "export":
+            from dennis.core.csvio import write_csv_from_plan
+
+            if not args.plan:
+                raise SystemExit("export requires: plan file")
+
+            import json
+            plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
+
+            output = args.file or Path(args.plan).with_suffix(".csv")
+            
+            print("[DEBUG BEFORE CSV]", plan["changes"][-1])
+            write_csv_from_plan(plan, output)
+            print("[DEBUG BEFORE CSV]", plan["changes"][-1])
+
+            print(f"[Dennis] CSV exported → {output}")
+            print(
+                "[Dennis] You can now edit the CSV and re-import it using:\n"
+                f"         dennis plan import {output}"
+            )
+            return
+
+        # ----------------------------------------
+        # IMPORT MODE
+        # ----------------------------------------
+
+        elif args.plan_command == "import":
+            from dennis.i18n.csvio import import_plan_csv
+
+            if not args.import_file:
+                raise SystemExit("import requires: csv file")
+
+            import_plan_csv(args.import_file, baseline=args.baseline, out=args.out)
+            return
+
+        # ----------------------------------------
+        # RUN MODE (MAIN LOGIC)
+        # ----------------------------------------
+
+        root = Path(args.root or ".")
+
+        # ----------------------------------------
+        # MODE: BASELINE
+        # ----------------------------------------
+
+        if args.baseline:
+
+            from dennis.core.diff import diff_directories
+            from dennis.core.serialize import dump_json
+            from dennis.core.csvio import write_csv_from_plan
+            from dennis.core.rehydrate import rehydrate
+
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                baseline_path = Path(tmp_dir)
+
+                print(f"[Dennis] Rehydrating baseline → {args.baseline}")
+                rehydrate(args.baseline, output_dir=baseline_path)
+
+                print("[Dennis] Computing diff...")
+                changes = diff_directories(baseline_path, root)
+
+            plan = {
+                "changes": changes,
+                "meta": {
+                    "baseline": args.baseline,
+                    "generated_at": ts()
+                }
+            }
+
+            output = Path(args.out) if args.out else Path(f"plan-{ts()}.json")
+            csv_path = output.with_suffix(".csv")
+
+            with open(output, "w", encoding="utf-8") as f:
+                print("[DEBUG FINAL BEFORE WRITE]", plan["changes"][-1])
+                dump_json(plan, f)
+            write_csv_from_plan(plan, csv_path)
+
+            print(f"[Dennis] Plan generated → {output}")
+            print(f"[Dennis] CSV generated  → {csv_path}")
+            return
+
+        # ----------------------------------------
+        # MODE: DICTIONARY (DEFAULT)
+        # ----------------------------------------
+
+        from dennis.i18n.plan import generate_plan
         from dennis.forge.hash.canonical import canonical_hash
-        from pathlib import Path
 
-        root = Path(args.root)
-        dict_path = Path(args.dict)
+        dict_path = Path(args.dict) if args.dict else Path(f"dictionary-{ts()}.json")
         output = Path(args.out) if args.out else Path(default_plan_filename())
 
         helpers = []
 
         for spec in getattr(args, "helper_specs", []):
-            helper = load_helper(Path(spec["helper"]))
-            helper["file"] = spec["target"]
-            helper["line"] = spec["line"]
-            helpers.append(helper)
+            helper_path = Path(spec["helper"])
 
-        plan = generate_plan(root, dict_path, helpers=helpers)
-        
-        write_plan(plan, output)
+            if not helper_path.exists():
+                raise SystemExit(f"Helper file not found: {helper_path}")
+
+            helper_info = load_helper(helper_path)
+
+            helpers.append({
+                "helper_id": helper_info["id"] or helper_info["helper_id"],
+                "helper_ref": helper_info.get("helper_ref") or helper_info["path"],  # already normalized to helpers/
+                "helper_source": spec["helper"],
+                "file": spec["target"],
+                "line": spec["line"],
+            })
+
+        git_mode = "changed" if args.use_git else "tracked"
+
+        excluded_langs = set()
+
+        if args.exclude_lang:
+            excluded_langs = {
+                lang.strip() for lang in args.exclude_lang.split(",")
+            }
+
+        plan = generate_plan(
+            root,
+            dict_path,
+            helpers=helpers,
+            git_mode=git_mode,
+            lang=args.lang,
+            exclude_langs=excluded_langs
+        )
+
+        from dennis.core.serialize import dump_json
+        from dennis.core.csvio import write_csv_from_plan
+        import copy
+
+        with open(output, "w", encoding="utf-8") as f:
+            dump_json(plan, f)
+
+        import copy
+        csv_path = output.with_suffix(".csv")
+        print("[DEBUG BEFORE CSV]", plan["changes"][-2:])
+
+        write_csv_from_plan(copy.deepcopy(plan), csv_path)
+
+        print("[DEBUG AFTER CSV]", plan["changes"][-2:])
+
         print(f"Plan written → {output}")
+        print(f"CSV written  → {csv_path}")
         print(f"Plan hash: {canonical_hash(plan)}")
+
+        return
 
     # --------------------------------------------------------
     # ENCRYPT
@@ -762,49 +1002,6 @@ def main() -> None:
         obj = json.loads(Path(args.file).read_text())
         print(canonical_hash(obj))
 
-    # --------------------------------------------------------
-    # EXPORT
-    # --------------------------------------------------------
-    elif args.command == "plan" and args.plan_command == "export":
-
-        from pathlib import Path
-        import json
-        from datetime import datetime, timezone
-
-        from dennis.core.csvio import write_csv_from_plan
-        from dennis.core.export_html import export_html
-        from dennis.core.export_xml import export_xml
-        from dennis.core.export_txt import export_txt
-
-        plan = json.loads(Path(args.plan).read_text())
-
-        def ts():
-            return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
-
-        fmt = args.format
-
-        if args.file:
-            out_path = Path(args.file)
-        else:
-            out_path = Path(f"plan-{ts()}.{fmt}")
-
-        if fmt == "csv":
-            write_csv_from_plan(plan, out_path)
-
-        elif fmt == "html":
-            export_html(plan, open(out_path, "w"))
-
-        elif fmt == "xml":
-            export_xml(plan, open(out_path, "w"))
-
-        elif fmt == "txt":
-            export_txt(plan, open(out_path, "w"))
-
-        else:
-            raise SystemExit(f"Unsupported format: {fmt}")
-
-        print(f"Plan exported → {out_path}")
-
 
     # --------------------------------------------------------
     # PUSH
@@ -813,6 +1010,7 @@ def main() -> None:
         import urllib.request
         from dennis.forge.hash.canonical import canonical_hash
         from pathlib import Path
+        from datetime import datetime
         import json
 
         plan = json.loads(Path(args.plan).read_text())
@@ -837,7 +1035,7 @@ def main() -> None:
             out_dir = Path(args.qr_path) if args.qr_path else Path(args.plan).parent
             out_dir.mkdir(parents=True, exist_ok=True)
 
-            ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+            ts = datetime.utcnow().strftime("%Y-%m-%dT%H-%M")
 
             ascii_qr = generate_ascii_qr(plan_hash) or ""
             
@@ -941,29 +1139,20 @@ def main() -> None:
 
             total = len(results)
             valid_count = sum(1 for _, ok in results if ok)
-            authoritative_valid = results[-1][1]  # last signature is authoritative per policy
+            invalid_count = total - valid_count
 
-            # Policy:
-            # - if no valid signatures -> fail exit 1
-            # - if authoritative valid -> OK exit 0
-            # - if authoritative invalid but some legacy valid -> WARNING + exit 0 (do not reveal which ones)
             if valid_count == 0:
                 print("DEX verification FAILED: no valid signatures found.")
                 raise SystemExit(1)
 
-            if authoritative_valid:
-                print("DEX verification OK — authoritative signature valid.")
-                if getattr(args, "verbose", False):
-                    print(f"{valid_count} of {total} signatures are valid.")
-                raise SystemExit(0)
-            else:
-                # authoritative invalid but at least one legacy valid
-                print("WARNING: authoritative signature invalid.")
-                print("However, at least one legacy signature is valid.")
-                print("Please review the artifact and sign again if appropriate.")
-                if getattr(args, "verbose", False):
-                    print(f"{valid_count} of {total} signatures are valid (not revealing which).")
-                raise SystemExit(0)
+            print("DEX verification OK — valid signatures present.")
+
+            if getattr(args, "verbose", False):
+                print(f"Valid: {valid_count}")
+                print(f"Invalid: {invalid_count}")
+                print(f"Total: {total}")
+
+            raise SystemExit(0)
             
     # --------------------------------------------------------
     # SEARCH
@@ -1321,61 +1510,14 @@ def main() -> None:
     # DIFF
     # --------------------------------------------------------
     elif args.command == "diff":
+        from dennis.dex.diff import diff_dex
         import json
-        from dennis.dex.importer import import_dex
 
-        semantic = not args.ignore_semantics
-
-        manifestA, payloadA = import_dex(args.artifact_a)
-        manifestB, payloadB = import_dex(args.artifact_b)
-
-        planA = json.loads(payloadA)
-        planB = json.loads(payloadB)
-
-        changesA = index_changes(planA, semantic)
-        changesB = index_changes(planB, semantic)
-
-        added = sorted(changesB.keys() - changesA.keys())
-        removed = sorted(changesA.keys() - changesB.keys())
-
-        common = changesA.keys() & changesB.keys()
-
-        modified = []
-
-        for cid in sorted(common):
-
-            if changesA[cid] != changesB[cid]:
-
-                diffs = {}
-
-                for k in set(changesA[cid]) | set(changesB[cid]):
-
-                    if changesA[cid].get(k) != changesB[cid].get(k):
-
-                        diffs[k] = {
-                            "A": changesA[cid].get(k),
-                            "B": changesB[cid].get(k)
-                        }
-
-                modified.append({
-                    "id": cid,
-                    "file": changesA[cid].get("file"),
-                    "line": changesA[cid].get("line"),
-                    "differences": diffs
-                })
-
-        result = {
-            "artifact_a": manifestA["payload"]["hash"]["value"],
-            "artifact_b": manifestB["payload"]["hash"]["value"],
-            "summary": {
-                "added": len(added),
-                "removed": len(removed),
-                "modified": len(modified)
-            },
-            "added": added,
-            "removed": removed,
-            "modified": modified
-        }
+        result = diff_dex(
+            args.artifact_a,
+            args.artifact_b,
+            ignore_semantics=args.ignore_semantics
+        )
 
         print(json.dumps(result, indent=2))
 
@@ -1403,10 +1545,27 @@ def main() -> None:
         print("Forging artifact...")
         print(f"Payload hash: {payload_hash}")
 
-        pack_dex(
-            payload_path,
-            output_path,
-            payload_type=args.type
+        parent_manifest = None
+
+        if args.parent:
+            from dennis.dex.importer import import_dex
+
+            parent_path = Path(args.parent)
+
+            if not parent_path.exists():
+                raise SystemExit(f"[Dennis] Parent artifact not found: {args.parent}")
+
+            parent_manifest, _ = import_dex(parent_path)
+
+        if args.parent and args.detached:
+            raise SystemExit("[Dennis] Cannot use --parent and --detached together")
+
+        output = pack_dex(
+            payload_path=Path(args.payload),
+            output_path=Path(args.out),
+            payload_type=args.type,
+            parent_manifest=parent_manifest,
+            force_detached=args.detached
         )
 
         print(f"Artifact written → {output_path}")
@@ -1454,6 +1613,7 @@ def main() -> None:
         from pathlib import Path
         import json
         import re
+        from dennis.core.rehydrate import rehydrate
         from dennis.dex.importer import import_dex
 
         artifact = Path(args.artifact)
@@ -1461,12 +1621,12 @@ def main() -> None:
 
         out_dir.mkdir(parents=True, exist_ok=True)
 
+        # ✅ FULL REHYDRATION (files + helpers)
+        rehydrate(artifact, output_dir=out_dir)
+
+        # ✅ THEN extract plan (for UX)
         manifest, payload_bytes = import_dex(artifact)
         plan = json.loads(payload_bytes)
-
-        # --------------------------------------------------
-        # Write plan
-        # --------------------------------------------------
 
         plan_path = out_dir / "rehydrated-plan.json"
 
@@ -1476,47 +1636,122 @@ def main() -> None:
 
         print(f"Plan restored → {plan_path}")
 
-        # --------------------------------------------------
-        # Reconstruct dictionary
-        # --------------------------------------------------
-
-        dictionary = {}
-
-        for change in plan.get("changes", []):
-
-            token = change.get("token")
-            original = change.get("original")
-
-            if not token or not original:
-                continue
-
-            match = re.search(r'["\'](.+?)["\']', original)
-
-            if match:
-                dictionary[token] = match.group(1)
-
-        if dictionary:
-
-            dict_path = out_dir / "dictionary.json"
-
-            dict_path.write_text(
-                json.dumps(dictionary, indent=2, ensure_ascii=False) + "\n"
-            )
-
-            print(f"Dictionary restored → {dict_path}")
-
-        print("\nNext step:")
-        print(f"  dennis apply {plan_path.name}")
-
     elif args.command == "apply":
 
         from pathlib import Path
         from dennis.i18n.apply import apply_plan
+        from dennis.dex.importer import import_dex
+        import tempfile
+        import json
 
         plan_path = Path(args.plan)
 
-        changes = apply_plan(plan_path)
 
+        if plan_path.suffix == ".dex":
+
+            manifest, payload_bytes = import_dex(plan_path)
+
+            # --------------------------------------------------------
+            # LINEAGE ENFORCEMENT (CRITICAL)
+            # --------------------------------------------------------
+
+            def _context_path():
+                return Path.home() / ".dennis" / "context.json"
+
+            def get_active_lineage():
+                path = _context_path()
+                if not path.exists():
+                    return None
+                try:
+                    return json.loads(path.read_text()).get("active_lineage_id")
+                except Exception:
+                    return None
+
+            def save_active_lineage(lineage_id):
+                ctx_dir = _context_path().parent
+                ctx_dir.mkdir(parents=True, exist_ok=True)
+
+                _context_path().write_text(json.dumps({
+                    "active_lineage_id": lineage_id,
+                    "root_hash": lineage_id
+                }, indent=2))
+
+            lineage = manifest.get("lineage", {})
+            artifact_lineage_id = lineage.get("lineage_id")
+            artifact_type = lineage.get("type")
+
+            active_lineage_id = get_active_lineage()
+
+            print(f"[Dennis] Artifact lineage type: {artifact_type}")
+            if artifact_lineage_id:
+                print(f"[Dennis] Artifact lineage ID: {artifact_lineage_id}")
+
+            # ----------------------------------------
+            # DETACHED
+            # ----------------------------------------
+
+            if artifact_type == "detached" or not artifact_lineage_id:
+                print("[Dennis] WARNING: Detached artifact detected")
+
+                if not args.accept_detached:
+                    raise SystemExit(
+                        "[Dennis] ERROR: Detached artifact requires --accept-detached"
+                    )
+
+                print("[Dennis] Detached artifact explicitly accepted")
+
+            # ----------------------------------------
+            # FIRST RUN (BOOTSTRAP)
+            # ----------------------------------------
+
+            if active_lineage_id is None:
+
+                if artifact_type == "detached":
+                    raise SystemExit(
+                        "[Dennis] ERROR: Cannot initialize lineage from detached artifact"
+                    )
+
+                print(f"[Dennis] Initializing lineage → {artifact_lineage_id}")
+                save_active_lineage(artifact_lineage_id)
+
+            # ----------------------------------------
+            # LINEAGE MISMATCH
+            # ----------------------------------------
+
+            elif artifact_lineage_id != active_lineage_id:
+
+                print("[Dennis] ERROR: Lineage mismatch")
+                print(f"  Active:   {active_lineage_id}")
+                print(f"  Artifact: {artifact_lineage_id}")
+
+                if not args.accept_lineage:
+                    raise SystemExit(
+                        "[Dennis] Refusing to apply artifact from different lineage.\n"
+                        "Use --accept-lineage <lineage_id> to override."
+                    )
+
+                if args.accept_lineage != artifact_lineage_id:
+                    raise SystemExit(
+                        "[Dennis] Provided lineage does not match artifact."
+                    )
+
+                print("[Dennis] WARNING: Lineage override accepted")
+
+            # --------------------------------------------------------
+            # APPLY (only after passing all checks)
+            # --------------------------------------------------------
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
+                tmp.write(payload_bytes)
+                tmp_path = Path(tmp.name)
+
+            try:
+                changes = apply_plan(tmp_path, confirm=args.confirm)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+
+        else:
+            changes = apply_plan(plan_path, confirm=args.confirm)
 
     elif args.command == "dict":
 
@@ -1620,3 +1855,20 @@ def main() -> None:
 
         print(f"[Dennis] Installed: {src.name}")
         print(f"[Dennis] Location: {dest}")
+
+    elif args.command == "key":
+
+        from pathlib import Path
+        from dennis.core.keys import bootstrap_key, approve_key, list_keys
+
+        if args.key_command == "bootstrap":
+            bootstrap_key(Path(args.pub))
+
+        elif args.key_command == "approve":
+            approve_key(Path(args.pub), Path(args.signer))
+
+        elif args.key_command == "list":
+            list_keys()
+
+        else:
+            raise SystemExit("Unknown key command")

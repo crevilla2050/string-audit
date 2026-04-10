@@ -14,11 +14,15 @@ from collections import OrderedDict
 
 CHANGE_FIELD_ORDER = [
     "id",
+    "type",          # ← ADDED
     "file",
     "line",
     "original",
     "replacement",
     "token",
+    "helper_id",     # ← ADDED
+    "helper_ref",    # ← ADDED
+    "helper_source", # ← ADDED
     "confidence",
     "notes",
 ]

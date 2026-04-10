@@ -6,6 +6,8 @@ __pycache__/
 
 # Virtualenv
 venv/
+.venv/
+
 
 # Build artifacts
 dist/
@@ -36,4 +38,7 @@ Thumbs.db
 *.log
 *.bak
 *.swp
-*.json  
+*.key
+*.pub
+*.json
+*.csv

@@ -21,7 +21,13 @@ def now_iso():
 # Manifest Builder
 # ------------------------------------------------------------
 
-def build_manifest(payload_hash_value, payload_type, execution=None, created_by="dennis"):
+def build_manifest(
+    payload_hash_value,
+    payload_type,
+    execution=None,
+    created_by="dennis",
+    lineage=None
+):
     """
     Build a base DEX manifest structure.
 
@@ -45,10 +51,46 @@ def build_manifest(payload_hash_value, payload_type, execution=None, created_by=
                 "value": payload_hash_value,
             },
         },
+        "lineage": lineage or {
+            "lineage_id": None,
+            "parent": None,
+            "type": "detached",
+        },
         "execution": execution or {},
         "signatures": [],
     }
 
+def build_root_lineage(payload_hash):
+    """
+    Create lineage block for ROOT artifact.
+    """
+    return {
+        "lineage_id": payload_hash,
+        "parent": None,
+        "type": "root",
+    }
+
+def build_derived_lineage(parent_manifest):
+    """
+    Inherit lineage from parent artifact.
+    """
+    parent_lineage = parent_manifest.get("lineage", {})
+
+    return {
+        "lineage_id": parent_lineage.get("lineage_id"),
+        "parent": parent_manifest.get("payload", {}).get("hash", {}).get("value"),
+        "type": "derived",
+    }
+
+def build_detached_lineage():
+    """
+    Explicit detached lineage (no history).
+    """
+    return {
+        "lineage_id": None,
+        "parent": None,
+        "type": "detached",
+    }
 
 # ------------------------------------------------------------
 # Semantic Subset (what gets signed)
@@ -66,7 +108,42 @@ def semantic_subset(manifest):
         "payload_hash_value": payload["hash"]["value"],
         "payload_type": payload["type"],
         "execution": manifest.get("execution", {}),
+        "lineage": manifest.get("lineage", {}),
     }
+
+
+def validate_lineage_structure(manifest):
+    """
+    Basic structural validation of lineage block.
+    """
+
+    lineage = manifest.get("lineage")
+
+    if not lineage:
+        raise ValueError("Missing lineage block")
+
+    ltype = lineage.get("type")
+
+    if ltype not in ("root", "derived", "detached"):
+        raise ValueError(f"Invalid lineage type: {ltype}")
+
+    if ltype == "root":
+        if lineage.get("parent") is not None:
+            raise ValueError("Root must not have parent")
+
+        if not lineage.get("lineage_id"):
+            raise ValueError("Root must define lineage_id")
+
+    if ltype == "derived":
+        if not lineage.get("parent"):
+            raise ValueError("Derived must have parent")
+
+        if not lineage.get("lineage_id"):
+            raise ValueError("Derived must have lineage_id")
+
+    if ltype == "detached":
+        if lineage.get("lineage_id") is not None:
+            raise ValueError("Detached must not define lineage_id")
 
 
 # ------------------------------------------------------------

@@ -119,14 +119,88 @@ def iter_python_files(root: Path, git_aware: bool = True):
         if path.is_file():
             yield path
 
-def iter_files(root: Path, git_aware=True):
-    if git_aware:
+def git_changed_files(root: Path) -> Iterable[Path]:
+    """
+    Yield files changed in working tree (staged + unstaged).
+    """
+    try:
+        files = set()
+
+        # Unstaged changes
+        result = subprocess.run(
+            ["git", "diff", "--name-only"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        for line in result.stdout.splitlines():
+            if line.strip():
+                files.add(line.strip())
+
+        # Staged changes
+        result = subprocess.run(
+            ["git", "diff", "--cached", "--name-only"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        for line in result.stdout.splitlines():
+            if line.strip():
+                files.add(line.strip())
+
+        for f in files:
+            path = root / f
+            if path.exists() and path.is_file():
+                yield path
+
+    except Exception:
+        return
+
+
+def iter_files(root: Path, git_mode: str = "tracked"):
+    """
+    Enumerate files.
+
+    Modes:
+    - tracked (default): git ls-files
+    - changed: staged + unstaged changes
+    - fallback: filesystem scan
+    """
+
+    # ----------------------------------------
+    # Git-aware modes
+    # ----------------------------------------
+    if is_git_repo(root):
+
         try:
+            # ----------------------------------------
+            # MODE: changed files only
+            # ----------------------------------------
+            if git_mode == "changed":
+
+                changed = list(git_changed_files(root))
+
+                if changed:
+                    print(f"[Dennis] Git changed files detected ({len(changed)})")
+                    for f in changed:
+                        yield f
+                    return
+                else:
+                    print("[Dennis] No git changes detected, falling back to tracked files")
+
+            # ----------------------------------------
+            # MODE: tracked files (default)
+            # ----------------------------------------
             result = subprocess.run(
                 ["git", "ls-files", "-z"],
                 cwd=root,
                 capture_output=True,
-                text=False
+                text=False,
+                check=True,
             )
 
             for entry in result.stdout.split(b"\x00"):
@@ -134,9 +208,13 @@ def iter_files(root: Path, git_aware=True):
                     yield root / entry.decode("utf-8", errors="ignore")
 
             return
-        except Exception:
-            pass
 
+        except Exception:
+            print("[Dennis] WARNING: git failed, falling back to filesystem scan")
+
+    # ----------------------------------------
+    # Fallback: filesystem scan
+    # ----------------------------------------
     for path in root.rglob("*"):
         if path.is_file():
             yield path

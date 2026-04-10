@@ -71,7 +71,6 @@ def ensure_runtime_support(lines):
     for l in lines:
         if "dictionary.json" in l or "messages =" in l:
             return lines
-
     return lines
 
 
@@ -108,7 +107,6 @@ def apply_helper_patches(plan: Dict, log: Dict, dry_run: bool = False):
         start_marker = f"# >>> DENNIS-HELPER:{helper_id}"
         end_marker = f"# <<< DENNIS-HELPER:{helper_id}"
 
-        # Prevent duplicate helper insertion
         if any(start_marker in l for l in lines):
             print(f"Helper '{helper_id}' already present in {file_path}, skipping.")
             continue
@@ -130,6 +128,7 @@ def apply_helper_patches(plan: Dict, log: Dict, dry_run: bool = False):
             "line": line_no + 1,
             "helper_id": helper.get("id")
         })
+
 
 # --------------------------------------------------------
 # HELPER PATCH REMOVE
@@ -224,14 +223,26 @@ def remove_helper_patches(plan: Dict, log: Dict, dry_run: bool = False):
 # MAIN PLAN APPLY
 # --------------------------------------------------------
 
-def apply_plan(plan_path: Path, dry_run: bool = False) -> int:
+def apply_plan(plan_path: Path, dry_run: bool = False, confirm: str | None = None) -> int:
 
+    import json
     import datetime
+    from pathlib import Path
+    from typing import Dict, List
+    from dennis.core.hash import canonical_hash
 
-    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))    
+
+    payload_hash = canonical_hash(plan)
+    payload_hash_short = payload_hash[:12]
 
     changes = plan.get("changes", [])
     patches = plan.get("patches", {})
+
+    helpers = [
+        ch for ch in changes
+        if ch.get("type") == "helper"
+    ]
     meta = plan.get("meta", {})
 
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
@@ -248,31 +259,132 @@ def apply_plan(plan_path: Path, dry_run: bool = False) -> int:
     }
 
     # --------------------------------------
-    # Helper patches
+    # PREVIEW MODE (default)
     # --------------------------------------
-    remove_helpers = patches.get("remove_helpers", [])
 
-    helpers = patches.get("helpers", [])
+    if confirm is None:
+        print("\n[Dennis] PREVIEW MODE — no changes will be applied\n")
 
-    # New-style explicit removal
-    if remove_helpers:
-        print(f"Removing {len(remove_helpers)} helper patch(es)\n")
-        remove_helper_patches({"patches": {"helpers": remove_helpers}}, log, dry_run=dry_run)
+        print(f"Payload hash: {payload_hash}")
+        print(f"Short hash:   {payload_hash_short}")
 
-    # Legacy invert-mode removal (only if explicit removal not present)
-    elif helpers and meta.get("operation") == "invert":
-        print(f"Removing {len(helpers)} helper patch(es)\n")
-        remove_helper_patches(plan, log, dry_run=dry_run)
+        print(f"\nTotal changes: {len(changes)}")
+        helper_changes = [
+            ch for ch in changes
+            if ch.get("type") == "helper"
+        ]
 
-    if helpers:
+        print(f"Helpers:       {len(helper_changes)}")
 
-        if meta.get("operation") == "invert":
-            print(f"Removing {len(helpers)} helper patch(es)\n")
-            remove_helper_patches(plan, log, dry_run=dry_run)
+        print("\nTo apply this artifact, run:\n")
+        print(f"  dennis apply {plan_path} --confirm {payload_hash_short}\n")
 
-        else:
-            print(f"Applying {len(helpers)} helper patch(es)\n")
-            apply_helper_patches(plan, log, dry_run=dry_run)
+        return 0
+    
+    # --------------------------------------
+    # CONFIRMATION CHECK
+    # --------------------------------------
+
+    if not payload_hash.startswith(confirm):
+        print("\n[Dennis] ERROR: Confirmation hash mismatch\n")
+        print(f"Expected prefix: {payload_hash_short}")
+        print(f"Received:        {confirm}\n")
+        raise SystemExit(1)
+
+    # --------------------------------------
+    # Helper resolution (FINAL MODEL)
+    # --------------------------------------
+
+    required_helpers = {
+        ch.get("helper_id")
+        for ch in changes
+        if ch.get("type") == "helper"
+    }
+
+    available_helpers = set()
+
+    for ch in changes:
+        if ch.get("type") == "helper":
+
+            helper_ref = ch.get("helper_ref")
+            helper_name = Path(helper_ref).name if helper_ref else None
+
+            # check in ./helpers
+            if helper_name:
+                helper_path = Path("helpers") / helper_name
+                if helper_path.exists():
+                    available_helpers.add(ch.get("helper_id"))
+
+    missing = required_helpers - available_helpers
+
+    if missing:
+        print("\n[Dennis] ERROR: Missing required helpers.\n")
+        print(f"  Required:  {sorted(required_helpers)}")
+        print(f"  Available: {sorted(available_helpers)}")
+        print(f"  Missing:   {sorted(missing)}\n")
+        raise SystemExit(1)
+    
+    # --------------------------------------
+    # Apply helper patches (FINAL MODEL)
+    # --------------------------------------
+
+    helpers = sorted(helpers, key=lambda h: (h.get("file"), h.get("line")))
+    inserted_helpers = set()
+
+    for h in helpers:
+
+        helper_id = h.get("helper_id") or h.get("id")
+
+        if helper_id in inserted_helpers:
+            continue
+
+        target_file = Path(h.get("file"))
+        insert_line = h.get("line") or 1
+        helper_ref = h.get("helper_ref")
+
+        if not helper_ref:
+            raise SystemExit(f"[Dennis] ERROR: helper missing helper_ref: {h}")
+
+        helper_name = Path(helper_ref).name
+        helper_path = Path("helpers") / helper_name
+
+        if not helper_path.exists():
+            raise SystemExit(f"[Dennis] ERROR: Helper file not found: {helper_path}")
+
+        if not target_file.exists():
+            raise SystemExit(f"[Dennis] ERROR: Target file not found: {target_file}")
+
+        print(f"[Dennis] Injecting helper → {helper_path} into {target_file}:{insert_line}")
+
+        helper_lines = helper_path.read_text(encoding="utf-8").splitlines()
+        if not helper_lines:
+            raise SystemExit(f"[Dennis] ERROR: Empty helper: {helper_id}")
+        
+        lines = target_file.read_text(encoding="utf-8").splitlines()
+
+        # Idempotency check
+        start_marker = f"# >>> DENNIS HELPER START: {helper_id}"
+
+        if any(start_marker in line for line in lines):
+            print(f"[Dennis] Skipping helper {helper_id} (already present)")
+            continue
+
+        wrapped = [
+            f"# >>> DENNIS HELPER START: {helper_id}",
+            *helper_lines,
+            f"# <<< DENNIS HELPER END: {helper_id}",
+        ]
+
+        idx = max(0, min(len(lines), insert_line - 1))
+        new_lines = lines[:idx] + wrapped + lines[idx:]
+
+        if not dry_run:
+            target_file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
+        inserted_helpers.add(helper_id)
+        log["changes_applied"] += 1
+
+
 
     # --------------------------------------
     # Apply string transformations
@@ -284,6 +396,56 @@ def apply_plan(plan_path: Path, dry_run: bool = False) -> int:
     print(f"Total changes in plan: {len(changes)}\n")
 
     for change in changes:
+
+        change_type = change.get("type")
+
+        # --------------------------------------
+        # Handle helper removal FIRST
+        # --------------------------------------
+        if change_type == "helper_remove":
+
+            file_path = Path(change.get("file"))
+            helper_id = change.get("helper_id")
+
+            if not file_path.exists():
+                continue
+
+            lines = file_path.read_text(encoding="utf-8").splitlines()
+
+            start_marker = f"# >>> DENNIS HELPER START: {helper_id}"
+            end_marker = f"# <<< DENNIS HELPER END: {helper_id}"
+
+            new_lines = []
+            inside = False
+
+            for line in lines:
+                if start_marker in line:
+                    inside = True
+                    continue
+                if end_marker in line:
+                    inside = False
+                    continue
+                if not inside:
+                    new_lines.append(line)
+
+            file_path.write_text("\n".join(new_lines), encoding="utf-8")
+
+            print(f"[Dennis] Removed helper → {file_path}")
+
+            continue  # IMPORTANT
+
+        # --------------------------------------
+        # Skip helper (already handled)
+        # --------------------------------------
+        if change_type == "helper":
+            continue
+
+        # --------------------------------------
+        # Only process transforms
+        # --------------------------------------
+        if "original" not in change:
+            continue
+        
         changes_by_file.setdefault(change["file"], []).append(change)
 
     total = 0
@@ -299,19 +461,6 @@ def apply_plan(plan_path: Path, dry_run: bool = False) -> int:
                 "type": "missing_file"
             })
             continue
-
-        expected_hash = file_changes[0].get("file_hash")
-
-        if expected_hash:
-            try:
-                from dennis.core.hash import sha256_file
-                current_hash = sha256_file(file_path)
-
-                if current_hash != expected_hash:
-                    print(f"⚠ File changed since plan generation: {file_path}")
-                    print("Continuing with heuristic matching.\n")
-            except Exception:
-                pass
 
         lines = file_path.read_text(encoding="utf-8").splitlines()
         normalized_lines = [l.strip() for l in lines]
@@ -359,11 +508,6 @@ def apply_plan(plan_path: Path, dry_run: bool = False) -> int:
                 log["changes_applied"] += 1
 
         if modified and not dry_run:
-
-            # Only inject runtime support during forward apply
-            if meta.get("operation") != "invert":
-                lines = ensure_runtime_support(lines)
-
             file_path.write_text(
                 "\n".join(lines) + "\n",
                 encoding="utf-8"

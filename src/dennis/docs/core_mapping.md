@@ -1,0 +1,11 @@
+plan       → dennis.i18n.plan.generate_plan
+apply      → dennis.i18n.apply.apply_plan
+rehydrate  → dennis.core.rehydrate.rehydrate_plan
+pack       → dennis.dex.pack.pack_dex
+sign       → dennis.dex.sign.sign_dex
+verify     → dennis.dex.validate.validate_manifest
+inspect    → dennis.dex.importer.import_dex
+publish    → dennis.forge.sync.push.push_artifact
+pull       → dennis.forge.sync.pull.pull_artifact
+qr         → dennis.qr.encode.generate_png_qr
+scan-qr    → dennis.qr.decode.decode_image_qr

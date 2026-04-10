@@ -3,7 +3,7 @@ from typing import List
 
 from .models import Finding
 from .detectors.hardcoded_strings import HardcodedStringDetector
-from .plugins import load_plugins
+
 from .utils import iter_files
 
 
@@ -25,15 +25,12 @@ def is_binary_file(path: Path, chunk_size: int = 1024) -> bool:
         return True
 
 
-def scan_directory(root: Path) -> List[Finding]:
+def scan_directory(root: Path, git_mode: str = "tracked") -> List[Finding]:
     findings: List[Finding] = []
 
     detector = HardcodedStringDetector()
-    plugins = load_plugins()
-
-    print(f"[DEBUG] plugins: {[p['name'] for p in plugins]}")
-
-    for file_path in iter_files(root, git_aware=True):
+    
+    for file_path in iter_files(root, git_mode=git_mode):
 
         if is_binary_file(file_path):
             continue
@@ -49,6 +46,10 @@ def scan_directory(root: Path) -> List[Finding]:
             findings.append(f)
 
         # PLUGINS
+        from dennis.plugins import load_plugins
+
+        plugins = load_plugins()
+
         for plugin in plugins:
             if file_path.suffix in plugin["extensions"]:
                 try:
