@@ -1994,16 +1994,23 @@ def main() -> None:
         # ----------------------------------------
         password = getpass.getpass("Password: ")
 
+        server = args.server.rstrip("/")
+
+        url = server + "/api/auth/login"
+
         payload = json.dumps({
             "email": args.email,
             "password": password
-        }).encode()
+        }).encode("utf-8")
 
         req = urllib.request.Request(
-            server + "/auth/login",
+            url,
             data=payload,
             method="POST",
-            headers={"Content-Type": "application/json"}
+            headers={
+                "Content-Type": "application/json",
+                "Content-Length": str(len(payload))
+            }
         )
 
         try:
