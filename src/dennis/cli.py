@@ -133,9 +133,10 @@ def build_parser() -> argparse.ArgumentParser:
     Core workflow:
     plan       generate transformation plan
     pack       create DEX artifact
-    sign       sign artifact
+    dex sign       sign artifact
     inspect    inspect artifact metadata
     verify     verify signatures
+    validate-plan   validate transformation semantics
 
     Security:
     encrypt    convert DEX → XDEX
@@ -604,8 +605,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     key_list = key_sub.add_parser("list")
 
-    return parser
+    validate_plan_cmd = sub.add_parser(
+        "validate-plan",
+        help="Validate transformation plan inside artifact"
+    )
 
+    validate_plan_cmd.add_argument(
+        "input",
+        help="Path to artifact.dex"
+    )
+
+    login_cmd = sub.add_parser("login", help="Authenticate with Dennis The Forge")
+
+    login_cmd.add_argument("--server", required=True)
+    login_cmd.add_argument("--email", required=True)
+    login_cmd.add_argument("--token", help="Use existing token (for automation)")
+
+    logout_cmd = sub.add_parser("logout", help="Clear stored authentication")
+
+    return parser
 
 
 # ============================================================
@@ -654,6 +672,15 @@ def main() -> None:
             print("Header:", "valid" if results.get("header_valid") else "invalid") 
         print()
 
+        return
+    
+    elif args.command == "validate-plan":
+        from dennis.core.plan_validator import validate_plan_from_artifact
+        import json
+
+        result = validate_plan_from_artifact(args.input)
+
+        print(json.dumps(result, indent=2))
         return
     
     
@@ -956,39 +983,77 @@ def main() -> None:
             print(data)
 
     # --------------------------------------------------------
-    # VALIDATE
+    # DEX COMMANDS
     # --------------------------------------------------------
-    elif args.command == "validate":
+    elif args.command == "dex":
 
-        from dennis.dex.validate import validate_dex_file
+        import json
 
-        results = validate_dex_file(args.path)
+        if args.dex_command == "sign":
+            from dennis.dex.sign import sign_dex
 
-        print("\n[ Dennis Validate ]\n")
+            artifact = args.artifact
+            key_path = args.key
+            key_id = args.key_id
 
-        # Schema
-        if results["schema"]:
-            print("[OK] Schema valid")
-        else:
-            print("[FAIL] Schema invalid")
+            sign_dex(artifact, key_path, key_id=key_id)
 
-        # Signatures
-        sig_ok = sum(1 for _, ok in results["signatures"] if ok)
-        sig_total = len(results["signatures"])
+            print(json.dumps({
+                "success": True,
+                "message": f"Signed: {artifact}",
+                "key_id": key_id
+            }, indent=2))
 
-        print(f"[OK] Signatures valid ({sig_ok}/{sig_total})")
+            return
 
-        # Provenance
-        if results["provenance"]:
-            print(f"[OK] Provenance chain valid ({results['provenance_steps']} steps)")
-        else:
-            print("[FAIL] Provenance chain invalid")
+        elif args.dex_command == "verify":
+            from dennis.dex.sign import verify_dex
 
-        # Identity
-        print("\nPayload Hash:", results.get("payload_hash"))
-        print("Trust State:", results.get("provenance_hash"))
+            artifact = args.artifact
+            results = verify_dex(artifact)
 
-        print()
+            if not results:
+                result = {
+                    "verified": False,
+                    "signatures": 0,
+                    "valid_signatures": 0,
+                    "invalid_signatures": 0,
+                    "errors": ["No signatures present"],
+                    "message": "✖ No signatures found"
+                }
+
+                print(json.dumps(result, indent=2))
+                raise SystemExit(1)
+
+            total = len(results)
+            valid_count = sum(1 for _, ok in results if ok)
+            invalid_count = total - valid_count
+
+            if valid_count == 0:
+                result = {
+                    "verified": False,
+                    "signatures": total,
+                    "valid_signatures": 0,
+                    "invalid_signatures": invalid_count,
+                    "errors": ["No valid signatures"],
+                    "message": "✖ No valid signatures"
+                }
+
+                print(json.dumps(result, indent=2))
+                raise SystemExit(1)
+
+            result = {
+                "verified": True,
+                "signatures": total,
+                "valid_signatures": valid_count,
+                "invalid_signatures": invalid_count,
+                "errors": [],
+                "message": "✔ Signature valid"
+            }
+
+            print(json.dumps(result, indent=2))
+            return
+
 
     # --------------------------------------------------------
     # HASH
@@ -1031,6 +1096,7 @@ def main() -> None:
 
         # ---------- AUTO QR ----------
         if args.qr:
+            import datetime
             from dennis.qr.encode import generate_ascii_qr, generate_png_qr
             out_dir = Path(args.qr_path) if args.qr_path else Path(args.plan).parent
             out_dir.mkdir(parents=True, exist_ok=True)
@@ -1115,44 +1181,6 @@ def main() -> None:
         for k, v in parsed.items():
             print(f"{k}: {v}")
 
-    # --------------------------------------------------------
-    # DEX: sign / verify
-    # --------------------------------------------------------
-    elif args.command == "dex":
-        if args.dex_command == "sign":
-            from dennis.dex.sign import sign_dex
-            artifact = args.artifact
-            key_path = args.key
-            key_id = args.key_id
-            sign_dex(artifact, key_path, key_id=key_id)
-            print(f"Signed: {artifact} (key_id={key_id})")
-
-        elif args.dex_command == "verify":
-            from dennis.dex.sign import verify_dex
-            artifact = args.artifact
-
-            results = verify_dex(artifact)  # returns list of (key_id, bool) in manifest order
-
-            if not results:
-                print("DEX verification FAILED: no signatures present.")
-                raise SystemExit(1)
-
-            total = len(results)
-            valid_count = sum(1 for _, ok in results if ok)
-            invalid_count = total - valid_count
-
-            if valid_count == 0:
-                print("DEX verification FAILED: no valid signatures found.")
-                raise SystemExit(1)
-
-            print("DEX verification OK — valid signatures present.")
-
-            if getattr(args, "verbose", False):
-                print(f"Valid: {valid_count}")
-                print(f"Invalid: {invalid_count}")
-                print(f"Total: {total}")
-
-            raise SystemExit(0)
             
     # --------------------------------------------------------
     # SEARCH
@@ -1201,14 +1229,82 @@ def main() -> None:
         import uuid
         from pathlib import Path
         import json
+        import subprocess
+        import sys
+        import os
+
+        from dennis.forge.config import load_config
 
         artifact_path = Path(args.artifact)
 
         if not artifact_path.exists():
             raise SystemExit(f"Artifact not found: {artifact_path}")
 
-        url = args.remote.rstrip("/") + "/api/artifacts"
+        # ----------------------------------------
+        # 1. VALIDATE PLAN
+        # ----------------------------------------
+        print("[Dennis] Validating plan...")
 
+        vp = subprocess.run(
+            ["dennis", "validate-plan", str(artifact_path)],
+            capture_output=True,
+            text=True
+        )
+
+        if vp.returncode != 0:
+            print(vp.stderr)
+            raise SystemExit("validate-plan failed")
+
+        vp_json = json.loads(vp.stdout)
+
+        if not vp_json.get("valid"):
+            print(json.dumps(vp_json, indent=2))
+            raise SystemExit("❌ Plan validation failed")
+
+        print("✔ Plan valid")
+
+        # ----------------------------------------
+        # 2. VERIFY SIGNATURE
+        # ----------------------------------------
+        print("[Dennis] Verifying artifact...")
+
+        vf = subprocess.run(
+            ["dennis", "dex", "verify", str(artifact_path)],
+            capture_output=True,
+            text=True
+        )
+
+        if vf.returncode != 0:
+            print(vf.stderr)
+            raise SystemExit("verify failed")
+
+        vf_json = json.loads(vf.stdout)
+
+        if not vf_json.get("verified"):
+            print(json.dumps(vf_json, indent=2))
+            raise SystemExit("❌ Artifact is not properly signed")
+
+        print("✔ Signature valid")
+
+        # ----------------------------------------
+        # 3. LOAD CONFIG (AUTH)
+        # ----------------------------------------
+        config = load_config()
+        token = config.get("auth", {}).get("token")
+        
+        server = config.get("server") or args.remote
+
+        if not server:
+            raise SystemExit("No server configured")
+
+        if not token:
+            raise SystemExit("Not authenticated. Please run: dennis login")
+
+        url = server.rstrip("/") + "/artifacts/upload"
+
+        # ----------------------------------------
+        # 4. BUILD MULTIPART REQUEST
+        # ----------------------------------------
         boundary = uuid.uuid4().hex
         file_bytes = artifact_path.read_bytes()
 
@@ -1218,19 +1314,30 @@ def main() -> None:
             f"Content-Type: application/octet-stream\r\n\r\n"
         ).encode() + file_bytes + f"\r\n--{boundary}--\r\n".encode()
 
+        # ----------------------------------------
+        # 5. SEND REQUEST (AUTHENTICATED)
+        # ----------------------------------------
         req = urllib.request.Request(
             url,
             data=body,
             method="POST",
             headers={
-                "Content-Type": f"multipart/form-data; boundary={boundary}"
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "Authorization": f"Bearer {token}"
             },
         )
 
-        with urllib.request.urlopen(req) as resp:
-            result = json.loads(resp.read())
+        try:
+            with urllib.request.urlopen(req) as resp:
+                result = json.loads(resp.read())
 
-        print(f"Published artifact → {result.get('artifact_hash')}")
+        except urllib.error.HTTPError as e:
+            raise SystemExit(f"Upload failed: {e.read().decode()}")
+
+        # ----------------------------------------
+        # 6. OUTPUT
+        # ----------------------------------------
+        print(f"✔ Published artifact → {result.get('artifact_hash')}")
 
     # --------------------------------------------------------
     # PULL
@@ -1872,3 +1979,75 @@ def main() -> None:
 
         else:
             raise SystemExit("Unknown key command")
+
+    elif args.command == "login":
+        import urllib.request
+        import json
+        import getpass
+
+        from dennis.forge.config import save_config
+
+        server = args.server.rstrip("/")
+
+        # ----------------------------------------
+        # PASSWORD PROMPT (secure)
+        # ----------------------------------------
+        password = getpass.getpass("Password: ")
+
+        payload = json.dumps({
+            "email": args.email,
+            "password": password
+        }).encode()
+
+        req = urllib.request.Request(
+            server + "/auth/login",
+            data=payload,
+            method="POST",
+            headers={"Content-Type": "application/json"}
+        )
+
+        try:
+            with urllib.request.urlopen(req) as resp:
+                result = json.loads(resp.read())
+
+        except Exception as e:
+            raise SystemExit(f"Login failed: {e}")
+
+        token = result.get("access_token")
+
+        if not token:
+            raise SystemExit("Login failed: no token returned")
+
+        save_config({
+            "server": server,
+            "auth": {
+                "token": token
+            }
+        })
+
+        if args.token:
+            save_config({
+                "server": server,
+                "auth": {
+                    "token": args.token
+                }
+            })
+
+            print("✔ Token stored")
+            return
+
+        print("✔ Logged in successfully")
+
+
+    elif args.command == "logout":
+        from dennis.forge.config import load_config, save_config
+
+        config = load_config()
+
+        if "auth" in config:
+            config["auth"] = {}
+
+        save_config(config)
+
+        print("✔ Logged out successfully")
+        return

@@ -18,6 +18,7 @@ FIELDNAMES = [
     "token",
     "helper_id",
     "helper_path",
+    "helper_source",
     "insertion_line",  # For helper insert-type changes
     "confidence",
     "notes",
