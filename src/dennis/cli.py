@@ -1,3 +1,9 @@
+import os
+from dennis import server
+from dotenv import load_dotenv
+
+load_dotenv(os.path.expanduser("~/.dennis/.env"))
+
 import argparse
 from marshal import version
 from os import path
@@ -96,6 +102,20 @@ def add_remote_argument(parser):
         default="http://127.0.0.1:8000",
         help="Remote registry URL"
     )
+
+def get_env_config():
+    import os
+
+    api_prefix = os.getenv("API_PREFIX")
+    server = os.getenv("DENNIS_SERVER")
+
+    if api_prefix is None:
+        api_prefix = "/api"
+
+    return {
+        "server": server,
+        "api_prefix": api_prefix
+    }
 
 # ============================================================
 # ARGPARSE
@@ -625,15 +645,38 @@ def build_parser() -> argparse.ArgumentParser:
 
     return parser
 
-
 # ============================================================
 # MAIN
 # ============================================================
 
 def main() -> None:
+    from dennis.forge.config import load_config
+
     parser = build_parser()
     args = parser.parse_args()
 
+    env_cfg = get_env_config()
+    file_cfg = load_config()
+
+    server = (
+        getattr(args, "server", None)
+        or env_cfg.get("server")
+        or file_cfg.get("server")
+    )
+
+    server = server.rstrip("/") if server else None
+
+    if args.command in {"login", "publish", "pull", "push"}:
+        if not server:
+            raise SystemExit("Server not configured. Use --server or set DENNIS_SERVER")
+
+    api_prefix = env_cfg.get("api_prefix")
+
+    if api_prefix is None:
+        api_prefix = "/api"
+
+    api_prefix = api_prefix.rstrip("/")
+    
     # --------------------------------------------------------
     # VALIDATE
     # --------------------------------------------------------
@@ -935,7 +978,7 @@ def main() -> None:
 
         if args.registry_command == "add":
 
-            url = args.remote.rstrip("/") + "/api/registry/remotes"
+            url = args.remote.rstrip("/") + api_prefix + "/registry/remotes"
 
             payload = json.dumps({"url": args.url}).encode()
 
@@ -954,7 +997,7 @@ def main() -> None:
 
         elif args.registry_command == "list":
 
-            url = args.remote.rstrip("/") + "/api/registry/remotes"
+            url = args.remote.rstrip("/") + api_prefix + "/registry/remotes"
 
             with urllib.request.urlopen(url) as resp:
                 data = json.loads(resp.read())
@@ -972,7 +1015,7 @@ def main() -> None:
 
         elif args.registry_command == "sync":
 
-            url = args.remote.rstrip("/") + "/api/registry/sync"
+            url = args.remote.rstrip("/") + api_prefix + "/registry/sync"
 
             req = urllib.request.Request(url, method="POST")
 
@@ -1081,7 +1124,7 @@ def main() -> None:
         plan = json.loads(Path(args.plan).read_text())
         plan_hash = canonical_hash(plan)
 
-        url = args.remote.rstrip("/") + "/plan"
+        url = args.remote.rstrip("/") + api_prefix + "/plan"
         req = urllib.request.Request(
             url,
             data=json.dumps(plan).encode(),
@@ -1203,7 +1246,7 @@ def main() -> None:
 
         query = urllib.parse.urlencode(params)
 
-        url = args.remote.rstrip("/") + "/api/artifacts?" + query
+        url = args.remote.rstrip("/") + api_prefix + "/artifacts?" + query
 
         with urllib.request.urlopen(url) as resp:
             data = json.loads(resp.read())
@@ -1292,15 +1335,13 @@ def main() -> None:
         config = load_config()
         token = config.get("auth", {}).get("token")
         
-        server = config.get("server") or args.remote
-
         if not server:
             raise SystemExit("No server configured")
 
         if not token:
             raise SystemExit("Not authenticated. Please run: dennis login")
 
-        url = server.rstrip("/") + "/artifacts/upload"
+        url = server.rstrip("/") + api_prefix + "/artifacts/upload"
 
         # ----------------------------------------
         # 4. BUILD MULTIPART REQUEST
@@ -1337,7 +1378,17 @@ def main() -> None:
         # ----------------------------------------
         # 6. OUTPUT
         # ----------------------------------------
-        print(f"✔ Published artifact → {result.get('artifact_hash')}")
+        status = result.get("status")
+        artifact_hash = result.get("artifact_hash")
+
+        if status == "duplicate":
+            print("⚠ Artifact already exists")
+            print(f"  Hash: {artifact_hash}")
+            print("  Use 'dennis inspect <file.dex>' to view details")
+            return
+
+        # fallback = success (backward compatible)
+        print(f"✔ Published artifact → {artifact_hash}")
 
     # --------------------------------------------------------
     # PULL
@@ -1351,7 +1402,7 @@ def main() -> None:
         if len(artifact_hash) != 64:
             raise SystemExit("Error: full artifact hash required (64 hex chars)")
 
-        url = args.remote.rstrip("/") + f"/api/artifacts/{artifact_hash}"
+        url = args.remote.rstrip("/") + api_prefix + f"/artifacts/{artifact_hash}"
         print("DEBUG URL:", url)
         with urllib.request.urlopen(url) as resp:
             data = resp.read()
@@ -1479,7 +1530,7 @@ def main() -> None:
             if len(artifact_hash) != 64:
                 raise SystemExit("Error: full artifact hash required (64 hex chars)")
 
-            url = args.remote.rstrip("/") + f"/api/artifacts/{artifact_hash}/metadata"
+            url = args.remote.rstrip("/") + api_prefix + f"/artifacts/{artifact_hash}/metadata"
 
             import urllib.error
 
@@ -1572,7 +1623,7 @@ def main() -> None:
         import urllib.request
         import json
 
-        url = args.remote.rstrip("/") + f"/api/artifacts/{args.hash}/signatures"
+        url = args.remote.rstrip("/") + api_prefix + f"/artifacts/{args.hash}/signatures"
 
         with urllib.request.urlopen(url) as resp:
             data = json.loads(resp.read())
@@ -1596,7 +1647,7 @@ def main() -> None:
     elif args.command == "lineage":
         import json
         import urllib.request
-        url = args.remote.rstrip("/") + f"/api/artifacts/{args.hash}/lineage"
+        url = args.remote.rstrip("/") + api_prefix + f"/artifacts/{args.hash}/lineage"
 
         with urllib.request.urlopen(url) as resp:
             data = json.loads(resp.read())
@@ -1996,7 +2047,7 @@ def main() -> None:
 
         server = args.server.rstrip("/")
 
-        url = server + "/api/auth/login"
+        url = server + api_prefix + "/auth/login"
 
         payload = json.dumps({
             "email": args.email,
