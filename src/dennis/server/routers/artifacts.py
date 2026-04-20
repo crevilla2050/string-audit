@@ -1,4 +1,4 @@
-print("ARTIFACTS MODULE LOADED FROM:", __file__)
+
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
@@ -19,9 +19,9 @@ from datetime import datetime
 
 
 router = APIRouter()
+print("ARTIFACTS MODULE LOADED FROM:", __file__)
 
-
-@router.get("/api/artifacts/diff")
+@router.get("/artifacts/diff")
 def artifact_diff(a: str, b: str, ignore_semantics: bool = False):
 
     path_a = artifact_path(a)
@@ -34,7 +34,7 @@ def artifact_diff(a: str, b: str, ignore_semantics: bool = False):
 
     return result
 
-@router.post("/api/artifacts")
+@router.post("")
 async def upload_artifact(file: UploadFile, origin: str | None = None):
 
     if not file.filename.endswith(".dex"):
@@ -197,7 +197,7 @@ async def upload_artifact(file: UploadFile, origin: str | None = None):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/api/artifacts")
+@router.get("/artifacts")
 def list_artifacts(
     limit: int = 20,
     offset: int = 0,
@@ -262,8 +262,6 @@ def list_artifacts(
     }
 
 
-
-
 @router.get("/artifact/{artifact_hash}", response_class=HTMLResponse)
 def artifact_page(artifact_hash: str):
 
@@ -294,17 +292,17 @@ def artifact_page(artifact_hash: str):
     <p><b>Hash:</b><br>{artifact_hash}</p>
 
     <p>
-    <a href="/api/artifacts/{artifact_hash}">Download DEX</a>
+    <a href="artifacts/{artifact_hash}">Download DEX</a>
     </p>
 
     <p>
     Metadata:
     <br>
-    <a href="/api/artifacts/{artifact_hash}/metadata">metadata</a>
+    <a href="artifacts/{artifact_hash}/metadata">metadata</a>
     <br>
-    <a href="/api/artifacts/{artifact_hash}/signatures">signatures</a>
+    <a href="artifacts/{artifact_hash}/signatures">signatures</a>
     <br>
-    <a href="/api/artifacts/{artifact_hash}/lineage">lineage</a>
+    <a href="artifacts/{artifact_hash}/lineage">lineage</a>
     </p>
 
     </body>
@@ -313,7 +311,7 @@ def artifact_page(artifact_hash: str):
 
 from fastapi.responses import FileResponse
 
-@router.get("/api/artifacts/{artifact_hash}")
+@router.get("artifacts/{artifact_hash}")
 def download_artifact(artifact_hash: str):
 
     path = artifact_path(artifact_hash)
@@ -331,7 +329,7 @@ def download_artifact(artifact_hash: str):
         filename=filename
     )
 
-@router.get("/api/artifacts/{artifact_hash}/metadata")
+@router.get("artifacts/{artifact_hash}/metadata")
 def artifact_metadata(artifact_hash: str):
 
     path = artifact_path(artifact_hash)
@@ -413,7 +411,7 @@ def artifact_metadata(artifact_hash: str):
         raise HTTPException(status_code=500, detail=str(e))
     
     
-@router.get("/api/artifacts/{artifact_hash}/signatures")
+@router.get("artifacts/{artifact_hash}/signatures")
 def artifact_signatures(artifact_hash: str):
 
     artifact = artifact_metadata(artifact_hash)
@@ -426,7 +424,7 @@ def artifact_signatures(artifact_hash: str):
         "signatures": artifact.get("signatures", [])
     }
 
-@router.get("/api/artifacts/{artifact_hash}/lineage")
+@router.get("artifacts/{artifact_hash}/lineage")
 def artifact_lineage(artifact_hash: str):
 
     chain = []

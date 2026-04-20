@@ -11,6 +11,8 @@ import re
 from pathlib import Path
 import json
 from datetime import datetime, timezone
+import urllib.request
+import urllib.error
 
 from dennis.scanner import scan_directory
 from dennis.reporters.human import print_human_report
@@ -117,6 +119,56 @@ def get_env_config():
         "api_prefix": api_prefix
     }
 
+def projects_deleted(server, api_prefix, token):
+    
+    if api_prefix is None:
+        api_prefix = "/api"
+
+    url = f"{server}{api_prefix}/projects/deleted"
+    # print("DEBUG URL:", url)
+
+
+    req = urllib.request.Request(url)
+    req.add_header("Authorization", f"Bearer {token}")
+
+    try:
+        with urllib.request.urlopen(req) as res:
+            data = json.loads(res.read().decode())
+
+        if not data:
+            print("No deleted projects.")
+            return
+
+        for p in data:
+            print(f"{p['uuid_project']}  {p['name']}")
+
+    except Exception as e:
+        print("Error:", e)
+
+def projects_restore(server, api_prefix, token, project_id, with_artifacts=False):
+    if api_prefix is None:
+        api_prefix = "/api"
+
+    url = f"{server}{api_prefix}/projects/{project_id}/restore"
+    # print("DEBUG URL:", url)
+
+    payload = json.dumps({
+        "restore_artifacts": with_artifacts
+    }).encode()
+
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+
+    try:
+        with urllib.request.urlopen(req) as res:
+            data = json.loads(res.read().decode())
+
+        print(data)
+
+    except Exception as e:
+        print("Error:", e)
+
 # ============================================================
 # ARGPARSE
 # ============================================================
@@ -180,6 +232,21 @@ def build_parser() -> argparse.ArgumentParser:
 
 
     sub = parser.add_subparsers(dest="command")
+
+    # --------------------------------------------------------
+    # PROJECTS
+    # --------------------------------------------------------
+
+    projects_cmd = sub.add_parser("projects", help="Manage projects")
+    projects_sub = projects_cmd.add_subparsers(dest="subcommand")
+
+    # projects deleted
+    projects_sub.add_parser("deleted", help="List deleted projects")
+
+    # projects restore
+    restore_cmd = projects_sub.add_parser("restore", help="Restore a project")
+    restore_cmd.add_argument("project_id")
+    restore_cmd.add_argument("--with-artifacts", action="store_true")
 
 
     # --------------------------------------------------------
@@ -657,6 +724,7 @@ def main() -> None:
 
     env_cfg = get_env_config()
     file_cfg = load_config()
+    
 
     server = (
         getattr(args, "server", None)
@@ -671,11 +739,13 @@ def main() -> None:
             raise SystemExit("Server not configured. Use --server or set DENNIS_SERVER")
 
     api_prefix = env_cfg.get("api_prefix")
+    api_prefix = api_prefix or "/api"
 
     if api_prefix is None:
         api_prefix = "/api"
 
     api_prefix = api_prefix.rstrip("/")
+
     
     # --------------------------------------------------------
     # VALIDATE
@@ -1024,6 +1094,35 @@ def main() -> None:
 
             print("Federation sync started")
             print(data)
+    
+    # --------------------------------------------------------
+    # PROJECTS
+    # --------------------------------------------------------
+
+    elif args.command == "projects":
+
+        from dennis.forge.config import load_config
+
+        config = load_config()
+        token = config.get("auth", {}).get("token")
+
+        if not token:
+            raise SystemExit("Not authenticated. Run: dennis login")
+
+        if args.subcommand == "deleted":
+            projects_deleted(server, api_prefix, token)
+
+        elif args.subcommand == "restore":
+            projects_restore(
+                server,
+                api_prefix,
+                token,
+                args.project_id,
+                args.with_artifacts
+            )
+
+        else:
+            raise SystemExit("Unknown projects command")
 
     # --------------------------------------------------------
     # DEX COMMANDS
@@ -1341,39 +1440,37 @@ def main() -> None:
         if not token:
             raise SystemExit("Not authenticated. Please run: dennis login")
 
-        url = server.rstrip("/") + api_prefix + "/artifacts/upload"
+        # url = server.rstrip("/") + api_prefix + "/artifacts/upload"
+        url = server.rstrip("/") + api_prefix + "/artifacts"
+        
+        
+        # ----------------------------------------
+        # 4 & 5: BUILD MULTIPART REQUEST
+        # ----------------------------------------
+        import requests
 
-        # ----------------------------------------
-        # 4. BUILD MULTIPART REQUEST
-        # ----------------------------------------
-        boundary = uuid.uuid4().hex
-        file_bytes = artifact_path.read_bytes()
-
-        body = (
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="file"; filename="{artifact_path.name}"\r\n'
-            f"Content-Type: application/octet-stream\r\n\r\n"
-        ).encode() + file_bytes + f"\r\n--{boundary}--\r\n".encode()
-
-        # ----------------------------------------
-        # 5. SEND REQUEST (AUTHENTICATED)
-        # ----------------------------------------
-        req = urllib.request.Request(
-            url,
-            data=body,
-            method="POST",
-            headers={
-                "Content-Type": f"multipart/form-data; boundary={boundary}",
-                "Authorization": f"Bearer {token}"
-            },
-        )
+        url = f"{server.rstrip('/')}{api_prefix}/artifacts"
+        # print("DEBUG URL:", url)
 
         try:
-            with urllib.request.urlopen(req) as resp:
-                result = json.loads(resp.read())
+            with open(artifact_path, "rb") as f:
+                files = {
+                    "file": (artifact_path.name, f, "application/octet-stream")
+                }
 
-        except urllib.error.HTTPError as e:
-            raise SystemExit(f"Upload failed: {e.read().decode()}")
+                headers = {
+                    "Authorization": f"Bearer {token}"
+                }
+
+                resp = requests.post(url, headers=headers, files=files)
+
+            if resp.status_code not in (200, 201):
+                raise SystemExit(f"Upload failed: {resp.text}")
+
+            result = resp.json()
+
+        except Exception as e:
+            raise SystemExit(f"Upload failed: {str(e)}")
 
         # ----------------------------------------
         # 6. OUTPUT
@@ -1381,14 +1478,17 @@ def main() -> None:
         status = result.get("status")
         artifact_hash = result.get("artifact_hash")
 
-        if status == "duplicate":
-            print("⚠ Artifact already exists")
-            print(f"  Hash: {artifact_hash}")
-            print("  Use 'dennis inspect <file.dex>' to view details")
+        if status == "exists":
+            print("⚠ Artifact already exists with following hash:")
+            print(f"  {artifact_hash}")
             return
 
-        # fallback = success (backward compatible)
-        print(f"✔ Published artifact → {artifact_hash}")
+        elif status == "ok":
+            print(f"✔ Published artifact → {artifact_hash}")
+
+        else:
+            # fallback safety
+            print(f"✔ Published artifact → {artifact_hash}")
 
     # --------------------------------------------------------
     # PULL
@@ -1403,7 +1503,7 @@ def main() -> None:
             raise SystemExit("Error: full artifact hash required (64 hex chars)")
 
         url = args.remote.rstrip("/") + api_prefix + f"/artifacts/{artifact_hash}"
-        print("DEBUG URL:", url)
+        # print("DEBUG URL:", url)
         with urllib.request.urlopen(url) as resp:
             data = resp.read()
             disposition = resp.headers.get("Content-Disposition")
@@ -2046,7 +2146,8 @@ def main() -> None:
         password = getpass.getpass("Password: ")
 
         server = args.server.rstrip("/")
-
+        
+        
         url = server + api_prefix + "/auth/login"
 
         payload = json.dumps({
@@ -2094,7 +2195,8 @@ def main() -> None:
             print("✔ Token stored")
             return
 
-        print("✔ Logged in successfully")
+        print("✔ Logged in successfully\n")
+        print(token)
 
 
     elif args.command == "logout":
