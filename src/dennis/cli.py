@@ -13,6 +13,7 @@ import json
 from datetime import datetime, timezone
 import urllib.request
 import urllib.error
+import requests
 
 from dennis.scanner import scan_directory
 from dennis.reporters.human import print_human_report
@@ -52,6 +53,59 @@ from dennis.qr.encode import make_qr_uri, generate_ascii_qr, generate_png_qr
 from dennis.qr.parse import parse_dfp_uri
 
 from dennis.core.invert import cmd_invert
+from dennis.dex.canonical_diff import (
+    generate_observed_diff_git,
+    generate_observed_diff_directories,
+    validate_diff_artifact
+)
+
+from dennis.dex.canonical_diff import (
+    generate_observed_diff_directories,
+    normalize_to_dennis_diff_v1,
+    diff_hash,
+)
+
+
+def load_json(path: Path):
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def run_case(case_dir: Path):
+    input_a = case_dir / "input_a"
+    input_b = case_dir / "input_b"
+    expected_json_path = case_dir / "expected.json"
+    expected_hash_path = case_dir / "expected.hash"
+
+    errors = []
+
+    if not input_a.exists() or not input_b.exists():
+        return ["missing_inputs"], None, None, None, None
+
+    if not expected_json_path.exists():
+        return ["missing_expected_json"], None, None, None, None
+
+    if not expected_hash_path.exists():
+        return ["missing_expected_hash"], None, None, None, None
+
+    expected = load_json(expected_json_path)
+    expected_hash = expected_hash_path.read_text().strip()
+
+    try:
+        result = generate_observed_diff_directories(input_a, input_b)
+        canonical = normalize_to_dennis_diff_v1(result)
+        actual_hash = diff_hash(canonical)
+    except Exception as e:
+        return [f"runtime_error: {e}"], None, expected, None, expected_hash
+
+    if canonical != expected:
+        errors.append("canonical_mismatch")
+
+    if actual_hash != expected_hash:
+        errors.append("hash_mismatch")
+
+    return errors, canonical, expected, actual_hash, expected_hash
+
+
 
 def timestamp():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
@@ -145,15 +199,57 @@ def projects_deleted(server, api_prefix, token):
     except Exception as e:
         print("Error:", e)
 
-def projects_restore(server, api_prefix, token, project_id, with_artifacts=False):
+def projects_restore(server, api_prefix, token, project_id, with_artifacts=False, no_artifacts=False):
+
     if api_prefix is None:
         api_prefix = "/api"
 
+    # --------------------------------------------------------
+    # 1. TRY TO FETCH ARTIFACT COUNT
+    # --------------------------------------------------------
+    artifact_count = None
+
+    try:
+        artifacts_url = f"{server}{api_prefix}/projects/{project_id}/artifacts"
+
+        req = urllib.request.Request(artifacts_url)
+        req.add_header("Authorization", f"Bearer {token}")
+
+        with urllib.request.urlopen(req) as res:
+            artifacts = json.loads(res.read().decode())
+
+        artifact_count = len(artifacts)
+
+    except Exception:
+        # silently ignore if endpoint not available
+        artifact_count = None
+
+    # --------------------------------------------------------
+    # 2. DECIDE RESTORE STRATEGY
+    # --------------------------------------------------------
+    restore_artifacts = with_artifacts
+
+    if not with_artifacts and not no_artifacts:
+
+        if artifact_count is not None and artifact_count > 0:
+
+            print(f"This project has {artifact_count} artifacts associated with it.")
+            print("Do you want to restore them as well? (y/N)")
+
+            choice = input("> ").strip().lower()
+
+            restore_artifacts = choice == "y"
+
+    if no_artifacts:
+        restore_artifacts = False
+
+    # --------------------------------------------------------
+    # 3. CALL BACKEND
+    # --------------------------------------------------------
     url = f"{server}{api_prefix}/projects/{project_id}/restore"
-    # print("DEBUG URL:", url)
 
     payload = json.dumps({
-        "restore_artifacts": with_artifacts
+        "restore_artifacts": restore_artifacts
     }).encode()
 
     req = urllib.request.Request(url, data=payload, method="POST")
@@ -164,10 +260,104 @@ def projects_restore(server, api_prefix, token, project_id, with_artifacts=False
         with urllib.request.urlopen(req) as res:
             data = json.loads(res.read().decode())
 
-        print(data)
+        # --------------------------------------------------------
+        # 4. UX OUTPUT
+        # --------------------------------------------------------
+        print("✔ Project restored")
+
+        if restore_artifacts:
+            if artifact_count is not None:
+                print(f"✔ Restored {artifact_count} artifacts")
+            else:
+                print("✔ Artifacts restored")
+
+        else:
+            if artifact_count:
+                print("(artifacts not restored)")
 
     except Exception as e:
         print("Error:", e)
+
+import subprocess
+
+def command_diff():
+    import tempfile, json, os, requests
+    from dennis.forge.config import load_config
+    from dennis.dex.canonical_diff import generate_observed_diff_git
+
+    # ----------------------------------------
+    # 1. GET DIFF (use canonical generator)
+    # ----------------------------------------
+    artifact = generate_observed_diff_git()
+
+    if not artifact['payload']['files']:
+        print("No changes detected")
+        return
+
+    # ----------------------------------------
+    # 2. LOAD CONFIG
+    # ----------------------------------------
+    config = load_config()
+    token = config.get("auth", {}).get("token")
+    api_prefix = config.get("api_prefix", "")
+    server = config.get("server")
+
+    if not token:
+        raise SystemExit("Not authenticated. Run: dennis login")
+
+    url = f"{server.rstrip('/')}{api_prefix}/artifacts"
+
+    # ----------------------------------------
+    # 3. WRITE TEMP FILE
+    # ----------------------------------------
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
+        tmp.write(json.dumps(artifact).encode("utf-8"))
+        tmp_path = tmp.name
+
+    # ----------------------------------------
+    # 4. UPLOAD (CORRECT WAY)
+    # ----------------------------------------
+    try:
+        with open(tmp_path, "rb") as f:
+            files = {
+                "file": ("diff.json", f, "application/json")
+            }
+
+            headers = {
+                "Authorization": f"Bearer {token}"
+            }
+
+            resp = requests.post(url, headers=headers, files=files)
+
+        if resp.status_code not in (200, 201):
+            raise SystemExit(f"Upload failed: {resp.text}")
+
+        result = resp.json()
+        print("✔ Diff artifact created:", result.get("artifact_hash"))
+
+    finally:
+        os.remove(tmp_path)
+
+import difflib
+
+def pretty_json(obj):
+    return json.dumps(obj, indent=2, ensure_ascii=False, sort_keys=True)
+
+def show_diff(expected, actual):
+    expected_str = pretty_json(expected).splitlines()
+    actual_str = pretty_json(actual).splitlines()
+
+    diff = difflib.unified_diff(
+        expected_str,
+        actual_str,
+        fromfile="expected",
+        tofile="actual",
+        lineterm=""
+    )
+
+    for line in diff:
+        print("    " + line)
+
 
 # ============================================================
 # ARGPARSE
@@ -196,6 +386,12 @@ def build_parser() -> argparse.ArgumentParser:
     dennis inspect artifact.dex
     dennis encrypt artifact.dex
 
+    Diff examples:
+    dennis git-diff
+    dennis diff-dir /path/to/old /path/to/new
+    dennis compare planned.dex observed.dex
+    dennis inspect diff.dex
+
     Forged slowly. Built for trust.
     """
 
@@ -209,6 +405,11 @@ def build_parser() -> argparse.ArgumentParser:
     inspect    inspect artifact metadata
     verify     verify signatures
     validate-plan   validate transformation semantics
+
+    Diff system:
+    git-diff   create diff artifact from git changes
+    diff-dir   create diff artifact by comparing directories
+    compare    reconcile planned vs observed diffs
 
     Security:
     encrypt    convert DEX → XDEX
@@ -239,6 +440,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     projects_cmd = sub.add_parser("projects", help="Manage projects")
     projects_sub = projects_cmd.add_subparsers(dest="subcommand")
+    projects_sub.required = True
+
+    # projects list
+    projects_sub.add_parser("list", help="List projects")
+
+    # projects delete
+    delete_cmd = projects_sub.add_parser("delete", help="Delete a project")
+    delete_cmd.add_argument("project_id")
+
+    # projects rename
+    rename_cmd = projects_sub.add_parser("rename", help="Rename a project")
+    rename_cmd.add_argument("project_id")
+    rename_cmd.add_argument("new_name")
+
+    # projects activate
+    activate_cmd = projects_sub.add_parser("activate", help="Set active project")
+    activate_cmd.add_argument("project_id")
 
     # projects deleted
     projects_sub.add_parser("deleted", help="List deleted projects")
@@ -247,6 +465,7 @@ def build_parser() -> argparse.ArgumentParser:
     restore_cmd = projects_sub.add_parser("restore", help="Restore a project")
     restore_cmd.add_argument("project_id")
     restore_cmd.add_argument("--with-artifacts", action="store_true")
+    restore_cmd.add_argument("--no-artifacts", action="store_true")
 
 
     # --------------------------------------------------------
@@ -371,6 +590,41 @@ def build_parser() -> argparse.ArgumentParser:
     plan_cmd.add_argument(
         "--exclude-lang",
         help="Comma-separated list of programming languages to exclude"
+    )
+
+    git_diff_cmd = sub.add_parser(
+        "git-diff",
+        help="Create artifact from git diff"
+    )
+
+    diff_dir_cmd = sub.add_parser(
+        "diff-dir",
+        help="Create artifact by comparing two directories"
+    )
+
+    diff_dir_cmd.add_argument(
+        "source_dir",
+        help="Source directory path"
+    )
+
+    diff_dir_cmd.add_argument(
+        "target_dir",
+        help="Target directory path"
+    )
+
+    compare_cmd = sub.add_parser(
+        "compare",
+        help="Compare planned vs observed diffs (reconciliation)"
+    )
+
+    compare_cmd.add_argument(
+        "planned_diff",
+        help="Path to planned diff DEX artifact"
+    )
+
+    compare_cmd.add_argument(
+        "observed_diff",
+        help="Path to observed diff DEX artifact"
     )
 
     # --------------------------------------------------------
@@ -527,6 +781,25 @@ def build_parser() -> argparse.ArgumentParser:
     diff_cmd.add_argument("artifact_b")
     diff_cmd.add_argument("--ignore-semantics", action="store_true")
     add_format_argument(diff_cmd)
+
+    test_diff_cmd = sub.add_parser(
+        "test-diff",
+        help="Run Dennis diff conformance tests"
+    )
+    test_diff_cmd.add_argument(
+        "--init",
+        action="store_true",
+        help="Generate expected.hash files (bootstrap mode)"
+    )
+    test_diff_cmd.add_argument(
+        "--case",
+        help="Run a single test case (e.g. case_003_block_merge)"
+    )
+    test_diff_cmd.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed mismatch information"
+    )
 
     # PACK
     pack_cmd = sub.add_parser("pack", help="Create deterministic DEX artifact")
@@ -1101,15 +1374,158 @@ def main() -> None:
 
     elif args.command == "projects":
 
-        from dennis.forge.config import load_config
+        from dennis.forge.config import load_config, save_config
 
         config = load_config()
         token = config.get("auth", {}).get("token")
+        active_project = config.get("active_project")
 
         if not token:
             raise SystemExit("Not authenticated. Run: dennis login")
 
-        if args.subcommand == "deleted":
+        # --------------------------------------------------------
+        # LIST PROJECTS
+        # --------------------------------------------------------
+        if args.subcommand == "list":
+
+            url = f"{server.rstrip('/')}{api_prefix}/projects"
+
+            resp = requests.get(
+                url,
+                headers={"Authorization": f"Bearer {token}"}
+            )
+
+            if resp.status_code != 200:
+                raise SystemExit(f"Error: {resp.text}")
+
+            projects = resp.json()
+
+            if not projects:
+                print("No projects found.")
+                return
+
+            found_active = False
+
+            for p in projects:
+                prefix = ">>" if p["uuid_project"] == active_project else "  "
+
+                if p["uuid_project"] == active_project:
+                    found_active = True
+
+                print(f"{prefix} {p['uuid_project']}  {p['name']}")
+
+            print()
+
+            if active_project and found_active:
+                print(">> = active project")
+            else:
+                print("⚠ No active project set")
+                print("Use: dennis projects activate <uuid>")
+
+        # --------------------------------------------------------
+        # ACTIVATE PROJECT
+        # --------------------------------------------------------
+        elif args.subcommand == "activate":
+
+            project_id = args.project_id
+
+            url = f"{server.rstrip('/')}{api_prefix}/projects"
+
+            resp = requests.get(
+                url,
+                headers={"Authorization": f"Bearer {token}"}
+            )
+
+            if resp.status_code != 200:
+                raise SystemExit(f"Error: {resp.text}")
+
+            projects = resp.json()
+
+            match = next((p for p in projects if p["uuid_project"] == project_id), None)
+
+            if not match:
+                raise SystemExit("Project not found")
+
+            config["active_project"] = project_id
+            save_config(config)
+
+            print(f"✔ Active project set → {match['name']} ({project_id})")
+
+        # --------------------------------------------------------
+        # DELETE PROJECT (WITH SAFEGUARD)
+        # --------------------------------------------------------
+        elif args.subcommand == "delete":
+
+            project_id = args.project_id
+
+            # fetch project name
+            url = f"{server.rstrip('/')}{api_prefix}/projects"
+
+            resp = requests.get(
+                url,
+                headers={"Authorization": f"Bearer {token}"}
+            )
+
+            if resp.status_code != 200:
+                raise SystemExit(f"Error: {resp.text}")
+
+            projects = resp.json()
+
+            match = next((p for p in projects if p["uuid_project"] == project_id), None)
+
+            if not match:
+                raise SystemExit("Project not found")
+
+            print("⚠ You are about to delete project:")
+            print(f"  {match['name']} ({project_id})")
+            print()
+            print("To confirm, type the first 6 characters of the UUID:")
+
+            confirm = input("> ").strip()
+
+            if confirm != project_id[:6]:
+                raise SystemExit("❌ Confirmation failed. Aborting.")
+
+            delete_url = f"{server.rstrip('/')}{api_prefix}/projects/{project_id}"
+
+            resp = requests.delete(
+                delete_url,
+                headers={"Authorization": f"Bearer {token}"}
+            )
+
+            if resp.status_code != 200:
+                raise SystemExit(f"Error: {resp.text}")
+
+            print("✔ Project deleted")
+
+        # --------------------------------------------------------
+        # RENAME PROJECT
+        # --------------------------------------------------------
+        elif args.subcommand == "rename":
+
+            project_id = args.project_id
+            new_name = args.new_name
+
+            url = f"{server.rstrip('/')}{api_prefix}/projects/{project_id}"
+
+            resp = requests.put(
+                url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                },
+                json={"name": new_name}
+            )
+
+            if resp.status_code != 200:
+                raise SystemExit(f"Error: {resp.text}")
+
+            print(f"✔ Project renamed → {new_name}")
+
+        # --------------------------------------------------------
+        # EXISTING COMMANDS (UNCHANGED)
+        # --------------------------------------------------------
+        elif args.subcommand == "deleted":
             projects_deleted(server, api_prefix, token)
 
         elif args.subcommand == "restore":
@@ -1447,7 +1863,6 @@ def main() -> None:
         # ----------------------------------------
         # 4 & 5: BUILD MULTIPART REQUEST
         # ----------------------------------------
-        import requests
 
         url = f"{server.rstrip('/')}{api_prefix}/artifacts"
         # print("DEBUG URL:", url)
@@ -1778,6 +2193,193 @@ def main() -> None:
         )
 
         print(json.dumps(result, indent=2))
+
+
+
+    elif args.command == "git-diff":
+
+        import tempfile, json
+        from pathlib import Path
+        from dennis.dex.pack import pack_dex
+
+        # ----------------------------------------
+        # 1. GENERATE CANONICAL DIFF
+        # ----------------------------------------
+        artifact = generate_observed_diff_git()
+
+        # Validate the artifact
+        if not validate_diff_artifact(artifact):
+            raise SystemExit("Generated diff does not conform to dennis.diff.v1 schema")
+
+        # ----------------------------------------
+        # 2. OUTPUT PATHS (LOCAL)
+        # ----------------------------------------
+        output_dir = Path.cwd() / ".dennis"
+        output_dir.mkdir(exist_ok=True)
+
+        json_path = output_dir / "diff.json"
+        dex_path = output_dir / "diff.dex"
+
+        # ----------------------------------------
+        # 3. WRITE JSON
+        # ----------------------------------------
+        json_path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
+
+        # ----------------------------------------
+        # 4. PACK DEX
+        # ----------------------------------------
+        pack_dex(
+            payload_path=json_path,
+            output_path=dex_path,
+            payload_type="dennis.diff.v1"
+        )
+
+        # ----------------------------------------
+        # 5. OUTPUT
+        # ----------------------------------------
+        print("✔ Diff artifact created locally:")
+        print(f"  JSON → {json_path}")
+        print(f"  DEX  → {dex_path}")
+        print()
+        print("Next step:")
+        print(f"  dennis inspect {dex_path}")
+        print(f"  dennis publish {dex_path}")
+
+    elif args.command == "diff-dir":
+
+        import json
+        from pathlib import Path
+        from dennis.dex.pack import pack_dex
+
+        source_dir = Path(args.source_dir)
+        target_dir = Path(args.target_dir)
+
+        if not source_dir.exists() or not source_dir.is_dir():
+            raise SystemExit(f"Source directory does not exist: {source_dir}")
+
+        if not target_dir.exists() or not target_dir.is_dir():
+            raise SystemExit(f"Target directory does not exist: {target_dir}")
+
+        # ----------------------------------------
+        # 1. GENERATE CANONICAL DIFF
+        # ----------------------------------------
+        artifact = generate_observed_diff_directories(source_dir, target_dir)
+
+        # Validate the artifact
+        if not validate_diff_artifact(artifact):
+            raise SystemExit("Generated diff does not conform to dennis.diff.v1 schema")
+
+        # ----------------------------------------
+        # 2. OUTPUT PATHS (LOCAL)
+        # ----------------------------------------
+        output_dir = Path.cwd() / ".dennis"
+        output_dir.mkdir(exist_ok=True)
+
+        json_path = output_dir / "diff.json"
+        dex_path = output_dir / "diff.dex"
+
+        # ----------------------------------------
+        # 3. WRITE JSON
+        # ----------------------------------------
+        json_path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
+
+        # ----------------------------------------
+        # 4. PACK DEX
+        # ----------------------------------------
+        pack_dex(
+            payload_path=json_path,
+            output_path=dex_path,
+            payload_type="dennis.diff.v1"
+        )
+
+        # ----------------------------------------
+        # 5. OUTPUT
+        # ----------------------------------------
+        print("✔ Diff artifact created locally:")
+        print(f"  JSON → {json_path}")
+        print(f"  DEX  → {dex_path}")
+        print()
+        print("Next step:")
+        print(f"  dennis inspect {dex_path}")
+        print(f"  dennis publish {dex_path}")
+
+    elif args.command == "compare":
+
+        import json
+        from pathlib import Path
+        from dennis.dex.importer import import_dex
+        from dennis.dex.canonical_diff import generate_reconciliation_diff
+        from dennis.dex.pack import pack_dex
+
+        planned_path = Path(args.planned_diff)
+        observed_path = Path(args.observed_diff)
+
+        if not planned_path.exists():
+            raise SystemExit(f"Planned diff artifact not found: {planned_path}")
+
+        if not observed_path.exists():
+            raise SystemExit(f"Observed diff artifact not found: {observed_path}")
+
+        # ----------------------------------------
+        # 1. LOAD DIFF ARTIFACTS
+        # ----------------------------------------
+        planned_manifest, planned_payload = import_dex(planned_path)
+        observed_manifest, observed_payload = import_dex(observed_path)
+
+        planned_diff = json.loads(planned_payload)
+        observed_diff = json.loads(observed_payload)
+
+        # Validate types
+        if planned_diff.get('type') != 'dennis.diff.v1':
+            raise SystemExit(f"Planned artifact is not a diff: {planned_diff.get('type')}")
+
+        if observed_diff.get('type') != 'dennis.diff.v1':
+            raise SystemExit(f"Observed artifact is not a diff: {observed_diff.get('type')}")
+
+        # ----------------------------------------
+        # 2. GENERATE RECONCILIATION DIFF
+        # ----------------------------------------
+        reconciliation_diff = generate_reconciliation_diff(planned_diff, observed_diff)
+
+        # ----------------------------------------
+        # 3. OUTPUT PATHS (LOCAL)
+        # ----------------------------------------
+        output_dir = Path.cwd() / ".dennis"
+        output_dir.mkdir(exist_ok=True)
+
+        json_path = output_dir / "reconciliation.json"
+        dex_path = output_dir / "reconciliation.dex"
+
+        # ----------------------------------------
+        # 4. WRITE JSON
+        # ----------------------------------------
+        json_path.write_text(json.dumps(reconciliation_diff, indent=2), encoding="utf-8")
+
+        # ----------------------------------------
+        # 5. PACK DEX
+        # ----------------------------------------
+        pack_dex(
+            payload_path=json_path,
+            output_path=dex_path,
+            payload_type="dennis.diff.v1"
+        )
+
+        # ----------------------------------------
+        # 6. OUTPUT SUMMARY
+        # ----------------------------------------
+        summary = reconciliation_diff['payload'].get('reconciliation_summary', {})
+        print("✔ Reconciliation diff created:")
+        print(f"  JSON → {json_path}")
+        print(f"  DEX  → {dex_path}")
+        print()
+        print("Summary:")
+        print(f"  Files: {summary.get('total_files', 0)}")
+        print(f"  Matched changes: {summary.get('matched_changes', 0)}")
+        print(f"  Missing changes: {summary.get('missing_changes', 0)}")
+        print(f"  Unexpected changes: {summary.get('unexpected_changes', 0)}")
+        print()
+        print("Next step:")
+        print(f"  dennis inspect {dex_path}")
 
     # --------------------------------------------------------
     # PACK
@@ -2210,4 +2812,193 @@ def main() -> None:
         save_config(config)
 
         print("✔ Logged out successfully")
+
+    # --------------------------------------------------------
+    # DIFF COMMANDS
+    # --------------------------------------------------------
+    elif args.command == "git-diff":
+        from dennis.dex.canonical_diff import generate_observed_diff_git
+        import json
+
+        print("Generating diff from git changes...")
+        diff_artifact = generate_observed_diff_git()
+
+        if not diff_artifact['payload']['files']:
+            print("No changes detected in git.")
+            return
+
+        # Save to file
+        timestamp = timestamp()
+        filename = f"diff-git-{timestamp}.json"
+        with open(filename, 'w') as f:
+            json.dump(diff_artifact, f, indent=2)
+
+        file_count = len(diff_artifact['payload']['files'])
+        change_count = sum(len(f['changes']) for f in diff_artifact['payload']['files'])
+
+        print(f"✓ Git diff generated: {file_count} files, {change_count} changes")
+        print(f"  Saved to: {filename}")
+
+    elif args.command == "diff-dir":
+        from dennis.dex.canonical_diff import generate_observed_diff_directories
+        from pathlib import Path
+        from datetime import datetime
+        import json
+
+        source_dir = Path(args.source_dir)
+        target_dir = Path(args.target_dir)
+
+        if not source_dir.exists():
+            raise SystemExit(f"Source directory does not exist: {source_dir}")
+
+        if not target_dir.exists():
+            raise SystemExit(f"Target directory does not exist: {target_dir}")
+
+        print(f"Comparing directories...")
+        print(f"  Source: {source_dir}")
+        print(f"  Target: {target_dir}")
+
+        diff_artifact = generate_observed_diff_directories(source_dir, target_dir)
+
+        if not diff_artifact['payload']['files']:
+            print("No differences detected.")
+            return
+
+        # Save to file
+        timestamp = timestamp()
+        filename = f"diff-dir-{timestamp}.json"
+        with open(filename, 'w') as f:
+            json.dump(diff_artifact, f, indent=2)
+
+        file_count = len(diff_artifact['payload']['files'])
+        change_count = sum(len(f['changes']) for f in diff_artifact['payload']['files'])
+
+        print(f"✓ Directory diff generated: {file_count} files, {change_count} changes")
+        print(f"  Saved to: {filename}")
+
+    elif args.command == "compare":
+        from dennis.dex.canonical_diff import generate_reconciliation_diff
+        from pathlib import Path
+        import json
+
+        planned_path = Path(args.planned_diff)
+        observed_path = Path(args.observed_diff)
+
+        if not planned_path.exists():
+            raise SystemExit(f"Planned diff file does not exist: {planned_path}")
+
+        if not observed_path.exists():
+            raise SystemExit(f"Observed diff file does not exist: {observed_path}")
+
+        print("Loading diff artifacts...")
+        planned_diff = json.loads(planned_path.read_text())
+        observed_diff = json.loads(observed_path.read_text())
+
+        print("Generating reconciliation...")
+        reconciliation = generate_reconciliation_diff(planned_diff, observed_diff)
+
+        # Save to file
+        timestamp = timestamp()
+        filename = f"reconciliation-{timestamp}.json"
+        with open(filename, 'w') as f:
+            json.dump(reconciliation, f, indent=2)
+
+        summary = reconciliation['payload']['reconciliation_summary']
+        print("✓ Reconciliation complete:")
+        print(f"  Files: {summary['total_files']}")
+        print(f"  Matched: {summary['matched_changes']}")
+        print(f"  Missing: {summary['missing_changes']}")
+        print(f"  Unexpected: {summary['unexpected_changes']}")
+        print(f"  Saved to: {filename}")
+
+        # Show trust assessment
+        total_changes = summary['matched_changes'] + summary['missing_changes'] + summary['unexpected_changes']
+        if total_changes > 0:
+            match_rate = summary['matched_changes'] / total_changes
+            if match_rate >= 0.95:
+                print("  🎉 High confidence: Plan executed as expected")
+            elif match_rate >= 0.80:
+                print("  ⚠️ Moderate confidence: Some deviations detected")
+            else:
+                print("  ❌ Low confidence: Significant deviations from plan")
         return
+    
+    elif args.command == "test-diff":
+
+        from pathlib import Path
+        from dennis.diff_conformance import run_case
+        import sys
+        import json
+
+        BASE_DIR = Path("tests/diff_conformance")
+
+        if not BASE_DIR.exists():
+            raise SystemExit("tests/diff_conformance directory not found")
+
+        print("\n[ Dennis Diff Conformance ]\n")
+
+        cases = sorted([p for p in BASE_DIR.iterdir() if p.is_dir()])
+
+        if args.case:
+            cases = [BASE_DIR / args.case]
+            if not cases[0].exists():
+                raise SystemExit(f"Case not found: {args.case}")
+
+        failed = 0
+
+        for case in cases:
+
+            expected_json_path = case / "expected.json"
+            expected_hash_path = case / "expected.hash"
+
+            # -----------------------------
+            # INIT MODE
+            # -----------------------------
+            if args.init:
+                if not expected_json_path.exists():
+                    print(f"✖ {case.name:30} missing expected.json")
+                    failed += 1
+                    continue
+
+                try:
+                    expected = json.loads(expected_json_path.read_text(encoding="utf-8"))
+                    h = diff_hash(expected)
+                    expected_hash_path.write_text(h + "\n", encoding="utf-8")
+                    print(f"✔ {case.name:30} hash generated")
+                except Exception as e:
+                    print(f"✖ {case.name:30} error: {e}")
+                    failed += 1
+                continue
+
+            # -----------------------------
+            # VALIDATION MODE
+            # -----------------------------
+            errors, canonical, expected, actual_hash, expected_hash = run_case(case)
+
+            if not errors:
+                print(f"✔ {case.name:30} OK")
+            else:
+                failed += 1
+                print(f"✖ {case.name:30} FAIL")
+
+                for err in errors:
+                    if err == "canonical_mismatch":
+                        print("  → Canonical mismatch")
+
+                        if args.verbose and canonical and expected:
+                            show_diff(expected, canonical)
+
+                    elif err == "hash_mismatch":
+                        print("  → Hash mismatch")
+                        print(f"    expected: {expected_hash}")
+                        print(f"    actual:   {actual_hash}")
+
+                    else:
+                        print(f"  → {err}")
+
+                print()
+
+        if failed:
+            raise SystemExit(f"\n✖ {failed} test(s) failed\n")
+
+        print("\n✔ All conformance tests passed\n")

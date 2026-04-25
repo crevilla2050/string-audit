@@ -131,7 +131,6 @@ def git_changed_files(root: Path) -> Iterable[Path]:
             ["git", "diff", "--name-only"],
             cwd=root,
             capture_output=True,
-            text=True,
             check=True,
         )
 
@@ -144,7 +143,6 @@ def git_changed_files(root: Path) -> Iterable[Path]:
             ["git", "diff", "--cached", "--name-only"],
             cwd=root,
             capture_output=True,
-            text=True,
             check=True,
         )
 

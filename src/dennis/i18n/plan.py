@@ -31,10 +31,9 @@ LANG_EXTENSIONS = {
 def get_git_changed_files(root: Path) -> list[Path]:
     try:
         result = subprocess.run(
-            ["git", "diff", "--name-only"],
+            ["git", "diff", "--no-color", "--patch", "--name-only"],
             cwd=root,
             capture_output=True,
-            text=True,
             check=True
         )
 
