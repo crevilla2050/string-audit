@@ -1,10 +1,3 @@
-"""
-Dennis Diff System — Unobtanium Blueprint v2
-
-Deterministic diff generation for Dennis.
-Supports planned, observed, and reconciliation diffs.
-"""
-
 import json
 import subprocess
 from pathlib import Path
@@ -89,6 +82,32 @@ def is_binary_file(file_path: Path) -> bool:
             return bool(data.translate(None, text_chars))
     except:
         return True
+
+
+def is_git_repo(path: Path) -> bool:
+    """Check if a directory is a git repository."""
+    return (path / ".git").exists()
+
+
+def get_git_tracked_files(path: Path) -> List[str]:
+    """
+    Get list of git-tracked files in a repository.
+    Returns relative paths from the repository root.
+    
+    Falls back to empty list if git command fails.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), "ls-files"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10  # Add timeout for safety
+        )
+        return result.stdout.splitlines()
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        # Git not available, command failed, or timeout
+        return []
 
 
 def should_ignore_file(file_path: Path) -> bool:
@@ -462,15 +481,37 @@ def parse_git_diff_to_canonical(diff_text: str) -> Dict[str, Any]:
 def generate_observed_diff_directories(source_dir: Path, target_dir: Path) -> Dict[str, Any]:
     """
     Generate observed diff by comparing two directories.
+    
+    If target_dir is a git repository, only compares git-tracked files.
+    Otherwise, scans all files in the directory.
     """
     files = []
+    
+    # Determine file scope based on git status
+    if is_git_repo(target_dir):
+        tracked_files = get_git_tracked_files(target_dir)
+        if tracked_files:
+            # Successfully got git files
+            file_paths = [Path(p) for p in tracked_files]
+            print(f"[Dennis] Using git-tracked files ({len(file_paths)} files)")
+        else:
+            # Git command failed, fall back to full scan
+            file_paths = []
+            for f in target_dir.rglob('*'):
+                if f.is_file():
+                    file_paths.append(f.relative_to(target_dir))
+            print(f"[Dennis] Git repo detected but unable to get tracked files, scanning full directory ({len(file_paths)} files)")
+    else:
+        # Fall back to full directory scan
+        file_paths = []
+        for f in target_dir.rglob('*'):
+            if f.is_file():
+                file_paths.append(f.relative_to(target_dir))
+        print(f"[Dennis] No git repo detected, scanning full directory ({len(file_paths)} files)")
 
-    # Get all files in target directory
-    for target_file in target_dir.rglob('*'):
-        if not target_file.is_file():
-            continue
-
-        rel_path = target_file.relative_to(target_dir)
+    # Process files
+    for rel_path in file_paths:
+        target_file = target_dir / rel_path
         source_file = source_dir / rel_path
 
         if should_ignore_file(target_file):
@@ -523,18 +564,15 @@ def generate_observed_diff_directories(source_dir: Path, target_dir: Path) -> Di
             except UnicodeDecodeError:
                 continue  # Skip binary files
 
-    # Check for removed files
-    for source_file in source_dir.rglob('*'):
-        if not source_file.is_file():
-            continue
-
-        rel_path = source_file.relative_to(source_dir)
+    # Check for removed files (using same file scope)
+    for rel_path in file_paths:
+        source_file = source_dir / rel_path
         target_file = target_dir / rel_path
 
         if should_ignore_file(source_file):
             continue
 
-        if not target_file.exists():
+        if source_file.exists() and not target_file.exists():
             try:
                 with open(source_file, 'rb') as f:
                     content = normalize_encoding(f.read())
