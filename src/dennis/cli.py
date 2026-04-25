@@ -19,6 +19,7 @@ from dennis.scanner import scan_directory
 from dennis.reporters.human import print_human_report
 from dennis.reporters.json_reporter import write_json_report
 
+
 from dennis.i18n.generator import (
     load_findings,
     build_dictionary,
@@ -2840,7 +2841,7 @@ def main() -> None:
         print(f"  Saved to: {filename}")
 
     elif args.command == "diff-dir":
-        from dennis.dex.canonical_diff import generate_observed_diff_directories
+        
         from pathlib import Path
         from datetime import datetime
         import json
