@@ -92,7 +92,7 @@ def run_case(case_dir: Path):
     expected_hash = expected_hash_path.read_text().strip()
 
     try:
-        result = generate_observed_diff_directories(input_a, input_b)
+        result = generate_observed_diff_directories(input_a, input_b, verbose=args.verbose)
         canonical = normalize_to_dennis_diff_v1(result)
         actual_hash = diff_hash(canonical)
     except Exception as e:
@@ -173,6 +173,29 @@ def get_env_config():
         "server": server,
         "api_prefix": api_prefix
     }
+
+def is_git_repo(path: str | Path) -> bool:
+    return (Path(path) / ".git").exists()
+
+import subprocess
+
+def get_git_tracked_files(path: str | Path) -> list[str]:
+    result = subprocess.run(
+        ["git", "-C", str(path), "ls-files"],
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+def is_binary_file(path: Path) -> bool:
+    try:
+        with open(path, 'rb') as f:
+            chunk = f.read(1024)
+        return b'\0' in chunk
+    except Exception:
+        return True  # safest fallback
+    
 
 def projects_deleted(server, api_prefix, token):
     
@@ -599,7 +622,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     diff_dir_cmd = sub.add_parser(
-        "diff-dir",
+        "dir-diff",
         help="Create artifact by comparing two directories"
     )
 
@@ -611,6 +634,12 @@ def build_parser() -> argparse.ArgumentParser:
     diff_dir_cmd.add_argument(
         "target_dir",
         help="Target directory path"
+    )
+
+    diff_dir_cmd.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output (debug information)"
     )
 
     compare_cmd = sub.add_parser(
@@ -2264,7 +2293,7 @@ def main() -> None:
         # ----------------------------------------
         # 1. GENERATE CANONICAL DIFF
         # ----------------------------------------
-        artifact = generate_observed_diff_directories(source_dir, target_dir)
+        artifact = generate_observed_diff_directories(source_dir, target_dir, verbose=args.verbose)
 
         # Validate the artifact
         if not validate_diff_artifact(artifact):
@@ -2859,7 +2888,7 @@ def main() -> None:
         print(f"  Source: {source_dir}")
         print(f"  Target: {target_dir}")
 
-        diff_artifact = generate_observed_diff_directories(source_dir, target_dir)
+        diff_artifact = generate_observed_diff_directories(source_dir, target_dir, verbose=args.verbose)
 
         if not diff_artifact['payload']['files']:
             print("No differences detected.")

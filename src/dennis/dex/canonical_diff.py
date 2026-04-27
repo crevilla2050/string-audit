@@ -110,11 +110,46 @@ def get_git_tracked_files(path: Path) -> List[str]:
         return []
 
 
-def should_ignore_file(file_path: Path) -> bool:
-    """Check if file should be ignored based on extension or type."""
-    if file_path.suffix.lower() in IGNORED_EXTENSIONS:
+def should_ignore_file(rel_path: Path) -> bool:
+    path = rel_path.as_posix()
+
+    # --------------------------------------------------
+    # 1. Ignore git internals
+    # --------------------------------------------------
+    if path.startswith(".git/"):
         return True
-    return is_binary_file(file_path)
+
+    # --------------------------------------------------
+    # 2. Ignore Dennis internal artifacts
+    # --------------------------------------------------
+    if path.startswith(".dennis/"):
+        return True
+
+    # --------------------------------------------------
+    # 3. Ignore obvious binary / media outputs / keys
+    # --------------------------------------------------
+    if path.endswith((
+        ".png", ".jpg", ".jpeg", ".gif", ".ico", ".key", ".pem", ".pub", ".svg",
+        ".pdf", ".zip", ".tar", ".gz", ".dex", ".class", ".exe", ".dll", ".so"
+    )):
+        return True
+
+    # --------------------------------------------------
+    # 4. Ignore known generated Dennis artifacts
+    # --------------------------------------------------
+    if "dennis-plan" in path:
+        return True
+
+    if path.startswith("dictionary-"):
+        return True
+
+    if path.startswith("payload/"):
+        return True
+
+    # --------------------------------------------------
+    # 5. OTHERWISE: KEEP IT
+    # --------------------------------------------------
+    return False
 
 
 def group_changes_into_blocks(lines_a: List[str], lines_b: List[str]) -> List[Dict[str, Any]]:
@@ -373,7 +408,7 @@ def parse_git_diff_to_canonical(diff_text: str) -> Dict[str, Any]:
     """
     Parse git diff output into canonical dennis.diff.v1 format.
     """
-    files = []
+    files: List[Dict[str, Any]] = []
     current_file = None
     current_changes = []
 
@@ -477,72 +512,117 @@ def parse_git_diff_to_canonical(diff_text: str) -> Dict[str, Any]:
         }
     }
 
-
-def generate_observed_diff_directories(source_dir: Path, target_dir: Path) -> Dict[str, Any]:
+def generate_observed_diff_directories(
+        source_dir: Path,
+        target_dir: Path,
+        verbose: bool = False
+    ) -> Dict[str, Any]:
     """
     Generate observed diff by comparing two directories.
-    
-    If target_dir is a git repository, only compares git-tracked files.
-    Otherwise, scans all files in the directory.
+
+    If source_dir is a git repository, compares git-tracked files + additions.
+    Otherwise, scans all files in the target directory.
     """
+
     files = []
-    
-    # Determine file scope based on git status
-    if is_git_repo(target_dir):
-        tracked_files = get_git_tracked_files(target_dir)
-        if tracked_files:
-            # Successfully got git files
-            file_paths = [Path(p) for p in tracked_files]
-            print(f"[Dennis] Using git-tracked files ({len(file_paths)} files)")
-        else:
-            # Git command failed, fall back to full scan
-            file_paths = []
+
+    # --------------------------------------------------
+    # 1. DETERMINE FILE SCOPE
+    # --------------------------------------------------
+
+    file_paths = set()
+
+    if is_git_repo(source_dir):
+        try:
+            tracked_files = get_git_tracked_files(source_dir)
+            file_paths = set(Path(p) for p in tracked_files)
+            if verbose:
+                print(f"[DEBUG] total file_paths: {len(file_paths)}")
+
+            # include new files from target_dir
             for f in target_dir.rglob('*'):
                 if f.is_file():
-                    file_paths.append(f.relative_to(target_dir))
-            print(f"[Dennis] Git repo detected but unable to get tracked files, scanning full directory ({len(file_paths)} files)")
+                    file_paths.add(f.relative_to(target_dir))
+
+            print(f"[Dennis] Using git-tracked files + additions ({len(file_paths)} files)")
+
+        except Exception:
+            file_paths = {
+                f.relative_to(target_dir)
+                for f in target_dir.rglob('*') if f.is_file()
+            }
+            print(f"[Dennis] Git detected but failed, scanning full directory ({len(file_paths)} files)")
     else:
-        # Fall back to full directory scan
-        file_paths = []
-        for f in target_dir.rglob('*'):
-            if f.is_file():
-                file_paths.append(f.relative_to(target_dir))
+        file_paths = {
+            f.relative_to(target_dir)
+            for f in target_dir.rglob('*') if f.is_file()
+        }
+
         print(f"[Dennis] No git repo detected, scanning full directory ({len(file_paths)} files)")
 
-    # Process files
-    for rel_path in file_paths:
-        target_file = target_dir / rel_path
-        source_file = source_dir / rel_path
+    # deterministic ordering
+    file_paths = sorted(file_paths)
 
-        if should_ignore_file(target_file):
+    # --------------------------------------------------
+    # 2. PROCESS FILES (added / modified)
+    # --------------------------------------------------
+
+    for rel_path in file_paths:
+        if verbose:
+            print(f"[DEBUG] checking: {rel_path}")
+        if should_ignore_file(rel_path):
+            if verbose:
+                print(f"[SKIP ignore] {rel_path}")
             continue
 
-        if not source_file.exists():
-            # Added file
+        source_file = source_dir / rel_path
+        target_file = target_dir / rel_path
+
+        # skip binary files early
+        if target_file.exists() and is_binary_file(target_file):
+            if verbose:
+                print(f"[SKIP binary target] {rel_path}")
+            continue
+        if source_file.exists() and is_binary_file(source_file):
+            if verbose:
+                print(f"[SKIP binary source] {rel_path}")
+            continue
+
+        # ------------------------
+        # ADDED FILE
+        # ------------------------
+        if not source_file.exists() and target_file.exists():
             try:
                 with open(target_file, 'rb') as f:
                     content = normalize_encoding(f.read())
                 lines = content.splitlines()
 
-                changes = [{
-                    'type': 'insert',
-                    'start_line': 1,
-                    'end_line': len(lines),
-                    'before': [],
-                    'after': lines
-                }]
+                if not lines:
+                    if verbose:
+                        print(f"[SKIP empty] {rel_path}")   
+                    continue
 
                 files.append({
-                    'path': str(rel_path),
+                    'path': rel_path.as_posix(),
                     'status': 'added',
-                    'changes': changes
+                    'changes': [{
+                        'type': 'insert',
+                        'start_line': 1,
+                        'end_line': len(lines),
+                        'before': [],
+                        'after': lines
+                    }]
                 })
 
-            except UnicodeDecodeError:
-                continue  # Skip binary files
+            except Exception as e:
+                if verbose:
+                    print(f"[ERROR] {rel_path}: {e}")
+                continue
 
-        elif source_file.exists():
-            # Modified file
+        # ------------------------
+        # MODIFIED FILE
+        # ------------------------
+        elif source_file.exists() and target_file.exists():
             try:
                 with open(source_file, 'rb') as f:
                     source_content = normalize_encoding(f.read())
@@ -556,20 +636,28 @@ def generate_observed_diff_directories(source_dir: Path, target_dir: Path) -> Di
 
                 if changes:
                     files.append({
-                        'path': str(rel_path),
+                        'path': rel_path.as_posix(),
                         'status': 'modified',
                         'changes': changes
                     })
 
-            except UnicodeDecodeError:
-                continue  # Skip binary files
+            except Exception:
+                continue
 
-    # Check for removed files (using same file scope)
+    # --------------------------------------------------
+    # 3. REMOVED FILES
+    # --------------------------------------------------
+
     for rel_path in file_paths:
+
+        if should_ignore_file(rel_path):
+            continue
+
         source_file = source_dir / rel_path
         target_file = target_dir / rel_path
 
-        if should_ignore_file(source_file):
+        # skip binary
+        if source_file.exists() and is_binary_file(source_file):
             continue
 
         if source_file.exists() and not target_file.exists():
@@ -578,22 +666,29 @@ def generate_observed_diff_directories(source_dir: Path, target_dir: Path) -> Di
                     content = normalize_encoding(f.read())
                 lines = content.splitlines()
 
-                changes = [{
-                    'type': 'delete',
-                    'start_line': 1,
-                    'end_line': len(lines),
-                    'before': lines,
-                    'after': []
-                }]
+                if not lines:
+                    continue
 
                 files.append({
-                    'path': str(rel_path),
+                    'path': rel_path.as_posix(),
                     'status': 'removed',
-                    'changes': changes
+                    'changes': [{
+                        'type': 'delete',
+                        'start_line': 1,
+                        'end_line': len(lines),
+                        'before': lines,
+                        'after': []
+                    }]
                 })
 
-            except UnicodeDecodeError:
-                continue  # Skip binary files
+            except Exception:
+                continue
+
+    # --------------------------------------------------
+    # 4. FINALIZE (deterministic)
+    # --------------------------------------------------
+
+    files = sorted(files, key=lambda x: x['path'])
 
     artifact = {
         'type': DIFF_SCHEMA_TYPE,
