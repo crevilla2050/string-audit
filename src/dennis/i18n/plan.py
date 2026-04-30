@@ -9,6 +9,7 @@ from dennis.detectors.hardcoded_strings import HardcodedStringDetector
 from dennis.i18n.generator import build_dictionary, write_en_json
 from dennis.scanner import scan_directory
 from dennis.plugins import PLUGINS
+from dennis.utils import iter_files
 
 import subprocess
 
@@ -104,7 +105,7 @@ def generate_plan(
 
         print("[Dennis] Dictionary empty. Scanning project for dennis to work with...")
 
-        findings = scan_directory(root)
+        findings = scan_directory(root, git_mode=git_mode)
 
         discovered = [
             f.text
@@ -156,6 +157,7 @@ def generate_plan(
     # --------------------------------------------------
 
     reverse_mapping = {v: k for k, v in mapping.items()}
+    print("[DEBUG] reverse_mapping:", reverse_mapping)
 
     changes: List[Dict] = []
 
@@ -165,63 +167,59 @@ def generate_plan(
 
     findings = scan_directory(root, git_mode=git_mode)
 
-    for f in findings:
+    print(f"[DEBUG] Total findings: {len(findings)}")
+    for f in findings[:5]:  # first 5
+        print(f"[DEBUG] Finding: {f.file}:{f.line} '{f.text}'")
 
-        file_path = Path(f.file)
+    # Decouple scanning from transformation: process all code files
+    for file_path in iter_files(root, git_mode=git_mode):
 
         if exclude_langs:
             ext = file_path.suffix.lower()
+            if any(ext in LANG_EXTENSIONS.get(lang_name, []) for lang_name in exclude_langs):
+                print(f"[DEBUG] Skipping {file_path} due to exclude_langs")
+                continue
 
-            if any(
-                ext in LANG_EXTENSIONS.get(lang_name, [])
-                for lang_name in exclude_langs
-            ):
-                continue  # skip THIS finding/file
+        if file_path.suffix.lower() == ".json":
+            print(f"[DEBUG] Skipping JSON {file_path}")
+            continue
 
-        file_hash = sha256_file(file_path)
-        
+        # Only process code files
+        if file_path.suffix.lower() not in [".py"]:  # add other langs as needed
+            continue
+
+        print(f"[DEBUG] Processing {file_path}")
+
         lines = file_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        file_hash = sha256_file(file_path)
 
-        if f.line < 1 or f.line > len(lines):
-            continue
-        original_line = lines[f.line - 1]
-        
-        # --------------------------------------
-        # 🚨 NEW: HARD FILTER 
-        # --------------------------------------
-        
-        # Skip empty or whitespace-only lines
-        if not original_line or not original_line.strip():
-            continue
+        for idx, line in enumerate(lines, start=1):
+            if not line or not line.strip():
+                print(f"[DEBUG] Empty line {idx} for {file_path}")
+                continue
 
-        
-        # Validate line index
-        if f.line < 1 or f.line > len(lines):
-            continue
+            print(f"[DEBUG] Transforming line {idx}: {line}")
+            new_line, token = plugin.transform_line(line, reverse_mapping)
 
-        if not any(text in original_line for text in reverse_mapping):
-            continue
+            print(f"[DEBUG] Transform result: token={token}, new_line={repr(new_line)}")
 
-        token = None
-        new_line = None
+            if token and new_line and new_line != line:
+                print(f"[DEBUG] Adding change for {file_path}:{idx}")
+                try:
+                    file_abs = file_path.resolve()
+                    root_abs = root.resolve()
+                    rel_path = str(file_abs.relative_to(root_abs))
+                except (ValueError, OSError):
+                    rel_path = str(file_path)
 
-        new_line, token = plugin.transform_line(original_line, reverse_mapping)
-
-        if not token:
-            continue
-
-        # --------------------------------------
-        # ONLY append if transformation is valid
-        # --------------------------------------
-        if token and new_line and new_line != original_line:
-            changes.append({
-                "file": f.file,
-                "line": f.line,
-                "file_hash": file_hash,
-                "original": original_line,
-                "replacement": new_line,
-                "token": token,
-            })
+                changes.append({
+                    "file": rel_path,
+                    "line": idx,
+                    "file_hash": file_hash,
+                    "original": line,
+                    "replacement": new_line,
+                    "token": token,
+                })
     
     # --------------------------------------------------
     # Link helpers to changes (NEW)

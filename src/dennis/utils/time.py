@@ -13,3 +13,6 @@ def iso_timestamp_filename():
         .replace(":", "-")
         .replace("+00:00", "Z")
     )
+
+def timestamp():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")

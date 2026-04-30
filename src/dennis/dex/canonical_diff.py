@@ -146,6 +146,13 @@ def should_ignore_file(rel_path: Path) -> bool:
     if path.startswith("payload/"):
         return True
 
+    if path.endswith(".json") and (
+        "dennis" in path or
+        "plan" in path or
+        "manifest" in path
+    ):
+        return True
+
     # --------------------------------------------------
     # 5. OTHERWISE: KEEP IT
     # --------------------------------------------------
@@ -228,6 +235,23 @@ def group_changes_into_blocks(lines_a: List[str], lines_b: List[str]) -> List[Di
             merged_changes.append(current)
 
     return merged_changes
+
+
+def infer_file_status(changes):
+    has_insert = any(c['type'] == 'insert' for c in changes)
+    has_delete = any(c['type'] == 'delete' for c in changes)
+    has_replace = any(c['type'] == 'replace' for c in changes)
+
+    # File added: only inserts
+    if has_insert and not has_delete and not has_replace:
+        return 'added'
+
+    # File removed: only deletes
+    if has_delete and not has_insert and not has_replace:
+        return 'removed'
+
+    # Otherwise → modified
+    return 'modified'
 
 
 def normalize_to_dennis_diff_v1(diff_artifact: Dict[str, Any]) -> Dict[str, Any]:
@@ -541,8 +565,12 @@ def generate_observed_diff_directories(
 
             # include new files from target_dir
             for f in target_dir.rglob('*'):
-                if f.is_file():
-                    file_paths.add(f.relative_to(target_dir))
+                if not f.is_file():
+                    continue
+
+                rel = f.relative_to(target_dir)
+                if not (source_dir / rel).exists():
+                    file_paths.add(rel)
 
             print(f"[Dennis] Using git-tracked files + additions ({len(file_paths)} files)")
 
@@ -700,59 +728,265 @@ def generate_observed_diff_directories(
     return normalize_to_dennis_diff_v1(artifact)
 
 
-def generate_planned_diff(plan_data: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_plan_path(file_path_str: str, base_dir: Path) -> Path:
+    """
+    PLAN PATH NORMALIZATION - Resolves plan paths against source snapshot.
+
+    This attempts to load the file from the source snapshot directory. If the
+    path exists directly under base_dir, it is returned unchanged. Otherwise,
+    this looks for a reasonable project root subdirectory and preserves the
+    original path when the snapshot root already contains the file.
+
+    Args:
+        file_path_str: File path from plan
+        base_dir: Project snapshot directory (e.g., hello-dennis_before/)
+
+    Returns:
+        Normalized Path that can be safely joined with base_dir
+    """
+    p = Path(file_path_str)
+    direct_path = base_dir / p
+
+    if direct_path.exists():
+        return p
+
+    try:
+        # Search for a likely project root subdirectory containing the file path.
+        for subdir in sorted(base_dir.iterdir()):
+            if not subdir.is_dir():
+                continue
+
+            if subdir.name in {"payload", "helpers", ".git", "__pycache__"}:
+                continue
+
+            candidate = subdir / p
+            if candidate.exists():
+                return Path(subdir.name) / p
+    except (OSError, StopIteration):
+        pass
+
+    # Fallback: return the original relative path.
+    return p
+
+
+def generate_planned_diff(plan_data: Dict[str, Any], base_dir: Path) -> Dict[str, Any]:
     """
     Generate planned diff from Dennis plan data.
-    Converts plan changes to canonical diff format.
+    Converts plan changes to canonical diff format by:
+    1. Loading actual file state from source snapshot (base_dir)
+    2. Applying planned changes to reconstruct modified state
+    3. Normalizing lines before diffing (encoding consistency)
+    4. Generating explicit add/delete blocks for file-level changes
+    5. Using canonical group_changes_into_blocks for modifications
     
-    TYPE INFERENCE (Spec v1 requirement):
-    - If original is empty: type = insert
-    - If replacement is empty: type = delete  
-    - Otherwise: type = replace
+    CRITICAL: base_dir MUST be the source snapshot directory, not current disk.
+    This ensures circularity: plan diff == observed diff (same content)
+    
+    Args:
+        plan_data: Plan artifact with changes
+        base_dir: Source snapshot directory (required - original state before plan)
+    
+    Returns:
+        Canonical dennis.diff.v1 artifact
+    
+    Raises:
+        ValueError: If base_dir is None (source snapshot required for correctness)
     """
-    files = {}
+    if base_dir is None:
+        raise ValueError("generate_planned_diff requires base_dir (source snapshot)")
+    
+    base_dir = Path(base_dir)
+    
+    def load_file_lines(file_path: Path) -> List[str]:
+        """Load file lines from source snapshot, return empty list if not found."""
+        try:
+            full_path = base_dir / file_path
+            with open(full_path, "r", encoding="utf-8") as f:
+                return f.read().splitlines()
+        except FileNotFoundError:
+            return []
+    
+    def load_helper_lines(change: Dict[str, Any]) -> List[str]:
+        """Load helper file lines from deterministic helper sources."""
+        helper_ref = change.get("helper_ref") or change.get("helper")
+        helper_source = change.get("helper_source")
 
+        candidates = []
+        if helper_ref:
+            candidates.append(base_dir / helper_ref)
+            candidates.append(base_dir / "payload" / helper_ref)
+        if helper_source:
+            candidates.append(base_dir / helper_source)
+            candidates.append(Path(helper_source))
+
+        for candidate in candidates:
+            if not candidate:
+                continue
+            try:
+                if candidate.exists() and candidate.is_file():
+                    return candidate.read_text(encoding="utf-8").splitlines()
+            except Exception:
+                continue
+
+        return []
+
+    def file_exists_in_source(file_path: Path) -> bool:
+        """Check if file exists in source snapshot."""
+        return (base_dir / file_path).exists()
+
+    files = {}
+    
+    # Group changes by file path
+    changes_by_file: Dict[str, List[Dict[str, Any]]] = {}
     for change in plan_data.get("changes", []):
         file_path = change.get("file")
         if not file_path:
             continue
+        
+        if file_path not in changes_by_file:
+            changes_by_file[file_path] = []
+        
+        changes_by_file[file_path].append(change)
+    
+    # Process each file
+    for file_path_str in sorted(changes_by_file.keys()):
+        # NORMALIZE PATH: Strip project root prefix if present
+        file_path = normalize_plan_path(file_path_str, base_dir)
+        file_changes = changes_by_file[file_path_str]
+        
+        # Load original state from source snapshot
+        original_lines = load_file_lines(file_path)
+        modified_lines = original_lines.copy()
+        
+        # Apply plan changes to reconstruct modified state
+        sorted_changes = sorted(file_changes, key=lambda c: c.get("line", 1))
+        
+        for change in sorted_changes:
+            change_type = change.get("type", "replace")
+            line_num = change.get("line", 1)
+            idx = line_num - 1
+            
+            if change_type == "helper":
+                # Load and insert helper content using the same helper wrapper as apply()
+                helper_lines = load_helper_lines(change)
+                helper_id = change.get("helper_id") or change.get("id") or Path(change.get("helper_ref", "")).stem
+                if helper_lines:
+                    wrapped = [
+                        f"# >>> DENNIS HELPER START: {helper_id}",
+                        *helper_lines,
+                        f"# <<< DENNIS HELPER END: {helper_id}",
+                    ]
+                    insert_point = max(0, idx)
+                    for i, helper_line in enumerate(wrapped):
+                        modified_lines.insert(insert_point + i, helper_line)
+            else:
+                # Standard replacement by content, not raw index, to match runtime apply semantics.
+                original_text = change.get("original", "").strip()
+                replacement = change.get("replacement", "")
+                normalized_lines = [line.strip() for line in modified_lines]
+                match_index = None
 
-        if file_path not in files:
-            files[file_path] = {
-                "path": file_path,
-                "status": "modified",  # Assume modified for planned changes
-                "changes": []
+                if 0 <= idx < len(modified_lines) and normalized_lines[idx] == original_text:
+                    match_index = idx
+                else:
+                    candidates = [i for i, line in enumerate(normalized_lines) if line == original_text]
+                    if candidates:
+                        match_index = candidates[0]
+
+                if match_index is not None:
+                    if modified_lines[match_index] != replacement:
+                        modified_lines[match_index] = replacement
+                elif idx == len(modified_lines):
+                    modified_lines.append(replacement)
+        
+        # Normalize lines BEFORE diffing (encoding consistency)
+        # This ensures plan and observed diffs have identical content representation
+        original_lines = [normalize_line(l) for l in original_lines]
+        modified_lines = [normalize_line(l) for l in modified_lines]
+        
+        # Determine file status based on actual existence in source
+        file_existed_before = file_exists_in_source(file_path)
+        
+        # Generate diff blocks (explicit add/delete cases, then modified)
+        if not file_existed_before and modified_lines:
+            # File added: explicit full-file insert block
+            status = "added"
+            diff_blocks = [{
+                'type': 'insert',
+                'start_line': 1,
+                'end_line': len(modified_lines),
+                'before': [],
+                'after': modified_lines
+            }]
+        elif file_existed_before and not modified_lines:
+            # File removed: explicit full-file delete block
+            status = "removed"
+            diff_blocks = [{
+                'type': 'delete',
+                'start_line': 1,
+                'end_line': len(original_lines),
+                'before': original_lines,
+                'after': []
+            }]
+        else:
+            # File modified: use canonical diff engine
+            status = "modified"
+            diff_blocks = group_changes_into_blocks(original_lines, modified_lines)
+        
+        # Only include files with actual changes
+        if diff_blocks:
+            files[file_path_str] = {
+                "path": file_path_str,
+                "status": status,
+                "changes": diff_blocks
             }
 
-        # Convert single change to diff block
-        # Infer operation type from content (don't force replace)
-        original = change.get("original", "")
-        replacement = change.get("replacement", "")
-        
-        if not original and replacement:
-            operation_type = "insert"
-        elif original and not replacement:
-            operation_type = "delete"
-        else:
-            operation_type = "replace"
-        
-        change_block = {
-            'type': operation_type,
-            'start_line': change.get("line", 1),
-            'end_line': change.get("line", 1),
-            'before': [original] if original else [],
-            'after': [replacement] if replacement else []
+    # --------------------------------------------------
+    # Add helper file creations as explicit file additions
+    # --------------------------------------------------
+    helper_refs: Dict[str, Optional[str]] = {}
+    for change in plan_data.get("changes", []):
+        if change.get("type") != "helper":
+            continue
+
+        helper_ref = change.get("helper_ref")
+        if not helper_ref:
+            continue
+
+        helper_refs.setdefault(helper_ref, change.get("helper_source"))
+
+    for helper_ref, helper_source in sorted(helper_refs.items()):
+        if helper_ref in files:
+            continue
+
+        helper_lines = load_helper_lines({
+            "helper_ref": helper_ref,
+            "helper_source": helper_source
+        })
+
+        if not helper_lines:
+            continue
+
+        files[helper_ref] = {
+            "path": helper_ref,
+            "status": "added",
+            "changes": [{
+                'type': 'insert',
+                'start_line': 1,
+                'end_line': len(helper_lines),
+                'before': [],
+                'after': helper_lines
+            }]
         }
 
-        files[file_path]["changes"].append(change_block)
-
+    # Build and normalize artifact
     artifact = {
         'type': DIFF_SCHEMA_TYPE,
         'payload': {
             'files': list(files.values())
         }
     }
-
+    
     return normalize_to_dennis_diff_v1(artifact)
 
 

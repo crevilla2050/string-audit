@@ -54,16 +54,14 @@ from dennis.qr.encode import make_qr_uri, generate_ascii_qr, generate_png_qr
 from dennis.qr.parse import parse_dfp_uri
 
 from dennis.core.invert import cmd_invert
-from dennis.dex.canonical_diff import (
-    generate_observed_diff_git,
-    generate_observed_diff_directories,
-    validate_diff_artifact
-)
 
 from dennis.dex.canonical_diff import (
     generate_observed_diff_directories,
+    generate_planned_diff,
     normalize_to_dennis_diff_v1,
     diff_hash,
+    generate_observed_diff_git, 
+    validate_diff_artifact
 )
 
 
@@ -106,10 +104,6 @@ def run_case(case_dir: Path):
 
     return errors, canonical, expected, actual_hash, expected_hash
 
-
-
-def timestamp():
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
 
 def banner():
     return "Dennis the Forge — deterministic codemods"
@@ -383,6 +377,7 @@ def show_diff(expected, actual):
         print("    " + line)
 
 
+
 # ============================================================
 # ARGPARSE
 # ============================================================
@@ -412,7 +407,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     Diff examples:
     dennis git-diff
-    dennis diff-dir /path/to/old /path/to/new
+    dennis diff-directories /path/to/before /path/to/after
     dennis compare planned.dex observed.dex
     dennis inspect diff.dex
 
@@ -432,7 +427,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     Diff system:
     git-diff   create diff artifact from git changes
-    diff-dir   create diff artifact by comparing directories
+    diff-directories   create diff artifact by comparing directories
     compare    reconcile planned vs observed diffs
 
     Security:
@@ -621,22 +616,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Create artifact from git diff"
     )
 
-    diff_dir_cmd = sub.add_parser(
-        "dir-diff",
+    diff_directories_cmd = sub.add_parser(
+        "diff-directories",
         help="Create artifact by comparing two directories"
     )
 
-    diff_dir_cmd.add_argument(
+    diff_directories_cmd.add_argument(
         "source_dir",
         help="Source directory path"
     )
 
-    diff_dir_cmd.add_argument(
+    diff_directories_cmd.add_argument(
         "target_dir",
         help="Target directory path"
     )
 
-    diff_dir_cmd.add_argument(
+    diff_directories_cmd.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose output (debug information)"
@@ -655,6 +650,33 @@ def build_parser() -> argparse.ArgumentParser:
     compare_cmd.add_argument(
         "observed_diff",
         help="Path to observed diff DEX artifact"
+    )
+
+    # --------------------------------------------------------
+    # VERIFY-EXECUTION
+    # --------------------------------------------------------
+
+    verify_exec_cmd = sub.add_parser(
+        "verify-execution",
+        help="Verify that execution matched expected diff"
+    )
+
+    verify_exec_cmd.add_argument(
+        "--expected",
+        required=True,
+        help="Path to expected diff JSON (dennis-expected-*.json)"
+    )
+
+    verify_exec_cmd.add_argument(
+        "--observed",
+        required=True,
+        help="Path to observed diff JSON (dennis-observed-*.json)"
+    )
+
+    verify_exec_cmd.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail verification when execution scope differs from planned scope"
     )
 
     # --------------------------------------------------------
@@ -1209,7 +1231,12 @@ def main() -> None:
         # RUN MODE (MAIN LOGIC)
         # ----------------------------------------
 
-        root = Path(args.root or ".")
+        if not args.root:
+            raise SystemExit("dennis plan requires a root directory (before snapshot)")
+
+        source_dir = Path(args.root).resolve()
+        if not source_dir.exists():
+            raise SystemExit(f"Source directory does not exist: {source_dir}")
 
         # ----------------------------------------
         # MODE: BASELINE
@@ -1222,6 +1249,9 @@ def main() -> None:
             from dennis.core.csvio import write_csv_from_plan
             from dennis.core.rehydrate import rehydrate
 
+            def ts():
+                return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
+
             with tempfile.TemporaryDirectory() as tmp_dir:
                 baseline_path = Path(tmp_dir)
 
@@ -1229,7 +1259,7 @@ def main() -> None:
                 rehydrate(args.baseline, output_dir=baseline_path)
 
                 print("[Dennis] Computing diff...")
-                changes = diff_directories(baseline_path, root)
+                changes = diff_directories(baseline_path, source_dir)
 
             plan = {
                 "changes": changes,
@@ -1249,6 +1279,45 @@ def main() -> None:
 
             print(f"[Dennis] Plan generated → {output}")
             print(f"[Dennis] CSV generated  → {csv_path}")
+
+            # Generate expected diff
+            try:
+                dennis_dir = Path(".dennis")
+                dennis_dir.mkdir(exist_ok=True)
+
+                expected_diff = generate_planned_diff(plan, base_dir=baseline_path)
+
+                if not validate_diff_artifact(expected_diff):
+                    raise ValueError("Generated expected diff is invalid")
+
+                if plan.get("changes") and not expected_diff["payload"]["files"]:
+                    print("[ERROR] Expected diff is empty — check base_dir alignment")
+                    raise SystemExit(1)
+
+                timestamp = ts()
+                plan_artifact_path = dennis_dir / f"dennis-plan-{timestamp}.json"
+                expected_artifact_path = dennis_dir / f"dennis-expected-{timestamp}.json"
+
+                with open(plan_artifact_path, "w", encoding="utf-8") as f:
+                    json.dump(plan, f, indent=2)
+
+                with open(expected_artifact_path, "w", encoding="utf-8") as f:
+                    json.dump(expected_diff, f, indent=2)
+
+                file_count = len(expected_diff["payload"]["files"])
+                change_count = sum(len(f["changes"]) for f in expected_diff["payload"]["files"])
+
+                print("\n[Dennis] Canonical Diff Generated")
+                print(f"  Intent   → {plan_artifact_path}")
+                print(f"  Expected → {expected_artifact_path}")
+                print(f"  Files: {file_count}, Changes: {change_count}")
+                print(f"  Expected hash: {diff_hash(expected_diff)}")
+
+            except Exception as e:
+                print(f"[WARNING] Could not generate expected diff: {e}")
+                import traceback
+                traceback.print_exc()
+
             return
 
         # ----------------------------------------
@@ -1257,6 +1326,9 @@ def main() -> None:
 
         from dennis.i18n.plan import generate_plan
         from dennis.forge.hash.canonical import canonical_hash
+
+        def ts():
+            return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
 
         dict_path = Path(args.dict) if args.dict else Path(f"dictionary-{ts()}.json")
         output = Path(args.out) if args.out else Path(default_plan_filename())
@@ -1281,6 +1353,12 @@ def main() -> None:
 
         git_mode = "changed" if args.use_git else "tracked"
 
+        if args.use_git:
+            from dennis.utils import is_git_repo
+
+            if not is_git_repo(source_dir):
+                raise SystemExit("[Dennis] --use-git requires a git repository.")
+
         excluded_langs = set()
 
         if args.exclude_lang:
@@ -1289,7 +1367,7 @@ def main() -> None:
             }
 
         plan = generate_plan(
-            root,
+            source_dir,
             dict_path,
             helpers=helpers,
             git_mode=git_mode,
@@ -1315,6 +1393,51 @@ def main() -> None:
         print(f"Plan written → {output}")
         print(f"CSV written  → {csv_path}")
         print(f"Plan hash: {canonical_hash(plan)}")
+
+        # ----------------------------------------
+        # GENERATE EXPECTED DIFF (canonical form)
+        # ----------------------------------------
+        try:
+            # Create .dennis output directory
+            dennis_dir = Path(".dennis")
+            dennis_dir.mkdir(exist_ok=True)
+
+            # Generate expected diff with source snapshot
+            expected_diff = generate_planned_diff(plan, base_dir=source_dir)
+
+            # Validate expected diff
+            if not validate_diff_artifact(expected_diff):
+                raise ValueError("Generated expected diff is invalid")
+
+            if plan.get("changes") and not expected_diff["payload"]["files"]:
+                print("[ERROR] Expected diff is empty — check base_dir alignment")
+                raise SystemExit(1)
+
+            # Save both artifacts with consistent naming
+            timestamp = ts()
+            plan_artifact_path = dennis_dir / f"dennis-plan-{timestamp}.json"
+            expected_artifact_path = dennis_dir / f"dennis-expected-{timestamp}.json"
+
+            with open(plan_artifact_path, "w", encoding="utf-8") as f:
+                json.dump(plan, f, indent=2)
+
+            with open(expected_artifact_path, "w", encoding="utf-8") as f:
+                json.dump(expected_diff, f, indent=2)
+
+            # Print statistics
+            file_count = len(expected_diff["payload"]["files"])
+            change_count = sum(len(f["changes"]) for f in expected_diff["payload"]["files"])
+
+            print("\n[Dennis] Canonical Diff Generated")
+            print(f"  Intent   → {plan_artifact_path}")
+            print(f"  Expected → {expected_artifact_path}")
+            print(f"  Files: {file_count}, Changes: {change_count}")
+            print(f"  Expected hash: {diff_hash(expected_diff)}")
+
+        except Exception as e:
+            print(f"[WARNING] Could not generate expected diff: {e}")
+            import traceback
+            traceback.print_exc()
 
         return
 
@@ -2231,6 +2354,8 @@ def main() -> None:
         import tempfile, json
         from pathlib import Path
         from dennis.dex.pack import pack_dex
+        from dennis.dex.canonical_diff import generate_observed_diff_git
+        
 
         # ----------------------------------------
         # 1. GENERATE CANONICAL DIFF
@@ -2275,7 +2400,7 @@ def main() -> None:
         print(f"  dennis inspect {dex_path}")
         print(f"  dennis publish {dex_path}")
 
-    elif args.command == "diff-dir":
+    elif args.command == "diff-directories":
 
         import json
         from pathlib import Path
@@ -2848,7 +2973,9 @@ def main() -> None:
     # --------------------------------------------------------
     elif args.command == "git-diff":
         from dennis.dex.canonical_diff import generate_observed_diff_git
+        from dennis.utils.time import timestamp
         import json
+
 
         print("Generating diff from git changes...")
         diff_artifact = generate_observed_diff_git()
@@ -2857,9 +2984,9 @@ def main() -> None:
             print("No changes detected in git.")
             return
 
-        # Save to file
-        timestamp = timestamp()
-        filename = f"diff-git-{timestamp}.json"
+        now = timestamp()
+        filename = f"diff-git-{now}.json"
+
         with open(filename, 'w') as f:
             json.dump(diff_artifact, f, indent=2)
 
@@ -2869,11 +2996,14 @@ def main() -> None:
         print(f"✓ Git diff generated: {file_count} files, {change_count} changes")
         print(f"  Saved to: {filename}")
 
-    elif args.command == "diff-dir":
+    elif args.command == "diff-directories":
         
         from pathlib import Path
-        from datetime import datetime
+        from datetime import datetime, timezone
         import json
+
+        def ts():
+            return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
 
         source_dir = Path(args.source_dir)
         target_dir = Path(args.target_dir)
@@ -2894,9 +3024,13 @@ def main() -> None:
             print("No differences detected.")
             return
 
-        # Save to file
-        timestamp = timestamp()
-        filename = f"diff-dir-{timestamp}.json"
+        # Create .dennis output directory and save with consistent naming
+        dennis_dir = Path(".dennis")
+        dennis_dir.mkdir(exist_ok=True)
+
+        timestamp = ts()
+        filename = dennis_dir / f"dennis-observed-{timestamp}.json"
+        
         with open(filename, 'w') as f:
             json.dump(diff_artifact, f, indent=2)
 
@@ -2905,11 +3039,17 @@ def main() -> None:
 
         print(f"✓ Directory diff generated: {file_count} files, {change_count} changes")
         print(f"  Saved to: {filename}")
+        print(f"  Observed hash: {diff_hash(diff_artifact)}")
+
 
     elif args.command == "compare":
         from dennis.dex.canonical_diff import generate_reconciliation_diff
         from pathlib import Path
+        from datetime import datetime, timezone
         import json
+
+        def ts():
+            return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
 
         planned_path = Path(args.planned_diff)
         observed_path = Path(args.observed_diff)
@@ -2928,7 +3068,7 @@ def main() -> None:
         reconciliation = generate_reconciliation_diff(planned_diff, observed_diff)
 
         # Save to file
-        timestamp = timestamp()
+        timestamp = ts()
         filename = f"reconciliation-{timestamp}.json"
         with open(filename, 'w') as f:
             json.dump(reconciliation, f, indent=2)
@@ -2952,6 +3092,86 @@ def main() -> None:
             else:
                 print("  ❌ Low confidence: Significant deviations from plan")
         return
+    
+    elif args.command == "verify-execution":
+        from pathlib import Path
+        import json
+
+        expected_path = Path(args.expected)
+        observed_path = Path(args.observed)
+
+        if not expected_path.exists():
+            raise SystemExit(f"Expected diff file does not exist: {expected_path}")
+
+        if not observed_path.exists():
+            raise SystemExit(f"Observed diff file does not exist: {observed_path}")
+
+        print("Loading diff artifacts...")
+        expected_diff = json.loads(expected_path.read_text())
+        observed_diff = json.loads(observed_path.read_text())
+
+        print("Verifying execution...")
+
+        expected_files = {f["path"] for f in expected_diff["payload"]["files"]}
+        observed_files = {f["path"] for f in observed_diff["payload"]["files"]}
+
+        unexpected_files = observed_files - expected_files
+        missing_files = expected_files - observed_files
+
+        if unexpected_files:
+            print("\n[Dennis] WARNING: Unexpected files detected (not in plan):")
+            for f in sorted(unexpected_files):
+                print(f"  - {f}")
+
+        if missing_files:
+            print("\n[Dennis] WARNING: Planned files missing from execution:")
+            for f in sorted(missing_files):
+                print(f"  - {f}")
+
+        if unexpected_files or missing_files:
+            print("\n[Dennis] Possible causes:")
+            print("  • .gitignore mismatch")
+            print("  • Different source/target directories")
+            print("  • Unintended global transformations")
+            if args.strict:
+                print("\n[Dennis] ERROR: Scope mismatch detected (strict mode)")
+                raise SystemExit(1)
+
+        expected_hash = diff_hash(expected_diff)
+        observed_hash = diff_hash(observed_diff)
+        match = expected_hash == observed_hash
+
+        result = {
+            "match": match,
+            "expected_hash": expected_hash,
+            "observed_hash": observed_hash,
+            "expected_files": len(expected_files),
+            "observed_files": len(observed_files)
+        }
+
+        print("\n[Dennis] Execution Verification")
+        print(f"  Expected hash:  {expected_hash}")
+        print(f"  Observed hash:  {observed_hash}")
+        print(f"  Match: {'✓ YES' if match else '✗ NO'}")
+        print(f"  Expected files: {result['expected_files']}")
+        print(f"  Observed files: {result['observed_files']}")
+
+        if not match:
+            print("\n[INFO] Hashes do not match. Running detailed reconciliation...")
+            from dennis.dex.canonical_diff import generate_reconciliation_diff
+            
+            reconciliation = generate_reconciliation_diff(expected_diff, observed_diff)
+            summary = reconciliation['payload']['reconciliation_summary']
+            
+            print(f"\n  Files: {summary['total_files']}")
+            print(f"  Matched: {summary['matched_changes']}")
+            print(f"  Missing: {summary['missing_changes']}")
+            print(f"  Unexpected: {summary['unexpected_changes']}")
+            
+            raise SystemExit(1)
+        else:
+            print("\n✓ Execution matches expected transformation")
+            return
     
     elif args.command == "test-diff":
 

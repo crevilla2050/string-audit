@@ -456,11 +456,7 @@ def apply_plan(plan_path: Path, dry_run: bool = False, confirm: str | None = Non
         file_path = Path(file_name)
 
         if not file_path.exists():
-            log["warnings"].append({
-                "file": str(file_path),
-                "type": "missing_file"
-            })
-            continue
+            raise SystemExit(f"[Dennis] File not found during apply: {file_path}")
 
         lines = file_path.read_text(encoding="utf-8").splitlines()
         normalized_lines = [l.strip() for l in lines]

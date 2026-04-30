@@ -82,6 +82,27 @@ def git_tracked_python_files(root: Path) -> Iterable[Path]:
         if path.suffix == ".py" and path.exists():
             yield path
 
+
+def git_unignored_files(root: Path) -> Iterable[Path]:
+    """
+    Yield all files in the repository that are not ignored by Git.
+    This includes tracked files and untracked files excluded by .gitignore.
+    """
+    yield from git_tracked_files(root)
+
+    result = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+        cwd=root,
+        capture_output=True,
+        text=False,
+        check=True,
+    )
+
+    for entry in result.stdout.split(b"\x00"):
+        if entry:
+            yield root / entry.decode("utf-8", errors="ignore")
+
+
 def load_gitignore(root: Path):
     gitignore = root / ".gitignore"
     patterns = []
@@ -187,8 +208,10 @@ def iter_files(root: Path, git_mode: str = "tracked"):
                     for f in changed:
                         yield f
                     return
-                else:
-                    print("[Dennis] No git changes detected, falling back to tracked files")
+
+                print("[Dennis] No git changes detected. Scanning git repository files excluding .gitignore.")
+                yield from git_unignored_files(root)
+                return
 
             # ----------------------------------------
             # MODE: tracked files (default)
