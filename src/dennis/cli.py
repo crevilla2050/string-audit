@@ -376,7 +376,24 @@ def show_diff(expected, actual):
     for line in diff:
         print("    " + line)
 
+def _context_path():
+    return Path.home() / ".dennis" / "context.json"
 
+
+def load_context():
+    path = _context_path()
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return None
+
+
+def save_context(data):
+    path = _context_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2))
 
 # ============================================================
 # ARGPARSE
@@ -2588,15 +2605,37 @@ def main() -> None:
 
         parent_manifest = None
 
-        if args.parent:
-            from dennis.dex.importer import import_dex
+        from dennis.dex.importer import import_dex
 
+        # --------------------------------------------------------
+        # 1. EXPLICIT PARENT (always wins)
+        # --------------------------------------------------------
+        if args.parent:
             parent_path = Path(args.parent)
 
             if not parent_path.exists():
                 raise SystemExit(f"[Dennis] Parent artifact not found: {args.parent}")
 
+            print("[Dennis] Using explicit parent:", parent_path)
+
             parent_manifest, _ = import_dex(parent_path)
+
+        # --------------------------------------------------------
+        # 2. IMPLICIT PARENT (context fallback)
+        # --------------------------------------------------------
+        else:
+            ctx = load_context()
+
+            if ctx and ctx.get("last_artifact_path"):
+                parent_path = Path(ctx["last_artifact_path"])
+
+                if parent_path.exists():
+                    print("[Dennis] Using implicit parent from context:", parent_path)
+                    parent_manifest, _ = import_dex(parent_path)
+                else:
+                    print("[Dennis] Context parent not found, ignoring context")
+            else:
+                print("[Dennis] No parent specified, creating root artifact")
 
         if args.parent and args.detached:
             raise SystemExit("[Dennis] Cannot use --parent and --detached together")
@@ -2609,7 +2648,37 @@ def main() -> None:
             force_detached=args.detached
         )
 
+        # --------------------------------------------------------
+        # UPDATE CONTEXT
+        # --------------------------------------------------------
+        try:
+            from dennis.dex.importer import import_dex
+
+            manifest, _ = import_dex(output_path)
+
+            lineage = manifest.get("lineage", {})
+
+            save_context({
+                "active_lineage_id": lineage.get("lineage_id"),
+                "root_hash": lineage.get("lineage_id"),
+                "last_artifact_path": str(output_path.resolve())
+            })
+
+            print("[Dennis] Context updated")
+
+        except Exception as e:
+            print("[Dennis] Warning: could not update context:", e)
+
         print(f"Artifact written → {output_path}")
+
+    # --------------------------------------------------------
+    # LINEAGE RESET
+    # --------------------------------------------------------
+    elif args.command == "lineage-reset":
+        path = _context_path()
+        if path.exists():
+            path.unlink()
+        print("[Dennis] Lineage context cleared")
 
     # --------------------------------------------------------
     # UNPACK
