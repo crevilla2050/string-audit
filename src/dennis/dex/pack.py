@@ -196,20 +196,20 @@ def pack_dex(
 
         if parent_manifest["lineage"].get("type") == "detached":
             raise ValueError("Cannot derive from detached artifact")
-        
+            
         if not parent_manifest["lineage"].get("lineage_id"):
             raise ValueError("Parent lineage missing lineage_id")
 
-        lineage = build_derived_lineage(parent_manifest)
+        lineage = build_derived_lineage(parent_manifest, payload_hash)
 
     else:
         # ROOT artifact
         lineage = build_root_lineage(payload_hash)
-    
-    print(f"[Dennis] Lineage type: {lineage['type']}")
 
     if lineage["lineage_id"]:
-        print(f"[Dennis] Lineage ID: {lineage['lineage_id']}")
+        print("[Dennis] Lineage type:", lineage["type"])
+        print("[Dennis] Lineage ID:", lineage["lineage_id"])
+        print("[Dennis] Parent:", lineage["parent"])
 
     manifest = build_manifest(
         payload_hash_value=payload_hash,

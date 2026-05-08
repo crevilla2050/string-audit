@@ -637,6 +637,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Enable verbose output (debug information)"
     )
 
+    diff_directories_cmd.add_argument(
+        "--create-plan",
+        action="store_true",
+        help="Generate a plan.json from observed differences"
+    )
+
+
     compare_cmd = sub.add_parser(
         "compare",
         help="Compare planned vs observed diffs (reconciliation)"
@@ -2182,6 +2189,7 @@ def main() -> None:
                         "size_bytes": len(files.get("payload/plan.json", b"")),
                     },
                     "signatures": manifest.get("signatures", []),
+                    "lineage": manifest.get("lineage", {}),
                 }
 
             except Exception:
@@ -2245,6 +2253,13 @@ def main() -> None:
         print(f"Type:        {payload.get('type')}")
         print(f"Hash:        {payload.get('hash')}")
         print(f"Size:        {payload.get('size_bytes')}")
+
+        lineage = data.get("lineage", {})
+        print("\nLineage")
+        print("-------")
+        print(f"Type:        {lineage.get('type')}")
+        print(f"Lineage ID:  {lineage.get('lineage_id')}")
+        print(f"Parent:      {lineage.get('parent')}")
 
         sigs = data.get("signatures", [])
 
@@ -2419,6 +2434,17 @@ def main() -> None:
         # 1. GENERATE CANONICAL DIFF
         # ----------------------------------------
         artifact = generate_observed_diff_directories(source_dir, target_dir, verbose=args.verbose)
+
+        if args.create_plan:
+            from dennis.core.diff_to_plan import generate_plan_from_dirs
+
+            plan = generate_plan_from_dirs(source_dir, target_dir)
+            output_path = "dennis-plan-generated.json"
+
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(plan, f, indent=2, ensure_ascii=False)
+
+            print(f"[Dennis] Plan generated → {output_path}")
 
         # Validate the artifact
         if not validate_diff_artifact(artifact):

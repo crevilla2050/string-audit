@@ -70,15 +70,27 @@ def build_root_lineage(payload_hash):
         "type": "root",
     }
 
-def build_derived_lineage(parent_manifest):
+def build_derived_lineage(parent_manifest, payload_hash):
     """
     Inherit lineage from parent artifact.
+
+    CRITICAL:
+    - lineage_id must be preserved from root
+    - parent must point to immediate previous artifact
     """
+
     parent_lineage = parent_manifest.get("lineage", {})
 
+    parent_hash = parent_manifest.get("payload", {}).get("hash", {}).get("value")
+
+    lineage_id = parent_lineage.get("lineage_id")
+
+    if not lineage_id:
+        raise ValueError("Parent lineage missing lineage_id")
+
     return {
-        "lineage_id": parent_lineage.get("lineage_id"),
-        "parent": parent_manifest.get("payload", {}).get("hash", {}).get("value"),
+        "lineage_id": lineage_id,   # ✅ FIXED
+        "parent": parent_hash,
         "type": "derived",
     }
 
