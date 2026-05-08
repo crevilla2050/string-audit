@@ -119,7 +119,7 @@ def generate_plan(
             # ----------------------------------------
             # DEBUG (optional but useful)
             # ----------------------------------------
-            # print(f"[DEBUG] Raw dictionary entries: {len(mapping)}")
+            # # print(f"[DEBUG] Raw dictionary entries: {len(mapping)}")
 
             # ----------------------------------------
             # WRITE RAW DICTIONARY
@@ -138,7 +138,7 @@ def generate_plan(
 
             cleaned = apply_all_filters(mapping)
 
-            print(f"[DEBUG] Cleaned dictionary entries: {len(cleaned)}")
+            # print(f"[DEBUG] Cleaned dictionary entries: {len(cleaned)}")
 
             clean_path = cleaned_filename(dict_path)
 
@@ -157,7 +157,7 @@ def generate_plan(
     # --------------------------------------------------
 
     reverse_mapping = {v: k for k, v in mapping.items()}
-    print("[DEBUG] reverse_mapping:", reverse_mapping)
+    # print("[DEBUG] reverse_mapping:", reverse_mapping)
 
     changes: List[Dict] = []
 
@@ -167,9 +167,9 @@ def generate_plan(
 
     findings = scan_directory(root, git_mode=git_mode)
 
-    print(f"[DEBUG] Total findings: {len(findings)}")
+    # print(f"[DEBUG] Total findings: {len(findings)}")
     for f in findings[:5]:  # first 5
-        print(f"[DEBUG] Finding: {f.file}:{f.line} '{f.text}'")
+        # print(f"[DEBUG] Finding: {f.file}:{f.line} '{f.text}'")
 
     # Decouple scanning from transformation: process all code files
     for file_path in iter_files(root, git_mode=git_mode):
@@ -177,34 +177,34 @@ def generate_plan(
         if exclude_langs:
             ext = file_path.suffix.lower()
             if any(ext in LANG_EXTENSIONS.get(lang_name, []) for lang_name in exclude_langs):
-                print(f"[DEBUG] Skipping {file_path} due to exclude_langs")
+                # print(f"[DEBUG] Skipping {file_path} due to exclude_langs")
                 continue
 
         if file_path.suffix.lower() == ".json":
-            print(f"[DEBUG] Skipping JSON {file_path}")
+            # print(f"[DEBUG] Skipping JSON {file_path}")
             continue
 
         # Only process code files
         if file_path.suffix.lower() not in [".py"]:  # add other langs as needed
             continue
 
-        print(f"[DEBUG] Processing {file_path}")
+        # print(f"[DEBUG] Processing {file_path}")
 
         lines = file_path.read_text(encoding="utf-8", errors="ignore").splitlines()
         file_hash = sha256_file(file_path)
 
         for idx, line in enumerate(lines, start=1):
             if not line or not line.strip():
-                print(f"[DEBUG] Empty line {idx} for {file_path}")
+                # print(f"[DEBUG] Empty line {idx} for {file_path}")
                 continue
 
-            print(f"[DEBUG] Transforming line {idx}: {line}")
+            # print(f"[DEBUG] Transforming line {idx}: {line}")
             new_line, token = plugin.transform_line(line, reverse_mapping)
 
-            print(f"[DEBUG] Transform result: token={token}, new_line={repr(new_line)}")
+            # print(f"[DEBUG] Transform result: token={token}, new_line={repr(new_line)}")
 
             if token and new_line and new_line != line:
-                print(f"[DEBUG] Adding change for {file_path}:{idx}")
+                # print(f"[DEBUG] Adding change for {file_path}:{idx}")
                 try:
                     file_abs = file_path.resolve()
                     root_abs = root.resolve()
@@ -224,10 +224,10 @@ def generate_plan(
     # --------------------------------------------------
     # Link helpers to changes (NEW)
     # --------------------------------------------------
-    print("[DEBUG] helpers received:", helpers)
+    # print("[DEBUG] helpers received:", helpers)
     
     if helpers:
-        print("[DEBUG] entering helper append block")
+        # print("[DEBUG] entering helper append block")
         for h in helpers:
             helper_change = {
                 "type": "helper",
@@ -237,9 +237,9 @@ def generate_plan(
                 "helper_ref": h.get("helper_ref") or h.get("path"),
                 "helper_source": h.get("helper_source") or h.get("helper"),
             }
-            print("[DEBUG] appending helper:", helper_change)
+            # print("[DEBUG] appending helper:", helper_change)
             changes.append(helper_change)
-            print("[DEBUG] helper change added:", changes[-1])
+            # print("[DEBUG] helper change added:", changes[-1])
 
     plan = {
         "meta": {

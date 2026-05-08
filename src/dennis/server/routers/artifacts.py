@@ -450,3 +450,4 @@ def artifact_lineage(artifact_hash: str):
         "root": artifact_hash,
         "lineage": chain
     }
+

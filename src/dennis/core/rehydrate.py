@@ -93,7 +93,7 @@ def rehydrate(dex_path, output_dir: Path):
         helpers_src = payload_dir / "helpers"
         helpers_dst = output_dir / "helpers"
 
-        print(f"[DEBUG] helpers_src exists: {helpers_src.exists()}")
+        # print(f"[DEBUG] helpers_src exists: {helpers_src.exists()}")
 
         if helpers_src.exists():
 
@@ -104,7 +104,7 @@ def rehydrate(dex_path, output_dir: Path):
             copied = 0
 
             for f in helpers_src.glob("*.py"):
-                print(f"[DEBUG] copying {f}")
+                # print(f"[DEBUG] copying {f}")
                 target = helpers_dst / f.name
                 target.write_bytes(f.read_bytes())
                 copied += 1

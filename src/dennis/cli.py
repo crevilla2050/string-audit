@@ -1227,9 +1227,9 @@ def main() -> None:
 
             output = args.file or Path(args.plan).with_suffix(".csv")
             
-            print("[DEBUG BEFORE CSV]", plan["changes"][-1])
+            # print("[DEBUG BEFORE CSV]", plan["changes"][-1])
             write_csv_from_plan(plan, output)
-            print("[DEBUG BEFORE CSV]", plan["changes"][-1])
+            # print("[DEBUG BEFORE CSV]", plan["changes"][-1])
 
             print(f"[Dennis] CSV exported → {output}")
             print(
@@ -1297,7 +1297,7 @@ def main() -> None:
             csv_path = output.with_suffix(".csv")
 
             with open(output, "w", encoding="utf-8") as f:
-                print("[DEBUG FINAL BEFORE WRITE]", plan["changes"][-1])
+                # print("[DEBUG FINAL BEFORE WRITE]", plan["changes"][-1])
                 dump_json(plan, f)
             write_csv_from_plan(plan, csv_path)
 
@@ -1408,11 +1408,11 @@ def main() -> None:
 
         import copy
         csv_path = output.with_suffix(".csv")
-        print("[DEBUG BEFORE CSV]", plan["changes"][-2:])
+        # print("[DEBUG BEFORE CSV]", plan["changes"][-2:])
 
         write_csv_from_plan(copy.deepcopy(plan), csv_path)
 
-        print("[DEBUG AFTER CSV]", plan["changes"][-2:])
+        # print("[DEBUG AFTER CSV]", plan["changes"][-2:])
 
         print(f"Plan written → {output}")
         print(f"CSV written  → {csv_path}")

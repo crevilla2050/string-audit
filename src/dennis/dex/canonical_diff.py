@@ -561,7 +561,7 @@ def generate_observed_diff_directories(
             tracked_files = get_git_tracked_files(source_dir)
             file_paths = set(Path(p) for p in tracked_files)
             if verbose:
-                print(f"[DEBUG] total file_paths: {len(file_paths)}")
+                # print(f"[DEBUG] total file_paths: {len(file_paths)}")
 
             # include new files from target_dir
             for f in target_dir.rglob('*'):
@@ -597,7 +597,7 @@ def generate_observed_diff_directories(
 
     for rel_path in file_paths:
         if verbose:
-            print(f"[DEBUG] checking: {rel_path}")
+            # print(f"[DEBUG] checking: {rel_path}")
         if should_ignore_file(rel_path):
             if verbose:
                 print(f"[SKIP ignore] {rel_path}")

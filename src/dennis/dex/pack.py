@@ -141,7 +141,7 @@ def pack_dex(
             helper_path_fs = (payload_path.parent / helper_source).resolve()
             
 
-        print("[DEBUG] resolving helper:", helper_path_fs)
+        # print("[DEBUG] resolving helper:", helper_path_fs)
 
         if not helper_path_fs.exists():
             raise SystemExit(f"[Dennis] ERROR: Helper not found: {helper_path_fs}")
