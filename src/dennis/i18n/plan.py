@@ -167,10 +167,6 @@ def generate_plan(
 
     findings = scan_directory(root, git_mode=git_mode)
 
-    # print(f"[DEBUG] Total findings: {len(findings)}")
-    for f in findings[:5]:  # first 5
-        # print(f"[DEBUG] Finding: {f.file}:{f.line} '{f.text}'")
-
     # Decouple scanning from transformation: process all code files
     for file_path in iter_files(root, git_mode=git_mode):
 
