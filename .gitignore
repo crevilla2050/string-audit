@@ -40,5 +40,12 @@ Thumbs.db
 *.swp
 *.key
 *.pub
-*.json
 *.csv
+en_*.json
+dict*.json
+string*.json
+*.zip
+*.tar.gz
+*.7z
+*.rar
+*.gz

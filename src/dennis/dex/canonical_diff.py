@@ -1,7 +1,7 @@
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Set, Tuple
 from difflib import unified_diff, SequenceMatcher
 import os
 import hashlib
@@ -130,7 +130,7 @@ def should_ignore_file(rel_path: Path) -> bool:
     # --------------------------------------------------
     if path.endswith((
         ".png", ".jpg", ".jpeg", ".gif", ".ico", ".key", ".pem", ".pub", ".svg",
-        ".pdf", ".zip", ".tar", ".gz", ".dex", ".class", ".exe", ".dll", ".so"
+        ".pdf", ".zip", ".tar", ".gz", ".dex", ".exe", ".dll", ".so"
     )):
         return True
 
@@ -835,7 +835,71 @@ def generate_planned_diff(plan_data: Dict[str, Any], base_dir: Path) -> Dict[str
         return (base_dir / file_path).exists()
 
     files = {}
-    
+
+    # --------------------------------------------------
+    # STEP 1: Detect helpers present in source snapshot (STATE A)
+    # Language-agnostic, canonicalized to helper_ref format
+    # --------------------------------------------------
+    helpers_in_A: Set[str] = set()
+
+    def collect_helpers_from(base: Path, prefix: Optional[Path] = None):
+        """
+        Collect helper files recursively and normalize to canonical helper_ref.
+        prefix: subpath to strip (e.g., 'payload/helpers')
+        """
+        if not base.exists() or not base.is_dir():
+            return
+
+        for file_path in base.rglob("*"):
+            if not file_path.is_file():
+                continue
+
+            try:
+                if prefix:
+                    rel = file_path.relative_to(base_dir / prefix)
+                else:
+                    rel = file_path.relative_to(base_dir / "helpers")
+
+                # Canonical helper_ref
+                helper_ref = f"helpers/{rel.as_posix()}"
+                helpers_in_A.add(helper_ref)
+
+            except Exception:
+                continue
+
+    # --------------------------------------------------
+    # STEP 2: Detect helpers referenced in plan (STATE B)
+    # --------------------------------------------------
+    helpers_in_B: Set[str] = set()
+
+    for change in plan_data.get("changes", []):
+        if change.get("type") != "helper":
+            continue
+
+        helper_ref = change.get("helper_ref")
+        if not helper_ref:
+            continue
+
+        # Normalize to canonical form just in case
+        helpers_in_B.add(str(helper_ref))
+
+    # --------------------------------------------------
+    # STEP 3: Compute helper lifecycle (STATE A vs STATE B)
+    # --------------------------------------------------
+    added_helpers: Set[str] = helpers_in_B - helpers_in_A
+    removed_helpers: Set[str] = helpers_in_A - helpers_in_B
+
+    print("DEBUG helpers_in_A:", sorted(helpers_in_A))
+    print("DEBUG helpers_in_B:", sorted(helpers_in_B))
+    print("DEBUG added_helpers:", sorted(added_helpers))
+    print("DEBUG removed_helpers:", sorted(removed_helpers))
+
+    # Collect from working directory helpers/
+    collect_helpers_from(base_dir / "helpers")
+
+    # Collect from payload/helpers/ (DEX embedded state)
+    collect_helpers_from(base_dir / "payload" / "helpers", Path("payload/helpers"))
+        
     # Group changes by file path
     changes_by_file: Dict[str, List[Dict[str, Any]]] = {}
     for change in plan_data.get("changes", []):
@@ -847,6 +911,63 @@ def generate_planned_diff(plan_data: Dict[str, Any], base_dir: Path) -> Dict[str
             changes_by_file[file_path] = []
         
         changes_by_file[file_path].append(change)
+
+    # --------------------------------------------------
+    # STEP 4: Apply helper lifecycle to diff (files + helpers section)
+    # --------------------------------------------------
+
+    # -------------------------
+    # Handle ADDED helpers
+    # -------------------------
+    for helper_ref in sorted(added_helpers):
+        if helper_ref in files:
+            continue  # Do not overwrite existing entries
+
+        helper_lines = load_helper_lines({
+            "helper_ref": helper_ref
+        })
+
+        if not helper_lines:
+            continue
+
+        files[helper_ref] = {
+            "path": helper_ref,
+            "status": "added",
+            "changes": [{
+                'type': 'insert',
+                'start_line': 1,
+                'end_line': len(helper_lines),
+                'before': [],
+                'after': helper_lines
+            }]
+        }
+
+    # -------------------------
+    # Handle REMOVED helpers
+    # -------------------------
+    for helper_ref in sorted(removed_helpers):
+        if helper_ref in files:
+            continue  # Do not overwrite existing entries
+
+        helper_path = Path(helper_ref)
+        original_lines = load_helper_lines({
+            "helper_ref": helper_ref
+        })
+
+        if not original_lines:
+            continue
+
+        files[helper_ref] = {
+            "path": helper_ref,
+            "status": "removed",
+            "changes": [{
+                'type': 'delete',
+                'start_line': 1,
+                'end_line': len(original_lines),
+                'before': original_lines,
+                'after': []
+            }]
+        }
     
     # Process each file
     for file_path_str in sorted(changes_by_file.keys()):

@@ -89,10 +89,10 @@ def import_dex(path):
 
         mode, payload_name = _validate_structure(members)
         
-        if mode == "state":
-            print("[Dennis] DEX mode: STATE (files + plan)")
-        else:
-            print("[Dennis] DEX mode: PLAN (legacy)")
+        # if mode == "state":
+        #     print("[Dennis] DEX mode: STATE (files + plan)")
+        # else:
+        #     print("[Dennis] DEX mode: PLAN (legacy)")
 
 
         if payload_name is None:
@@ -121,9 +121,9 @@ def import_dex(path):
     payload_hash_expected = manifest["payload"]["hash"]["value"]
     payload_hash_actual = canonical_hash(json.loads(payload_bytes))
 
-    print("EXPECTED:", payload_hash_expected)
-    print("ACTUAL:", payload_hash_actual)
-    print("PAYLOAD:", payload_bytes[:200])
+    # print("EXPECTED:", payload_hash_expected)
+    # print("ACTUAL:", payload_hash_actual)
+    # print("PAYLOAD:", payload_bytes[:200])
 
     if payload_hash_actual != payload_hash_expected:
         raise ValueError("Payload hash mismatch")

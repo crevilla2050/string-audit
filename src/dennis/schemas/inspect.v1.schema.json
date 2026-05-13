@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Dennis Inspect Protocol v1",
+  "type": "object",
+
+  "required": [
+    "protocol",
+    "artifact",
+    "meta",
+    "payload",
+    "lineage",
+    "signatures",
+    "patches",
+    "diff"
+  ],
+
+  "properties": {
+
+    "protocol": {
+      "type": "object",
+      "required": ["version", "deprecated"],
+      "properties": {
+        "version": {
+          "type": "integer"
+        },
+        "deprecated": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+
+    "artifact": {
+      "type": "object",
+      "required": ["hash", "path"],
+      "properties": {
+        "hash": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+
+    "meta": {
+      "type": "object",
+      "required": [
+        "created_at",
+        "created_by",
+        "format",
+        "version"
+      ],
+      "properties": {
+        "created_at": {
+          "type": "string"
+        },
+        "created_by": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      }
+    },
+
+    "payload": {
+      "type": "object",
+      "required": [
+        "type",
+        "hash",
+        "size_bytes"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "hash": {
+          "type": "string"
+        },
+        "size_bytes": {
+          "type": "integer"
+        }
+      }
+    },
+
+    "lineage": {
+      "type": "object",
+      "required": [
+        "lineage_id",
+        "parent",
+        "type"
+      ],
+      "properties": {
+        "lineage_id": {
+          "type": "string"
+        },
+        "parent": {
+          "type": ["string", "null"]
+        },
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+
+    "signatures": {
+      "type": "array"
+    },
+
+    "patches": {
+      "type": "object",
+      "required": [
+        "summary",
+        "operations",
+        "files"
+      ],
+      "properties": {
+
+        "summary": {
+          "type": "object",
+          "required": [
+            "helpers",
+            "remove_helpers"
+          ],
+          "properties": {
+            "helpers": {
+              "type": "integer"
+            },
+            "remove_helpers": {
+              "type": "integer"
+            }
+          }
+        },
+
+        "operations": {
+          "type": "array"
+        },
+
+        "files": {
+          "type": "array"
+        }
+      }
+    },
+
+    "diff": {
+      "type": "object",
+      "required": ["files"],
+      "properties": {
+        "files": {
+          "type": "array"
+        }
+      }
+    }
+  }
+}

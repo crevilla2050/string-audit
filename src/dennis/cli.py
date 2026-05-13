@@ -837,7 +837,18 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_cmd.add_argument("target", help="Artifact hash or .dex file")
     
     add_remote_argument(inspect_cmd)
-    add_format_argument(inspect_cmd)
+    inspect_cmd.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format"
+    )
+
+    inspect_cmd.add_argument(
+        "--validate-schema",
+        action="store_true",
+        help="Validate output against inspect.v1.schema.json"
+    )
     
     # SIGNATURES 
     sig_cmd = sub.add_parser("signatures", help="Show artifact signatures")
@@ -2190,23 +2201,88 @@ def main() -> None:
                     try:
                         plan = json.loads(plan_bytes)
                         patches = plan.get("patches", {})
+
+                        raw_changes = plan.get("changes", [])
+
+                        operations = []
+
+                        for change in raw_changes:
+
+                            op = {
+                                "type": change.get("type", "replace"),
+                                "file": change.get("file"),
+                                "line": change.get("line"),
+                            }
+
+                            # ----------------------------------------
+                            # Optional semantic fields
+                            # ----------------------------------------
+
+                            optional_fields = [
+                                "original",
+                                "replacement",
+                                "token",
+                                "helper_id",
+                                "helper_ref",
+                                "helper_source",
+                            ]
+
+                            for field in optional_fields:
+                                if field in change:
+                                    op[field] = change[field]
+
+                            operations.append(op)
+
+                        grouped_files = {}
+
+                        for op in operations:
+
+                            file_path = op["file"]
+
+                            if file_path not in grouped_files:
+                                grouped_files[file_path] = {
+                                    "path": file_path,
+                                    "operations": []
+                                }
+
+                            grouped_files[file_path]["operations"].append(op)
+
+                        files_list = list(grouped_files.values())
+
                         patch_info = {
-                            "helpers": len(patches.get("helpers", [])),
-                            "remove_helpers": len(patches.get("remove_helpers", []))
+                            "summary": {
+                                "helpers": len(patches.get("helpers", [])),
+                                "remove_helpers": len(patches.get("remove_helpers", []))
+                            },
+                            "operations": operations,
+                            "files": files_list,
                         }
                     except Exception:
                         patch_info = {}
 
                 data = {
-                    "artifact_hash": "local-file",
+                    "protocol": {
+                        "version": 1,
+                        "deprecated": [
+                            "patches.operations"
+                        ]
+                    },
+                    "artifact": {
+                        "hash": "local-file",
+                        "path": str(path),
+                    },
                     "meta": manifest.get("meta", {}),
                     "payload": {
                         "type": manifest.get("payload", {}).get("type"),
                         "hash": manifest.get("payload", {}).get("hash", {}).get("value"),
                         "size_bytes": len(files.get("payload/plan.json", b"")),
                     },
-                    "signatures": manifest.get("signatures", []),
                     "lineage": manifest.get("lineage", {}),
+                    "signatures": manifest.get("signatures", []),
+                    "patches": patch_info if patch_info else {"summary": {"helpers": 0, "remove_helpers": 0}, "operations": []},
+                    "diff": {
+                        "files": []
+                    },
                 }
 
             except Exception:
@@ -2248,13 +2324,34 @@ def main() -> None:
         # OUTPUT
         # --------------------------------------------------------
 
+        if args.validate_schema:
+
+            from pathlib import Path
+            import jsonschema
+
+            schema_path = (
+                Path(__file__).parent
+                / "schemas"
+                / "inspect.v1.schema.json"
+            )
+
+            with open(schema_path, "r", encoding="utf-8") as f:
+                inspect_schema = json.load(f)
+
+        if args.validate_schema:
+            jsonschema.validate(
+                instance=data,
+                schema=inspect_schema
+            )
+        
         if args.format == "json":
             print(json.dumps(data, indent=2))
             return
 
         print("\nArtifact")
         print("--------")
-        print(f"Hash:        {data.get('artifact_hash')}")
+        print(f"Hash:        {data.get('artifact', {}).get('hash')}")
+        print(f"Path:        {data.get('artifact', {}).get('path')}")
 
         meta = data.get("meta", {})
         print("\nMeta")
@@ -2309,12 +2406,13 @@ def main() -> None:
             print(f"Stored:     {stored}")
 
         if patch_info:
+            summary = patch_info.get("summary", {})
             print("\nPatches")
             print("-------")
-            if patch_info.get("helpers"):
-                print(f"Helpers:     {patch_info['helpers']}")
-            if patch_info.get("remove_helpers"):
-                print(f"Removals:    {patch_info['remove_helpers']}")
+            if summary.get("helpers"):
+                print(f"Helpers:     {summary['helpers']}")
+            if summary.get("remove_helpers"):
+                print(f"Removals:    {summary['remove_helpers']}")
 
     # --------------------------------------------------------
     # SIGNATURES

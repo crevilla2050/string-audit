@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Dennis Diff Protocol v1",
+  "type": "object",
+
+  "required": [
+    "protocol",
+    "artifacts",
+    "payload_equal",
+    "node_type",
+    "summary",
+    "files"
+  ],
+
+  "properties": {
+
+    "protocol": {
+      "type": "object",
+      "required": ["version"],
+      "properties": {
+        "version": {
+          "type": "integer"
+        }
+      }
+    },
+
+    "artifacts": {
+      "type": "object",
+      "required": ["a", "b"],
+      "properties": {
+        "a": { "$ref": "#/definitions/artifact" },
+        "b": { "$ref": "#/definitions/artifact" }
+      }
+    },
+
+    "payload_equal": {
+      "type": "boolean"
+    },
+
+    "node_type": {
+      "type": "string"
+    },
+
+    "summary": {
+      "type": "object",
+      "required": [
+        "added",
+        "removed",
+        "modified",
+        "helpers_added",
+        "helpers_removed"
+      ],
+      "properties": {
+        "added": { "type": "integer" },
+        "removed": { "type": "integer" },
+        "modified": { "type": "integer" },
+        "helpers_added": { "type": "integer" },
+        "helpers_removed": { "type": "integer" }
+      }
+    },
+
+    "files": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/file" }
+    }
+  },
+
+  "definitions": {
+
+    "artifact": {
+      "type": "object",
+      "required": ["artifact_hash", "payload_hash"],
+      "properties": {
+        "artifact_hash": { "type": "string" },
+        "payload_hash": { "type": "string" }
+      }
+    },
+
+    "file": {
+      "type": "object",
+      "required": ["path", "summary", "operations"],
+      "properties": {
+        "path": { "type": "string" },
+
+        "summary": {
+          "type": "object",
+          "required": ["added", "removed", "modified"],
+          "properties": {
+            "added": { "type": "integer" },
+            "removed": { "type": "integer" },
+            "modified": { "type": "integer" }
+          }
+        },
+
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/operation" }
+        }
+      }
+    },
+
+    "operation": {
+      "type": "object",
+      "required": ["type", "line"],
+      "properties": {
+
+        "type": {
+          "type": "string"
+        },
+
+        "line": {
+          "type": "integer"
+        },
+
+        "content": {
+          "type": "string"
+        },
+
+        "change_type": {
+          "type": "string"
+        },
+
+        "differences": {
+          "type": "object"
+        },
+
+        "before": {
+          "type": "object"
+        },
+
+        "after": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}
