@@ -9,6 +9,7 @@ import os
 import tarfile
 import gzip
 import io
+import hashlib
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -43,7 +44,7 @@ def _tarinfo(name, data):
     ti.mode = 0o644
     return ti
 
-def sign_dex(dex_path, private_key_path, key_id="dev"):
+def sign_dex(dex_path, private_key_path, key_id=None):
     """
     Append a signature to an existing DEX artifact.
     """
@@ -83,6 +84,36 @@ def sign_dex(dex_path, private_key_path, key_id="dev"):
     signing_key = SigningKey(private_bytes)
     verify_key = signing_key.verify_key
 
+    # --------------------------------------------------------
+    # Derive canonical identity
+    # --------------------------------------------------------
+
+    public_key_bytes = verify_key.encode()
+    derived_key_id = hashlib.sha256(public_key_bytes).hexdigest()[:16]
+
+    declared_key_id = key_id  # may come from --key-id
+
+    # --------------------------------------------------------
+    # Detect mismatch (non-blocking)
+    # --------------------------------------------------------
+
+    if declared_key_id and declared_key_id != derived_key_id:
+        print("\n[Dennis] WARNING: key_id does not match derived identity")
+        print(f"[Dennis] Declared: {declared_key_id}")
+        print(f"[Dennis] Derived:  {derived_key_id}\n")
+
+    # --------------------------------------------------------
+    # Final key_id decision (preserve user intent)
+    # --------------------------------------------------------
+
+    final_key_id = declared_key_id or derived_key_id
+
+    # --------------------------------------------------------
+    # Visibility (always)
+    # --------------------------------------------------------
+
+    print(f"[Dennis] Signing with identity: {derived_key_id}")
+
     # ------------------------------
     # Load existing DEX
     # ------------------------------
@@ -114,10 +145,11 @@ def sign_dex(dex_path, private_key_path, key_id="dev"):
     signature = signing_key.sign(data).signature
 
     manifest.setdefault("signatures", []).append({
-        "key_id": key_id,
+        "key_id": final_key_id,
         "algorithm": "ed25519",
         "created_at": _now(),
-        "signature": base64.b64encode(signature).decode()
+        "signature": base64.b64encode(signature).decode(),
+        "derived_key_id": derived_key_id
     })
 
     files["manifest.json"] = json.dumps(
@@ -126,7 +158,11 @@ def sign_dex(dex_path, private_key_path, key_id="dev"):
         ensure_ascii=False
     ).encode("utf-8")
 
-    files[f"signatures/{key_id}.pub"] = verify_key.encode()
+    # --------------------------------------------------------
+    # Store public key under FINAL key_id (critical fix)
+    # --------------------------------------------------------
+
+    files[f"signatures/{final_key_id}.pub"] = public_key_bytes
 
     # ------------------------------
     # Rebuild deterministic tar
@@ -149,8 +185,82 @@ def sign_dex(dex_path, private_key_path, key_id="dev"):
         with gzip.GzipFile(fileobj=f, mode="wb", compresslevel=9, mtime=0) as gz:
             gz.write(tar_buffer.getvalue())
 
-    print(f"[Dennis] Artifact signed with key '{key_id}'")
+    print(f"[Dennis] Artifact signed with key '{final_key_id}'")
     print(f"[Dennis] New artifact: {dex_path}")
+
+def verify_manifest_signatures(manifest, files):
+    """
+    Verify signatures in-memory for inspect/validation flows.
+
+    Preferred verification target:
+      - payload.hash (as UTF-8 bytes)
+
+    Backward compatibility:
+      - semantic subset bytes, for previously signed artifacts.
+    """
+    payload_hash = (
+        manifest.get("payload", {})
+        .get("hash", {})
+        .get("value", "")
+    )
+    payload_hash_bytes = payload_hash.encode("utf-8")
+    subset_bytes = _serialize_subset(manifest)
+
+    details = []
+
+    for sig in manifest.get("signatures", []):
+        key_id = sig.get("key_id")
+        signature_b64 = sig.get("signature")
+        pubkey = files.get(f"signatures/{key_id}.pub")
+
+        entry = {
+            "key_id": key_id,
+            "valid": False,
+        }
+
+        if not signature_b64:
+            entry["error"] = "missing signature"
+            details.append(entry)
+            continue
+
+        if not pubkey:
+            entry["error"] = "missing public key"
+            details.append(entry)
+            continue
+
+        try:
+            signature = base64.b64decode(signature_b64)
+            verify_key = VerifyKey(pubkey)
+
+            verified_via = None
+
+            if payload_hash:
+                try:
+                    verify_key.verify(payload_hash_bytes, signature)
+                    verification_method = "ed25519_payload_hash"
+                except Exception:
+                    verification_method = None
+
+            if verification_method is None:
+                try:
+                    verify_key.verify(subset_bytes, signature)
+                    verification_method = "ed25519_semantic_subset"
+                except Exception:
+                    verification_method = None
+
+            if verification_method is None:
+                entry["error"] = "signature mismatch"
+            else:
+                entry["valid"] = True
+                entry["verification_method"] = verification_method
+
+        except Exception as e:
+            entry["error"] = str(e)
+
+        details.append(entry)
+
+    return details
+
 
 def verify_dex(dex_path):
     """
@@ -174,27 +284,8 @@ def verify_dex(dex_path):
 
     manifest = json.loads(files["manifest.json"])
 
-    subset_bytes = _serialize_subset(manifest)
+    details = verify_manifest_signatures(manifest, files)
 
-    results = []
-
-    for sig in manifest.get("signatures", []):
-
-        key_id = sig["key_id"]
-        signature = base64.b64decode(sig["signature"])
-
-        pubkey = files.get(f"signatures/{key_id}.pub")
-
-        if not pubkey:
-            results.append((key_id, False))
-            continue
-
-        verify_key = VerifyKey(pubkey)
-
-        try:
-            verify_key.verify(subset_bytes, signature)
-            results.append((key_id, True))
-        except Exception:
-            results.append((key_id, False))
+    results = [(d.get("key_id"), d.get("valid", False)) for d in details]
 
     return results

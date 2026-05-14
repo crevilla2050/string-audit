@@ -13,13 +13,26 @@ def ensure_config_dir():
 
 def load_config() -> dict:
     if not os.path.exists(CONFIG_PATH):
-        return {}
+        cfg = {}
+    else:
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                cfg = json.load(f)
+        except Exception:
+            cfg = {}
 
-    try:
-        with open(CONFIG_PATH, "r") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+    # Backward-compatible identity normalization:
+    # missing config or missing identity block is treated as no active identity.
+    identity = cfg.get("identity")
+    if not isinstance(identity, dict):
+        identity = {}
+
+    if "active" not in identity:
+        identity["active"] = None
+
+    cfg["identity"] = identity
+
+    return cfg
 
 
 def save_config(data: dict):

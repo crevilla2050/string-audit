@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from dennis.core.hash import canonical_hash
 from dennis.dex.sign import sign_dex
+from dennis.forge.signing.ed25519 import sign_bytes
 
 DB_PATH = Path.home() / ".dennis_keys.db"
 # ------------------------------------------------------------
@@ -46,7 +47,16 @@ def load_public_key(pub_path: Path) -> str:
     return pub_path.read_text().strip()
 
 def key_id_from_pub(pub: str) -> str:
-    return canonical_hash(pub)[:16]
+    import json
+    import base64
+
+    from dennis.core.identity import derive_key_id_from_public_key_bytes
+
+    data = json.loads(pub)
+    pub_b64 = data["public_key"]
+    pub_bytes = base64.b64decode(pub_b64)
+
+    return derive_key_id_from_public_key_bytes(pub_bytes)
 
 def now():
     return datetime.now(timezone.utc).isoformat()
@@ -95,7 +105,7 @@ def bootstrap_key(pub_path: Path):
 
 def approve_key(new_pub_path: Path, signer_key_path: Path):
     init_db()
-
+    # print(f"[DEBUG] DB_PATH = {DB_PATH}")
 
     # load keys
     new_pub = load_public_key(new_pub_path)
@@ -104,11 +114,29 @@ def approve_key(new_pub_path: Path, signer_key_path: Path):
     new_id = key_id_from_pub(new_pub)
     signer_id = key_id_from_pub(signer_pub)
 
-    if not is_trusted(signer_id):
-        raise SystemExit(f"Signer key not trusted: {signer_id}")
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) FROM trusted_keys")
+    count = cur.fetchone()[0]
+
+    conn.close()
+
+    # --------------------------------------------------------
+    # Bootstrap rule
+    # --------------------------------------------------------
+
+    if count == 0:
+        print(f"[Dennis] Bootstrapping root key: {new_id}")
+        is_root = 1
+    else:
+        if not is_trusted(signer_id):
+            raise SystemExit(f"Signer key not trusted: {signer_id}")
+        is_root = 0
 
     # sign new key
-    signature = sign_dex(signer_key_path, new_pub.encode("utf-8"))
+    from dennis.dex.crypto import sign_bytes
+    signature = sign_bytes(signer_key_path, new_pub.encode("utf-8"))
 
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -118,7 +146,7 @@ def approve_key(new_pub_path: Path, signer_key_path: Path):
         INSERT OR REPLACE INTO trusted_keys
         (key_id, public_key, is_root, approved_at)
         VALUES (?, ?, ?, ?)
-    """, (new_id, new_pub, 0, now()))
+    """, (new_id, new_pub, is_root, now()))
 
     # store signature
     cur.execute("""
@@ -130,7 +158,10 @@ def approve_key(new_pub_path: Path, signer_key_path: Path):
     conn.commit()
     conn.close()
 
-    print(f"[Dennis] Key approved: {new_id} (signed by {signer_id})")
+    if is_root:
+        print(f"[Dennis] Root key established: {new_id}")
+    else:
+        print(f"[Dennis] Key approved: {new_id} (signed by {signer_id})")
 
 
     # ------------------------------------------------------------

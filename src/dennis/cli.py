@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 import urllib.request
 import urllib.error
 import requests
+import base64
+import hashlib
 
 from dennis.scanner import scan_directory
 from dennis.reporters.human import print_human_report
@@ -42,6 +44,7 @@ from dennis.core.import_xml import import_xml
 from dennis.core.serialize import dump_json
 from dennis.core.export_xsd import export_xsd
 from dennis.core.validate_xml import validate_xml_file
+from dennis.core.identity import derive_key_id_from_public_key_bytes
 
 # QR
 from dennis.qr import (
@@ -376,6 +379,50 @@ def show_diff(expected, actual):
     for line in diff:
         print("    " + line)
 
+# ============================================================
+# IDENTITY HELPERS
+# ============================================================
+# Invariants:
+# - key_id = canonical_hash(public_key_bytes)[:16] (implemented as sha256 hex prefix)
+# - CLI never auto-selects identity.
+# - No active identity -> signing must fail.
+# - --key always overrides active identity.
+# - whoami derives identity and never trusts stored values.
+
+def resolve_identity_paths(name: str):
+    keys_dir = Path.home() / ".dennis" / "keys"
+    private_path = keys_dir / f"{name}.key"
+    public_path = keys_dir / f"{name}.pub"
+
+    if not private_path.exists():
+        raise SystemExit(f"Identity key not found: {private_path}")
+
+    if not public_path.exists():
+        raise SystemExit(f"Identity public key not found: {public_path}")
+
+    return private_path, public_path
+
+
+def load_identity(pub_path: Path) -> dict:
+    try:
+        identity = json.loads(pub_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise SystemExit(f"Failed to read identity file: {pub_path} ({e})")
+
+    public_key_b64 = identity.get("public_key")
+    if not public_key_b64:
+        raise SystemExit(f"Identity file missing public_key: {pub_path}")
+
+    try:
+        public_key_bytes = base64.b64decode(public_key_b64)
+    except Exception:
+        raise SystemExit(f"Identity file has invalid public_key encoding: {pub_path}")
+
+    enriched = dict(identity)
+    enriched["derived_key_id"] = derive_key_id_from_public_key_bytes(public_key_bytes)
+    return enriched
+
+
 def _context_path():
     return Path.home() / ".dennis" / "context.json"
 
@@ -394,6 +441,35 @@ def save_context(data):
     path = _context_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2))
+
+def debug_identity(pub_path):
+    from pathlib import Path
+    import json
+
+    from dennis.core.keys import key_id_from_pub
+
+    # Load your public key file
+    pub_path = Path(pub_path)
+    pub_text = pub_path.read_text()
+
+    # If your .pub is JSON (which it is), extract public_key field
+    data = json.loads(pub_text)
+    pub_b64 = data["public_key"]
+
+    import base64
+    pub_bytes = base64.b64decode(pub_b64)
+
+    # Compute both IDs
+    id_from_bytes = derive_key_id_from_public_key_bytes(pub_bytes)
+    id_from_pub = key_id_from_pub(pub_text)
+
+    print("derived_key_id:", id_from_bytes)
+    print("key_id_from_pub:", id_from_pub)
+
+    assert id_from_bytes == id_from_pub, "❌ MISMATCH: identity derivation is inconsistent"
+
+    print("✅ OK: identity derivation is consistent")
+
 
 # ============================================================
 # ARGPARSE
@@ -803,14 +879,24 @@ def build_parser() -> argparse.ArgumentParser:
     scan_qr.add_argument("--image", action="store_true")
     scan_qr.add_argument("--from-file", required=True)
 
+    # IDENTITY
+    identity_cmd = sub.add_parser("identity", help="Identity management")
+    identity_sub = identity_cmd.add_subparsers(dest="identity_command", required=True)
+
+    identity_use = identity_sub.add_parser("use", help="Set active identity")
+    identity_use.add_argument("name", help="Identity key name (without extension)")
+
+    identity_sub.add_parser("current", help="Show active identity")
+    identity_sub.add_parser("list", help="List available identities")
+
     # DEX group (sign / verify)
     dex = sub.add_parser("dex", help="DEX artifact actions")
     dex_sub = dex.add_subparsers(dest="dex_command", required=True)
 
     dex_sign = dex_sub.add_parser("sign", help="Sign a DEX artifact")
     dex_sign.add_argument("artifact", help="Path to artifact.dex")
-    dex_sign.add_argument("--key", required=True, help="Private key file (ed25519)")
-    dex_sign.add_argument("--key-id", default="dev", help="Key identifier to store in signatures/<key_id>.pub")
+    dex_sign.add_argument("--key", help="Private key file (ed25519). Overrides active identity.")
+    dex_sign.add_argument("--key-id", help="Key identifier to store in signatures/<key_id>.pub (default: derived from public key)")
 
     dex_verify = dex_sub.add_parser("verify", help="Verify signatures on a DEX artifact")
     dex_verify.add_argument("artifact", help="Path to artifact.dex")
@@ -1052,6 +1138,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     key_list = key_sub.add_parser("list")
 
+    # debug-identity
+
+    key_debug = key_sub.add_parser(
+        "debug-identity",
+        help="Debug identity derivation from a public key"
+    )
+    key_debug.add_argument("pub")
+
     validate_plan_cmd = sub.add_parser(
         "validate-plan",
         help="Validate transformation plan inside artifact"
@@ -1062,6 +1156,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to artifact.dex"
     )
 
+    # --------------------------------------------------------
+    # USER
+    # --------------------------------------------------------
+
+    user_cmd = sub.add_parser("user", help="User management")
+    user_sub = user_cmd.add_subparsers(dest="user_command")
+    user_sub.required = True
+
+    # user create
+    user_create = user_sub.add_parser("create", help="Create a new user")
+    user_create.add_argument("email")
+
+    # user verify
+    user_verify = user_sub.add_parser("verify", help="Verify user email")
+    user_verify.add_argument("token")
+
     login_cmd = sub.add_parser("login", help="Authenticate with Dennis The Forge")
 
     login_cmd.add_argument("--server", required=True)
@@ -1070,6 +1180,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     logout_cmd = sub.add_parser("logout", help="Clear stored authentication")
 
+    sub.add_parser("whoami", help="Show current authenticated user")
+
     return parser
 
 # ============================================================
@@ -1077,6 +1189,7 @@ def build_parser() -> argparse.ArgumentParser:
 # ============================================================
 
 def main() -> None:
+    global Path, json
     from dennis.forge.config import load_config
 
     parser = build_parser()
@@ -1159,10 +1272,8 @@ def main() -> None:
     
     if args.command == "plan":
 
-        from pathlib import Path
         from datetime import datetime, timezone
         import tempfile
-        import json
 
         def ts():
             return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
@@ -1557,6 +1668,132 @@ def main() -> None:
             print(data)
     
     # --------------------------------------------------------
+    # USER COMMANDS
+    # --------------------------------------------------------
+    
+    elif args.command == "user":
+
+        if args.user_command == "create":
+
+            if not server:
+                raise SystemExit("Server not configured. Use --server or set DENNIS_SERVER")
+
+            url = f"{server.rstrip('/')}{api_prefix}/users"
+
+            payload = {
+                "email": args.email
+            }
+
+            try:
+                resp = requests.post(
+                    url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+
+                if resp.status_code not in (200, 201):
+                    raise SystemExit(f"Error: {resp.text}")
+
+                data = resp.json()
+
+                print("✔ User created")
+                print(f"Email: {data.get('email', args.email)}")
+
+            except Exception as e:
+                raise SystemExit(f"Error creating user: {e}")
+        
+        elif args.user_command == "verify":
+
+            if not server:
+                raise SystemExit("Server not configured")
+
+            url = f"{server.rstrip('/')}{api_prefix}/auth/verify/{args.token}"
+
+            try:
+                resp = requests.get(url)
+
+                if resp.status_code != 200:
+                    raise SystemExit(f"Verification failed: {resp.text}")
+
+                print("✔ Email verified successfully")
+
+            except Exception as e:
+                raise SystemExit(f"Error verifying user: {e}")
+
+    elif args.command == "identity":
+        from dennis.forge.config import load_config, save_config
+
+        cfg = load_config()
+        active_name = cfg.get("identity", {}).get("active")
+
+        if args.identity_command == "use":
+            name = args.name
+            _, pub_path = resolve_identity_paths(name)
+            identity = load_identity(pub_path)
+
+            save_config({
+                "identity": {
+                    "active": name
+                }
+            })
+
+            print(f"[Dennis] Active identity set to: {name} ({identity['derived_key_id']})")
+            return
+
+        elif args.identity_command == "current":
+            if not active_name:
+                raise SystemExit("No active identity. Use: dennis identity use <key>")
+
+            _, pub_path = resolve_identity_paths(active_name)
+            identity = load_identity(pub_path)
+
+            print(f"name: {active_name}")
+            print(f"id: {identity['derived_key_id']}")
+            print(f"key: ed25519:{identity['derived_key_id']}")
+            return
+
+        elif args.identity_command == "list":
+            keys_dir = Path.home() / ".dennis" / "keys"
+            pub_files = sorted(keys_dir.glob("*.pub")) if keys_dir.exists() else []
+
+            if not pub_files:
+                print("No identities found.")
+                return
+
+            for pub_path in pub_files:
+                name = pub_path.stem
+                marker = "*" if name == active_name else " "
+                try:
+                    identity = load_identity(pub_path)
+                    derived_key_id = identity["derived_key_id"]
+                except SystemExit:
+                    derived_key_id = "invalid"
+
+                print(f"{marker} {name:<10} {derived_key_id}")
+            return
+
+    elif args.command == "whoami":
+
+        cfg = load_config()
+
+        email = cfg.get("auth", {}).get("email")
+        active_name = cfg.get("identity", {}).get("active")
+
+        if not active_name:
+            print("No active identity. Use: dennis identity use <key>")
+            return
+
+        _, pub_path = resolve_identity_paths(active_name)
+        identity = load_identity(pub_path)
+
+        if email:
+            print(email)
+
+        print(f"name: {active_name}")
+        print(f"id: {identity['derived_key_id']}")
+        print(f"key: ed25519:{identity['derived_key_id']}")
+
+    # --------------------------------------------------------
     # PROJECTS
     # --------------------------------------------------------
 
@@ -1737,68 +1974,74 @@ def main() -> None:
 
         if args.dex_command == "sign":
             from dennis.dex.sign import sign_dex
+            from dennis.forge.config import load_config
 
             artifact = args.artifact
-            key_path = args.key
             key_id = args.key_id
 
+            # Invariant: --key always overrides active identity.
+            if args.key:
+                key_path = args.key
+            else:
+                cfg = load_config()
+                active_name = cfg.get("identity", {}).get("active")
+                if not active_name:
+                    raise SystemExit("No active identity set. Use:\n  dennis identity use <key>")
+
+                key_path, pub_path = resolve_identity_paths(active_name)
+
+            # Signing is fully handled inside sign_dex
             sign_dex(artifact, key_path, key_id=key_id)
+
+            # Resolve derived identity for output consistency
+            if key_id:
+                reported_key_id = key_id
+            else:
+                from nacl.signing import SigningKey
+                import getpass
+                from nacl.secret import SecretBox
+                from nacl.pwhash import argon2id
+
+                with open(key_path, "rb") as f:
+                    header = f.readline()
+                    salt = f.read(argon2id.SALTBYTES)
+                    encrypted = f.read()
+
+                password = getpass.getpass("Enter passphrase (for reporting only): ")
+
+                key = argon2id.kdf(
+                    SecretBox.KEY_SIZE,
+                    password.encode(),
+                    salt,
+                    opslimit=argon2id.OPSLIMIT_MODERATE,
+                    memlimit=argon2id.MEMLIMIT_MODERATE,
+                )
+
+                box = SecretBox(key)
+                private_bytes = box.decrypt(encrypted)
+                signing_key = SigningKey(private_bytes)
+                verify_key = signing_key.verify_key
+
+                reported_key_id = derive_key_id_from_public_key_bytes(verify_key.encode())
 
             print(json.dumps({
                 "success": True,
                 "message": f"Signed: {artifact}",
-                "key_id": key_id
+                "key_id": key_id or reported_key_id
             }, indent=2))
 
             return
 
         elif args.dex_command == "verify":
-            from dennis.dex.sign import verify_dex
+            from dennis.core.verification import analyze_signatures
+            import json
 
             artifact = args.artifact
-            results = verify_dex(artifact)
-
-            if not results:
-                result = {
-                    "verified": False,
-                    "signatures": 0,
-                    "valid_signatures": 0,
-                    "invalid_signatures": 0,
-                    "errors": ["No signatures present"],
-                    "message": "✖ No signatures found"
-                }
-
-                print(json.dumps(result, indent=2))
-                raise SystemExit(1)
-
-            total = len(results)
-            valid_count = sum(1 for _, ok in results if ok)
-            invalid_count = total - valid_count
-
-            if valid_count == 0:
-                result = {
-                    "verified": False,
-                    "signatures": total,
-                    "valid_signatures": 0,
-                    "invalid_signatures": invalid_count,
-                    "errors": ["No valid signatures"],
-                    "message": "✖ No valid signatures"
-                }
-
-                print(json.dumps(result, indent=2))
-                raise SystemExit(1)
-
-            result = {
-                "verified": True,
-                "signatures": total,
-                "valid_signatures": valid_count,
-                "invalid_signatures": invalid_count,
-                "errors": [],
-                "message": "✔ Signature valid"
-            }
+            result = analyze_signatures(artifact)
 
             print(json.dumps(result, indent=2))
-            return
+
+            raise SystemExit(0 if result["accepted"] else 1)
 
 
     # --------------------------------------------------------
@@ -1820,7 +2063,6 @@ def main() -> None:
     elif args.command == "push":
         import urllib.request
         from dennis.forge.hash.canonical import canonical_hash
-        from pathlib import Path
         from datetime import datetime
         import json
 
@@ -1908,7 +2150,6 @@ def main() -> None:
     # SCAN QR
     # --------------------------------------------------------
     elif args.command == "scan-qr":
-        from pathlib import Path
         if args.ascii:
             text = Path(args.from_file).read_text()
             uri = extract_uri_from_ascii(text)
@@ -1973,7 +2214,6 @@ def main() -> None:
     elif args.command == "publish":
         import urllib.request
         import uuid
-        from pathlib import Path
         import json
         import subprocess
         import sys
@@ -2098,7 +2338,6 @@ def main() -> None:
     # --------------------------------------------------------
     elif args.command == "pull":
         import urllib.request
-        from pathlib import Path
 
         artifact_hash = args.hash.strip()
 
@@ -2130,7 +2369,6 @@ def main() -> None:
         import gzip
         import tarfile
         import io
-        from pathlib import Path
 
         target = args.target.strip()
 
@@ -2172,7 +2410,9 @@ def main() -> None:
                     print("Decryption required for full inspection")
 
                     return
+            from dennis.core.verification import analyze_signatures
 
+            analysis = analyze_signatures(path)
             # --------------------------------------------------------
             # Inspect normal DEX
             # --------------------------------------------------------
@@ -2193,6 +2433,9 @@ def main() -> None:
                             files[m.name] = f.read()
 
                 manifest = json.loads(files["manifest.json"])
+
+                from dennis.dex.sign import verify_manifest_signatures
+                import base64
 
                 plan_bytes = files.get("payload/plan.json")
                 patch_info = {}
@@ -2260,6 +2503,87 @@ def main() -> None:
                     except Exception:
                         patch_info = {}
 
+                signatures = manifest.get("signatures", [])
+                enriched_signatures = []
+
+                for s in signatures:
+                    key_id = s.get("key_id")
+                    s_out = dict(s)
+
+                    pubkey_bytes = files.get(f"signatures/{key_id}.pub")
+                    if pubkey_bytes:
+                        s_out["public_key"] = base64.b64encode(pubkey_bytes).decode("utf-8")
+
+                    enriched_signatures.append(s_out)
+
+                verification_entries = verify_manifest_signatures(manifest, files)
+
+                import hashlib
+
+                identity_map = {}
+                for s in enriched_signatures:
+                    declared_key_id = s.get("key_id")
+                    public_key_b64 = s.get("public_key")
+
+                    derived_key_id = None
+                    matches = False
+                    identity_status = "anonymous"
+
+                    if public_key_b64:
+                        try:
+                            pub_bytes = base64.b64decode(public_key_b64)
+                            derived_key_id = hashlib.sha256(pub_bytes).hexdigest()[:16]
+                        except Exception:
+                            derived_key_id = None
+
+                    if declared_key_id is None:
+                        identity_status = "anonymous"
+                    elif derived_key_id is not None and declared_key_id == derived_key_id:
+                        identity_status = "canonical"
+                        matches = True
+                    else:
+                        identity_status = "legacy"
+
+                    identity_map[declared_key_id] = {
+                        "derived_key_id": derived_key_id,
+                        "matches": matches,
+                        "identity_status": identity_status,
+                    }
+
+                enriched_verification_entries = []
+                for v in verification_entries:
+                    declared_key_id = v.get("key_id")
+                    identity_info = identity_map.get(declared_key_id, {
+                        "derived_key_id": None,
+                        "matches": False,
+                        "identity_status": "anonymous" if declared_key_id is None else "legacy",
+                    })
+
+                    merged = dict(v)
+                    merged.update(identity_info)
+                    enriched_verification_entries.append(merged)
+
+                verification = {
+                    "status": "valid" if analysis["verified"] else "invalid",
+                    "accepted": analysis["accepted"],
+                    "policy": analysis["policy"],
+                    "signatures": []
+                }
+
+                for entry in enriched_verification_entries:
+                    key_id = entry.get("key_id")
+
+                    # find matching trust info from analysis
+                    trust_info = next(
+                        (s for s in analysis["details"] if s["key_id"] == key_id),
+                        {}
+                    )
+
+                    merged = dict(entry)
+                    merged["trusted"] = trust_info.get("trusted", False)
+
+                    verification["signatures"].append(merged)
+
                 data = {
                     "protocol": {
                         "version": 1,
@@ -2278,7 +2602,8 @@ def main() -> None:
                         "size_bytes": len(files.get("payload/plan.json", b"")),
                     },
                     "lineage": manifest.get("lineage", {}),
-                    "signatures": manifest.get("signatures", []),
+                    "signatures": enriched_signatures,
+                    "verification": verification,
                     "patches": patch_info if patch_info else {"summary": {"helpers": 0, "remove_helpers": 0}, "operations": []},
                     "diff": {
                         "files": []
@@ -2326,7 +2651,6 @@ def main() -> None:
 
         if args.validate_schema:
 
-            from pathlib import Path
             import jsonschema
 
             schema_path = (
@@ -2384,11 +2708,84 @@ def main() -> None:
             print("None")
         else:
             for s in sigs:
-                print(
-                    f"{s.get('key_id')}  "
-                    f"{s.get('algorithm')}  "
-                    f"{s.get('created_at')}"
-                )
+                verification = data.get("verification", {})
+                sig_details = verification.get("signatures", [])
+
+                def get_trust_marker(key_id):
+                    for s in sig_details:
+                        if s.get("key_id") == key_id:
+                            return "✔" if s.get("trusted") else "✖"
+                    return "?"
+        
+        # --------------------------------------------------------
+        # VERIFICATION (human-readable)
+        # --------------------------------------------------------
+
+        verification = data.get("verification", {})
+        sig_details = verification.get("signatures", [])
+
+        def get_trust_marker(key_id):
+            for s in sig_details:
+                if s.get("key_id") == key_id:
+                    return "✔" if s.get("trusted") else "✖"
+            return "?"
+
+        for s in sigs:
+            key_id = s.get("key_id")
+            trust = get_trust_marker(key_id)
+
+            print(
+                f"{key_id}  "
+                f"{s.get('algorithm')}  "
+                f"{s.get('created_at')}  "
+                f"[trusted: {trust}]"
+            )
+
+        if verification:
+            print("\nVerification")
+            print("------------")
+
+            status = verification.get("status")
+            accepted = verification.get("accepted")
+            policy = verification.get("policy")
+
+            # nicer boolean display
+            accepted_str = "✔ yes" if accepted else "✖ no"
+
+            status_str = "✔ valid" if status == "valid" else "✖ invalid"
+            print(f"Status:      {status_str}")
+            print(f"Accepted:    {accepted_str}")
+            print(f"Policy:      {policy}")
+
+            sig_details = verification.get("signatures", [])
+
+            if sig_details:
+                valid_count = sum(1 for s in sig_details if s.get("valid"))
+                trusted_count = sum(1 for s in sig_details if s.get("valid") and s.get("trusted"))
+
+                print(f"Valid sigs:  {valid_count}")
+                print(f"Trusted:     {trusted_count}/{valid_count}")
+
+                print("\nSignature Details")
+                print("-----------------")
+
+                for s in sig_details:
+                    key_id = s.get("key_id")
+
+                    valid = "✔" if s.get("valid") else "✖"
+                    trusted = "✔" if s.get("trusted") else "✖"
+                    identity = s.get("identity_status", "?")
+
+                    print(f"{key_id}")
+                    print(f"  valid:    {valid}")
+                    print(f"  trusted:  {trusted}")
+                    print(f"  identity: {identity}")
+
+            message = verification.get("message")
+            if message:
+                print("\nDecision")
+                print("--------")
+                print(message)
 
         registry = data.get("registry")
 
@@ -2482,7 +2879,6 @@ def main() -> None:
     elif args.command == "git-diff":
 
         import tempfile, json
-        from pathlib import Path
         from dennis.dex.pack import pack_dex
         from dennis.dex.canonical_diff import generate_observed_diff_git
         
@@ -2533,7 +2929,6 @@ def main() -> None:
     elif args.command == "diff-directories":
 
         import json
-        from pathlib import Path
         from dennis.dex.pack import pack_dex
 
         source_dir = Path(args.source_dir)
@@ -2602,7 +2997,6 @@ def main() -> None:
     elif args.command == "compare":
 
         import json
-        from pathlib import Path
         from dennis.dex.importer import import_dex
         from dennis.dex.canonical_diff import generate_reconciliation_diff
         from dennis.dex.pack import pack_dex
@@ -2682,7 +3076,6 @@ def main() -> None:
     # --------------------------------------------------------
     elif args.command == "pack":
 
-        from pathlib import Path
         import json
         from dennis.dex.pack import pack_dex
         #from dennis.forge.hash.canonical import canonical_hash
@@ -2818,8 +3211,6 @@ def main() -> None:
     # --------------------------------------------------------
     elif args.command == "rehydrate":
 
-        from pathlib import Path
-        import json
         import re
         from dennis.core.rehydrate import rehydrate
         from dennis.dex.importer import import_dex
@@ -2846,13 +3237,13 @@ def main() -> None:
 
     elif args.command == "apply":
 
-        from pathlib import Path
         from dennis.i18n.apply import apply_plan
         from dennis.dex.importer import import_dex
         import tempfile
-        import json
+        from pathlib import Path as _Path
+        import json as _json
 
-        plan_path = Path(args.plan)
+        plan_path = _Path(args.plan)
 
 
         if plan_path.suffix == ".dex":
@@ -2879,7 +3270,7 @@ def main() -> None:
                 ctx_dir = _context_path().parent
                 ctx_dir.mkdir(parents=True, exist_ok=True)
 
-                _context_path().write_text(json.dumps({
+                _context_path().write_text(_json.dumps({
                     "active_lineage_id": lineage_id,
                     "root_hash": lineage_id
                 }, indent=2))
@@ -2951,7 +3342,7 @@ def main() -> None:
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
                 tmp.write(payload_bytes)
-                tmp_path = Path(tmp.name)
+                tmp_path = _Path(tmp.name)
 
             try:
                 changes = apply_plan(tmp_path, confirm=args.confirm)
@@ -2963,7 +3354,6 @@ def main() -> None:
 
     elif args.command == "dict":
 
-        from pathlib import Path
         from dennis.i18n.csvio import (
             export_dictionary_to_csv,
             import_dictionary_from_csv
@@ -3002,7 +3392,6 @@ def main() -> None:
 
     elif args.command == "install-plugin":
 
-        from pathlib import Path
         import shutil
         from datetime import datetime
         from dennis.utils import (
@@ -3066,7 +3455,6 @@ def main() -> None:
 
     elif args.command == "key":
 
-        from pathlib import Path
         from dennis.core.keys import bootstrap_key, approve_key, list_keys
 
         if args.key_command == "bootstrap":
@@ -3077,6 +3465,10 @@ def main() -> None:
 
         elif args.key_command == "list":
             list_keys()
+        
+        elif args.key_command == "debug-identity":
+            debug_identity(args.pub)
+            return
 
         else:
             raise SystemExit("Unknown key command")
@@ -3368,7 +3760,6 @@ def main() -> None:
     
     elif args.command == "test-diff":
 
-        from pathlib import Path
         from dennis.diff_conformance import run_case
         import sys
         import json

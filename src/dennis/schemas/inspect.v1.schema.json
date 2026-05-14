@@ -110,7 +110,70 @@
     },
 
     "signatures": {
-      "type": "array"
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key_id", "algorithm", "signature"],
+        "properties": {
+          "key_id": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "public_key": {
+            "type": "string"
+          }
+        }
+      }
+    },
+
+    "verification": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["unsigned", "valid", "invalid"]
+        },
+        "signatures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key_id", "valid"],
+            "properties": {
+              "key_id": {
+                "type": "string"
+              },
+              "derived_key_id": {
+                "type": ["string", "null"]
+              },
+              "matches": {
+                "type": "boolean"
+              },
+              "identity_status": {
+                "type": "string",
+                "enum": ["canonical", "legacy", "anonymous"]
+              },
+              "valid": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string"
+              },
+              "verification_method": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
     },
 
     "patches": {

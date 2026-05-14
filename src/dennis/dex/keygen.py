@@ -27,11 +27,14 @@ def ts():
 
 def generate_keypair(private_path=None, public_path=None):
 
-    if private_path is None or public_path is None:
-        timestamp = ts()
-        private_path = Path(f"dennis-{timestamp}.key")
-        public_path = Path(f"dennis-{timestamp}.pub")
+    if private_path is None and public_path is None:
+        keys_dir = Path.home() / ".dennis" / "keys"
+        keys_dir.mkdir(parents=True, exist_ok=True)
+        private_path = keys_dir / "default.key"
+        public_path = keys_dir / "default.pub"
         print("\n[Dennis] Key Generation\n")
+    elif private_path is None or public_path is None:
+        raise RuntimeError("Both private_path and public_path must be provided together")
 
     # --------------------------------------------------------
     # Identity input
@@ -93,15 +96,9 @@ def generate_keypair(private_path=None, public_path=None):
         "created_at": now()
     }
 
-    # canonical identity for ID
-    identity_json = json.dumps(
-        identity,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False
-    )
+    # key identity MUST come from public key only (JSON-safe deterministic input)
+    key_id = canonical_hash(identity["public_key"])[:16]
 
-    key_id = canonical_hash(identity_json)[:16]
     identity["id"] = key_id
 
     # --------------------------------------------------------
@@ -121,3 +118,4 @@ def generate_keypair(private_path=None, public_path=None):
         print(f"  Org: {org}")
     print(f"\n  Private key → {private_path}")
     print(f"  Public key  → {public_path}")
+

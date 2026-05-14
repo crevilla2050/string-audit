@@ -151,3 +151,44 @@ def decrypt_xdex(xdex_path, out_path=None):
         f.write(decrypted)
 
     return out_path
+
+
+def sign_bytes(private_key_path: Path, data: bytes) -> bytes:
+    """
+    Sign arbitrary bytes using a Dennis private key.
+    Returns raw signature bytes.
+    """
+    import getpass
+    from nacl.secret import SecretBox
+    from nacl.pwhash import argon2id
+    from nacl.signing import SigningKey
+
+    with open(private_key_path, "rb") as f:
+        header = f.readline()
+
+        if header != b"DENNIS-KEY-V1\n":
+            raise ValueError("Unsupported key format")
+
+        salt = f.read(argon2id.SALTBYTES)
+        encrypted = f.read()
+
+    password = getpass.getpass("Enter passphrase: ")
+
+    key = argon2id.kdf(
+        SecretBox.KEY_SIZE,
+        password.encode(),
+        salt,
+        opslimit=argon2id.OPSLIMIT_MODERATE,
+        memlimit=argon2id.MEMLIMIT_MODERATE,
+    )
+
+    box = SecretBox(key)
+
+    try:
+        private_bytes = box.decrypt(encrypted)
+    except Exception:
+        raise SystemExit("Invalid passphrase or corrupted key file.")
+
+    signing_key = SigningKey(private_bytes)
+
+    return signing_key.sign(data).signature
