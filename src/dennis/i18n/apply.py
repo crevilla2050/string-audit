@@ -1,7 +1,12 @@
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
+import shutil
+import zipfile
+
+from dennis.core.hash import canonical_hash
 
 
 SAFE_PATTERNS = [
@@ -10,11 +15,140 @@ SAFE_PATTERNS = [
     re.compile(r'logging\.(info|warning|error|debug)\((["\'])(.+?)\2\)'),
 ]
 
+HELPER_START = "# >>> DENNIS HELPER START: {helper_id}"
+HELPER_END   = "# <<< DENNIS HELPER END: {helper_id}"
+
+ARTIFACT_PATHS = [
+    "payload",
+    "signatures",
+    "manifest.json",
+    "rehydrated-plan.json",
+    ".dennis",
+]
+def create_artifact_bundle(payload_hash_short: str):
+
+    cwd = Path.cwd()
+
+    # --------------------------------------
+    # staging dir
+    # --------------------------------------
+
+    staging = cwd / ".dennis_staging"
+
+    if staging.exists():
+        shutil.rmtree(staging)
+
+    staging.mkdir()
+
+    # --------------------------------------
+    # copy artifacts into staging
+    # --------------------------------------
+
+    for name in ARTIFACT_PATHS:
+        src = cwd / name
+
+        if not src.exists():
+            continue
+
+        dst = staging / name
+
+        if src.is_dir():
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
+
+    # --------------------------------------
+    # create zip
+    # --------------------------------------
+
+    now = datetime.utcnow()
+    timestamp = now.strftime("%Y-%m-%dT%H-%M-%S")
+    short12 = payload_hash_short[:12]
+
+    cache_dir = Path.home() / ".dennis" / "artifacts_cache" / f"{now.year}" / f"{now.month:02d}"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    staging = Path.cwd() / ".dennis_staging"
+
+    zip_path = cache_dir / f"artifact_{timestamp}_{short12}.zip"
+
+    bundle_meta = {
+        "payload_hash": payload_hash_short,
+        "created_at": datetime.utcnow().isoformat() + "Z"
+    }
+
+    (staging / "bundle.json").write_text(json.dumps(bundle_meta, indent=2))
+    
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+        from zipfile import ZipInfo
+
+        seen = set()
+
+        for file in staging.rglob("*"):
+
+            if file.is_dir():
+                continue
+
+            arcname = str(file.relative_to(staging))
+
+            # 🔥 prevent duplicates deterministically
+            if arcname in seen:
+                continue
+
+            if ".dennis" in file.parts:
+                continue
+
+            seen.add(arcname)
+
+            data = file.read_bytes()
+
+            zinfo = ZipInfo(arcname)
+            zinfo.date_time = (1980, 1, 1, 0, 0, 0)
+
+            z.writestr(zinfo, data)
+
+            # --------------------------------------
+            # cleanup staging
+            # --------------------------------------
+
+    shutil.rmtree(staging)
+
+    print(f"[Dennis] Artifact bundle created → {zip_path}")
+
+    return zip_path
+
+
+def is_artifact(path: Path) -> bool:
+    return path.name in ARTIFACT_PATHS
+
+def get_artifact_cache_dir():
+    now = datetime.utcnow()
+    base = Path.home() / ".dennis" / "artifacts_cache"
+    path = base / f"{now.year}" / f"{now.month:02d}"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 def load_dictionary(path: Path) -> Dict[str, str]:
     data = json.loads(path.read_text(encoding="utf-8"))
     return {v: k for k, v in data.items()}
 
+def register_artifact(path, new_path):
+    import json
+
+    registry = Path.home() / ".dennis" / "artifacts_registry.json"
+    registry.parent.mkdir(parents=True, exist_ok=True)
+
+    if registry.exists():
+        data = json.loads(registry.read_text())
+    else:
+        data = {}
+
+    data[str(path)] = {
+        "isolated": str(new_path),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+    registry.write_text(json.dumps(data, indent=2))
 
 def iter_python_files(root: Path):
     yield from root.rglob("*.py")
@@ -74,156 +208,44 @@ def ensure_runtime_support(lines):
     return lines
 
 
-# --------------------------------------------------------
-# HELPER PATCH APPLY
-# --------------------------------------------------------
-
-def apply_helper_patches(plan: Dict, log: Dict, dry_run: bool = False):
-
-    helpers = plan.get("patches", {}).get("helpers", [])
-
-    for helper in helpers:
-
-        file_path = Path(helper["file"])
-        line_no = helper.get("line", 1) - 1
-        helper_block_lines = helper.get("lines", [])
-
-        if not file_path.exists():
-            log["warnings"].append({
-                "file": str(file_path),
-                "type": "missing_file",
-                "context": "helper_patch"
-            })
-            continue
-
-        print(f"Applying helper patch → {file_path}:{line_no + 1}")
-
-        lines = file_path.read_text(encoding="utf-8").splitlines()
-
-        line_no = max(0, min(line_no, len(lines)))
-
-        helper_id = helper.get("id", "helper")
-
-        start_marker = f"# >>> DENNIS-HELPER:{helper_id}"
-        end_marker = f"# <<< DENNIS-HELPER:{helper_id}"
-
-        if any(start_marker in l for l in lines):
-            print(f"Helper '{helper_id}' already present in {file_path}, skipping.")
-            continue
-
-        helper_block = [start_marker] + helper_block_lines + [end_marker]
-
-        new_lines = lines[:line_no] + helper_block + lines[line_no:]
-
-        if not dry_run:
-            file_path.write_text(
-                "\n".join(new_lines) + "\n",
-                encoding="utf-8"
-            )
-
-        log.setdefault("patches", []).append({
-            "type": "patch_applied",
-            "subtype": "helper",
-            "file": str(file_path),
-            "line": line_no + 1,
-            "helper_id": helper.get("id")
-        })
+def get_helper_cache_dir():
+    now = datetime.utcnow()
+    base = Path.home() / ".dennis" / "helpers_cache"
+    path = base / f"{now.year}" / f"{now.month:02d}"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
-# --------------------------------------------------------
-# HELPER PATCH REMOVE
-# --------------------------------------------------------
+def register_isolated_helper(helper_id, original_path, new_path):
 
-def remove_helper_patches(plan: Dict, log: Dict, dry_run: bool = False):
+    registry_path = Path.home() / ".dennis" / "helpers_registry.json"
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
 
-    helpers = plan.get("patches", {}).get("helpers", [])
+    if registry_path.exists():
+        data = json.loads(registry_path.read_text())
+    else:
+        data = {}
 
-    for helper in helpers:
+    data[helper_id] = {
+        "original": str(original_path),
+        "isolated": str(new_path),
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
-        file_path = Path(helper["file"])
-        helper_block_lines = helper.get("lines", [])
-
-        if not file_path.exists():
-            log["warnings"].append({
-                "file": str(file_path),
-                "type": "missing_file",
-                "context": "helper_removal"
-            })
-            continue
-
-        print(f"Removing helper patch → {file_path}")
-
-        lines = file_path.read_text(encoding="utf-8").splitlines()
-
-        helper_id = helper.get("id", "helper")
-
-        start_marker = f"# >>> DENNIS-HELPER:{helper_id}"
-        end_marker = f"# <<< DENNIS-HELPER:{helper_id}"
-
-        start = None
-        end = None
-
-        for i, line in enumerate(lines):
-            if line.strip() == start_marker:
-                start = i
-            elif line.strip() == end_marker and start is not None:
-                end = i
-                break
-
-        if start is not None and end is not None:
-            new_lines = lines[:start] + lines[end + 1:]
-
-            if not dry_run:
-                file_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-
-            log.setdefault("patches", []).append({
-                "type": "patch_removed",
-                "subtype": "helper",
-                "file": str(file_path),
-                "line": start + 1,
-                "helper_id": helper.get("id")
-            })
-
-            continue
-
-        block_len = len(helper_block_lines)
-        match_index = None
-
-        for i in range(len(lines) - block_len + 1):
-            if lines[i:i + block_len] == helper_block_lines:
-                match_index = i
-                break
-
-        if match_index is None:
-            log["warnings"].append({
-                "file": str(file_path),
-                "type": "helper_block_not_found",
-                "helper_id": helper.get("id")
-            })
-            continue
-
-        new_lines = lines[:match_index] + lines[match_index + block_len:]
-
-        if not dry_run:
-            file_path.write_text(
-                "\n".join(new_lines) + "\n",
-                encoding="utf-8"
-            )
-
-        log.setdefault("patches", []).append({
-            "type": "patch_removed",
-            "subtype": "helper",
-            "file": str(file_path),
-            "line": match_index + 1,
-            "helper_id": helper.get("id")
-        })
+    registry_path.write_text(json.dumps(data, indent=2))
 
 
 # --------------------------------------------------------
 # MAIN PLAN APPLY
 # --------------------------------------------------------
 
-def apply_plan(plan_path: Path, dry_run: bool = False, confirm: str | None = None) -> int:
+def apply_plan(
+    plan_path: Path,
+    dry_run: bool = False,
+    confirm: str | None = None,
+    helper_mode: str = "keep",
+    artifact_policy: str = "keep"
+) -> int:
 
     import json
     import datetime
@@ -231,19 +253,14 @@ def apply_plan(plan_path: Path, dry_run: bool = False, confirm: str | None = Non
     from typing import Dict, List
     from dennis.core.hash import canonical_hash
 
-    plan = json.loads(plan_path.read_text(encoding="utf-8"))    
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
 
     payload_hash = canonical_hash(plan)
     payload_hash_short = payload_hash[:12]
 
     changes = plan.get("changes", [])
-    patches = plan.get("patches", {})
 
-    helpers = [
-        ch for ch in changes
-        if ch.get("type") == "helper"
-    ]
-    meta = plan.get("meta", {})
+    helpers = [ch for ch in changes if ch.get("type") == "helper"]
 
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
     project_name = Path.cwd().name
@@ -259,73 +276,48 @@ def apply_plan(plan_path: Path, dry_run: bool = False, confirm: str | None = Non
     }
 
     # --------------------------------------
-    # PREVIEW MODE (default)
+    # PREVIEW MODE
     # --------------------------------------
 
     if confirm is None:
         print("\n[Dennis] PREVIEW MODE — no changes will be applied\n")
-
         print(f"Payload hash: {payload_hash}")
         print(f"Short hash:   {payload_hash_short}")
-
         print(f"\nTotal changes: {len(changes)}")
-        helper_changes = [
-            ch for ch in changes
-            if ch.get("type") == "helper"
-        ]
-
-        print(f"Helpers:       {len(helper_changes)}")
-
+        print(f"Helpers:       {len(helpers)}")
         print("\nTo apply this artifact, run:\n")
         print(f"  dennis apply {plan_path} --confirm {payload_hash_short}\n")
-
         return 0
-    
+
     # --------------------------------------
     # CONFIRMATION CHECK
     # --------------------------------------
 
     if not payload_hash.startswith(confirm):
         print("\n[Dennis] ERROR: Confirmation hash mismatch\n")
-        print(f"Expected prefix: {payload_hash_short}")
-        print(f"Received:        {confirm}\n")
         raise SystemExit(1)
 
     # --------------------------------------
-    # Helper resolution (FINAL MODEL)
+    # HELPER RESOLUTION
     # --------------------------------------
 
-    required_helpers = {
-        ch.get("helper_id")
-        for ch in changes
-        if ch.get("type") == "helper"
-    }
-
+    required_helpers = {ch.get("helper_id") for ch in helpers}
     available_helpers = set()
 
-    for ch in changes:
-        if ch.get("type") == "helper":
-
-            helper_ref = ch.get("helper_ref")
-            helper_name = Path(helper_ref).name if helper_ref else None
-
-            # check in ./helpers
-            if helper_name:
-                helper_path = Path("helpers") / helper_name
-                if helper_path.exists():
-                    available_helpers.add(ch.get("helper_id"))
+    for ch in helpers:
+        helper_ref = ch.get("helper_ref")
+        if helper_ref:
+            helper_name = Path(helper_ref).name
+            helper_path = Path("helpers") / helper_name
+            if helper_path.exists():
+                available_helpers.add(ch.get("helper_id"))
 
     missing = required_helpers - available_helpers
-
     if missing:
-        print("\n[Dennis] ERROR: Missing required helpers.\n")
-        print(f"  Required:  {sorted(required_helpers)}")
-        print(f"  Available: {sorted(available_helpers)}")
-        print(f"  Missing:   {sorted(missing)}\n")
-        raise SystemExit(1)
-    
+        raise SystemExit(f"[Dennis] Missing helpers: {missing}")
+
     # --------------------------------------
-    # Apply helper patches (FINAL MODEL)
+    # APPLY HELPERS (INSERT)
     # --------------------------------------
 
     helpers = sorted(helpers, key=lambda h: (h.get("file"), h.get("line")))
@@ -342,37 +334,22 @@ def apply_plan(plan_path: Path, dry_run: bool = False, confirm: str | None = Non
         insert_line = h.get("line") or 1
         helper_ref = h.get("helper_ref")
 
-        if not helper_ref:
-            raise SystemExit(f"[Dennis] ERROR: helper missing helper_ref: {h}")
+        helper_path = Path("helpers") / Path(helper_ref).name
 
-        helper_name = Path(helper_ref).name
-        helper_path = Path("helpers") / helper_name
-
-        if not helper_path.exists():
-            raise SystemExit(f"[Dennis] ERROR: Helper file not found: {helper_path}")
-
-        if not target_file.exists():
-            raise SystemExit(f"[Dennis] ERROR: Target file not found: {target_file}")
-
-        print(f"[Dennis] Injecting helper → {helper_path} into {target_file}:{insert_line}")
-
-        helper_lines = helper_path.read_text(encoding="utf-8").splitlines()
-        if not helper_lines:
-            raise SystemExit(f"[Dennis] ERROR: Empty helper: {helper_id}")
-        
         lines = target_file.read_text(encoding="utf-8").splitlines()
 
-        # Idempotency check
-        start_marker = f"# >>> DENNIS HELPER START: {helper_id}"
+        start_marker = HELPER_START.format(helper_id=helper_id)
 
-        if any(start_marker in line for line in lines):
+        if any(line.strip() == start_marker for line in lines):
             print(f"[Dennis] Skipping helper {helper_id} (already present)")
             continue
 
+        helper_lines = helper_path.read_text(encoding="utf-8").splitlines()
+
         wrapped = [
-            f"# >>> DENNIS HELPER START: {helper_id}",
+            HELPER_START.format(helper_id=helper_id),
             *helper_lines,
-            f"# <<< DENNIS HELPER END: {helper_id}",
+            HELPER_END.format(helper_id=helper_id)
         ]
 
         idx = max(0, min(len(lines), insert_line - 1))
@@ -384,10 +361,8 @@ def apply_plan(plan_path: Path, dry_run: bool = False, confirm: str | None = Non
         inserted_helpers.add(helper_id)
         log["changes_applied"] += 1
 
-
-
     # --------------------------------------
-    # Apply string transformations
+    # APPLY CHANGES
     # --------------------------------------
 
     changes_by_file: Dict[str, List[dict]] = {}
@@ -400,52 +375,91 @@ def apply_plan(plan_path: Path, dry_run: bool = False, confirm: str | None = Non
         change_type = change.get("type")
 
         # --------------------------------------
-        # Handle helper removal FIRST
+        # HELPER REMOVE
         # --------------------------------------
+
         if change_type == "helper_remove":
 
-            file_path = Path(change.get("file"))
+            target_file = Path(change.get("file"))
             helper_id = change.get("helper_id")
+            helper_ref = change.get("helper_ref")
 
-            if not file_path.exists():
-                continue
+            lines = target_file.read_text(encoding="utf-8").splitlines()
 
-            lines = file_path.read_text(encoding="utf-8").splitlines()
-
-            start_marker = f"# >>> DENNIS HELPER START: {helper_id}"
-            end_marker = f"# <<< DENNIS HELPER END: {helper_id}"
+            start_marker = HELPER_START.format(helper_id=helper_id)
+            end_marker   = HELPER_END.format(helper_id=helper_id)
 
             new_lines = []
             inside = False
+            removed = False
 
             for line in lines:
-                if start_marker in line:
+
+                if line.strip() == start_marker:
                     inside = True
+                    removed = True
                     continue
-                if end_marker in line:
+
+                if line.strip() == end_marker:
                     inside = False
                     continue
+
                 if not inside:
                     new_lines.append(line)
 
-            file_path.write_text("\n".join(new_lines), encoding="utf-8")
+            if removed:
+                print(f"[Dennis] Removed helper → {target_file}")
 
-            print(f"[Dennis] Removed helper → {file_path}")
+                if not dry_run:
+                    target_file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
-            continue  # IMPORTANT
+                log["changes_applied"] += 1
 
-        # --------------------------------------
-        # Skip helper (already handled)
-        # --------------------------------------
-        if change_type == "helper":
+            # ---- helper lifecycle ----
+
+            if helper_ref:
+                helper_path = Path("helpers") / Path(helper_ref).name
+
+                print(f"DEBUG helper_ref: {helper_ref}")
+                print(f"DEBUG helper_mode: {helper_mode}")
+
+                if helper_mode == "remove":
+                    
+                    if helper_path.exists():
+                        print(f"[Dennis] Removing helper file → {helper_path}")
+                        if not dry_run:
+                            helper_path.unlink()
+
+                elif artifact_policy == "isolate":
+
+                    print("[Dennis] Creating artifact bundle (isolate mode)")
+
+                    if not dry_run:
+                        bundle_path = create_artifact_bundle(payload_hash_short)
+
+                        # after successful bundle → remove originals
+                        for name in ARTIFACT_PATHS:
+                            path = Path.cwd() / name
+
+                            if not path.exists():
+                                continue
+
+                            print(f"[Dennis] Removing artifact after bundle → {path}")
+
+                            if path.is_dir():
+                                shutil.rmtree(path)
+                            else:
+                                path.unlink()
+
             continue
 
         # --------------------------------------
-        # Only process transforms
+        # STRING TRANSFORMS
         # --------------------------------------
+
         if "original" not in change:
             continue
-        
+
         changes_by_file.setdefault(change["file"], []).append(change)
 
     total = 0
@@ -455,64 +469,73 @@ def apply_plan(plan_path: Path, dry_run: bool = False, confirm: str | None = Non
         file_changes.sort(key=lambda c: c["line"])
         file_path = Path(file_name)
 
-        if not file_path.exists():
-            raise SystemExit(f"[Dennis] File not found during apply: {file_path}")
-
         lines = file_path.read_text(encoding="utf-8").splitlines()
-        normalized_lines = [l.strip() for l in lines]
-
-        line_index = {}
-        for i, l in enumerate(normalized_lines):
-            line_index.setdefault(l, []).append(i)
-
-        modified = False
+        normalized = [l.strip() for l in lines]
 
         for change in file_changes:
 
-            line_no = change["line"] - 1
             expected = change["original"].strip()
             replacement = change["replacement"]
 
-            match_index = None
+            for i, line in enumerate(normalized):
+                if line == expected:
+                    print(f"Applying change → {file_path}:{i+1}")
+                    lines[i] = replacement
+                    normalized[i] = replacement.strip()
+                    total += 1
+                    break
 
-            if 0 <= line_no < len(lines):
-                if normalized_lines[line_no] == expected:
-                    match_index = line_no
+        if not dry_run:
+            file_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # --------------------------------------
+    # ARTIFACT POLICY
+    # --------------------------------------
 
-            if match_index is None:
-                candidates = line_index.get(expected)
-                if candidates:
-                    match_index = candidates[0]
+    if artifact_policy != "keep":
 
-            if match_index is None:
-                log["skipped"].append({
-                    "file": str(file_path),
-                    "line": change["line"],
-                    "reason": "original_text_not_found"
-                })
+        cwd = Path.cwd()
+
+        for item in cwd.iterdir():
+
+            if not is_artifact(item):
                 continue
 
-            if lines[match_index] != replacement:
+            # -----------------------------
+            # CLEAN
+            # -----------------------------
 
-                print(f"Applying change → {file_path}:{match_index + 1}")
+            if artifact_policy == "clean":
 
-                lines[match_index] = replacement
-                normalized_lines[match_index] = replacement.strip()
+                print(f"[Dennis] Removing artifact → {item}")
 
-                total += 1
-                modified = True
-                log["changes_applied"] += 1
+                if not dry_run:
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
 
-        if modified and not dry_run:
-            file_path.write_text(
-                "\n".join(lines) + "\n",
-                encoding="utf-8"
-            )
+            # -----------------------------
+            # ISOLATE
+            # -----------------------------
 
-    log_path.write_text(
-        json.dumps(log, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8"
-    )
+            elif artifact_policy == "isolate":
+
+                cache_dir = get_artifact_cache_dir()
+                target = cache_dir / item.name
+
+                # avoid overwrite
+                if target.exists():
+                    import time
+                    target = cache_dir / f"{item.stem}_{int(time.time())}{item.suffix}"
+
+                print(f"[Dennis] Isolating artifact → {item} → {target}")
+
+                if not dry_run:
+                    shutil.move(str(item), str(target))
+                    register_artifact(payload_hash_short, bundle_path)
+
+
+    log_path.write_text(json.dumps(log, indent=2), encoding="utf-8")
 
     print(f"\nApplied {total} changes.")
     print(f"Log written → {log_path}\n")

@@ -37,6 +37,7 @@ def invert_plan(plan: dict) -> dict:
                 "helper_id": c.get("helper_id") or c.get("id"),
                 "file": c.get("file"),
                 "line": c.get("line"),
+                "helper_ref": c.get("helper_ref"),   # ← THIS IS THE FIX
             })
             continue
 

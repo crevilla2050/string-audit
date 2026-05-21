@@ -1027,6 +1027,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--confirm",
         help="Confirm execution using payload hash prefix"
     )
+    apply_cmd.add_argument(
+        "--helper-mode",
+        choices=["keep", "remove", "isolate"],
+        default="keep",
+        help="Control helper file lifecycle after undo"
+    )
+    apply_cmd.add_argument(
+        "--artifact-policy",
+        choices=["keep", "clean", "isolate"],
+        default="keep",
+        help="Control handling of execution artifacts after apply"
+    )
+    
 
     # Export
     dict_cmd = sub.add_parser("dict", help="Dictionary utilities")
@@ -3345,12 +3358,22 @@ def main() -> None:
                 tmp_path = _Path(tmp.name)
 
             try:
-                changes = apply_plan(tmp_path, confirm=args.confirm)
+                changes = apply_plan(
+                    tmp_path,
+                    confirm=args.confirm,
+                    helper_mode=args.helper_mode,
+                    artifact_policy=args.artifact_policy
+                )
             finally:
                 tmp_path.unlink(missing_ok=True)
 
         else:
-            changes = apply_plan(plan_path, confirm=args.confirm)
+            changes = apply_plan(
+                    plan_path,
+                    confirm=args.confirm,
+                    helper_mode=args.helper_mode,
+                    artifact_policy=args.artifact_policy
+                )
 
     elif args.command == "dict":
 
@@ -3479,8 +3502,6 @@ def main() -> None:
         import getpass
 
         from dennis.forge.config import save_config
-
-        server = args.server.rstrip("/")
 
         # ----------------------------------------
         # PASSWORD PROMPT (secure)
