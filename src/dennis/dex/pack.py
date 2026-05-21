@@ -119,6 +119,10 @@ def pack_dex(
     # remove legacy helpers (important)
     if "patches" in payload_obj:
         payload_obj["patches"].pop("helpers", None)
+    
+    payload_obj["meta"] = {
+        "operation": payload_obj.get("meta", {}).get("operation", "plan")
+    }
 
     # --------------------------------------------------------
     # NEW: process helpers from changes[] (v2 system)
@@ -306,6 +310,26 @@ def pack_dex(
 
         ti = _tarinfo_for_bytes("manifest.json", manifest_bytes)
         tar.addfile(ti, io.BytesIO(manifest_bytes))
+
+        # ----------------------------------------
+        # OPTIONAL: embed spec.json (meta layer)
+        # ----------------------------------------
+
+        spec_candidates = list(payload_path.parent.glob("spec-*.json"))
+        
+        if spec_candidates:
+
+            latest_spec = max(spec_candidates, key=lambda p: p.stat().st_mtime)
+
+            if len(spec_candidates) > 1:
+                print(f"[Dennis] Multiple spec files detected, using latest → {latest_spec}")
+
+            spec_bytes = latest_spec.read_bytes()
+
+            ti = _tarinfo_for_bytes("meta/spec.json", spec_bytes)
+            tar.addfile(ti, io.BytesIO(spec_bytes))
+
+            print(f"[Dennis] Embedded spec → {latest_spec}")
 
     tar_bytes = tar_buffer.getvalue()
 

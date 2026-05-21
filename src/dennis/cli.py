@@ -471,6 +471,123 @@ def debug_identity(pub_path):
     print("✅ OK: identity derivation is consistent")
 
 
+def run_interactive_plan(args):
+    import json
+    from pathlib import Path
+    from datetime import datetime
+
+    print("[Dennis] Interactive planning mode\n")
+
+    def ask(prompt, default=None):
+        try:
+            val = input(prompt).strip()
+            return val if val else default
+        except KeyboardInterrupt:
+            print("\n[Dennis] Interactive mode cancelled")
+            raise SystemExit(0)
+
+    try:
+        helpers = []
+
+        inject = ask("Inject helper? (y/N): ", "n").lower()
+
+        if inject == "y":
+            from pathlib import Path
+
+            helper_path = ask("Helper file path: ")
+            helper_file = Path(helper_path)
+
+            if not helper_file.exists():
+                raise SystemExit(f"[Dennis] ERROR: helper file not found → {helper_path}")
+
+            if not helper_file.is_file():
+                raise SystemExit(f"[Dennis] ERROR: helper is not a file → {helper_path}")
+
+
+            target = ask("Target file: ")
+            target_file = Path(target)
+
+            helper_path = str(helper_file.resolve())
+            target = str(target_file.resolve())
+
+            if not target_file.exists():
+                raise SystemExit(f"[Dennis] ERROR: target file not found → {target}")
+
+            if not target_file.is_file():
+                raise SystemExit(f"[Dennis] ERROR: target is not a file → {target}")
+            line_raw = ask("Insert at line (default 1): ", "1")
+
+            try:
+                line = int(line_raw)
+                if line < 1:
+                    raise ValueError
+            except ValueError:
+                raise SystemExit("[Dennis] ERROR: line must be a positive integer")
+
+            helpers.append({
+                "file": helper_path,
+                "target": target,
+                "line": line
+            })
+
+        use_git = ask("Use git mode? (Y/n): ", "y").lower() != "n"
+
+        from datetime import datetime
+        timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
+        filename = f"spec-{timestamp}.json"
+
+        spec = {
+            "version": 1,
+            "mode": "project",
+            "root": args.root or ".",
+            "helpers": helpers,
+            "options": {
+                "use_git": use_git
+            },
+            "created_at": timestamp + "Z",
+            "filename": filename
+        }
+
+        # ----------------------------------------
+        # Timestamped filename
+        # ----------------------------------------
+
+        timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
+        spec_path = Path(filename)
+
+        spec_path.write_text(json.dumps(spec, indent=2))
+
+        print(f"\n[Dennis] Spec written → {spec_path}\n")
+
+        # ----------------------------------------
+        # CLI hint (training layer)
+        # ----------------------------------------
+
+        if not getattr(args, "no_cli_hint", False):
+
+            cmd = ["dennis", "plan", "."]
+
+            if helpers:
+                h = helpers[0]
+                cmd += [
+                    "--add-helper", h["file"],
+                    "--target-file", h["target"],
+                    "--line", str(h["line"])
+                ]
+
+            if use_git:
+                cmd.append("--use-git")
+
+            print("Equivalent command:\n")
+            print(" ".join(cmd))
+            print("\nTip: reuse this configuration with:")
+            print(f"  dennis plan {spec_path}\n")
+
+    except KeyboardInterrupt:
+        print("\n[Dennis] Interactive mode cancelled")
+        raise SystemExit(0)
+
+
 # ============================================================
 # ARGPARSE
 # ============================================================
@@ -644,6 +761,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Insertion line for helper"
     )
 
+    plan_cmd.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Interactive mode to generate spec.json"
+    )
+
+    plan_cmd.add_argument(
+        "--no-cli-hint",
+        action="store_true",
+        help="Do not show equivalent CLI command"
+    )
+
     # ---------------------------------------------------------
     # MANUAL SUBCOMMAND (KEY FIX)
     # ---------------------------------------------------------
@@ -683,10 +812,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Limit scan to files changed according to git"
     )
 
-    # ---------------------------------------------------------
-    # IMPORT ARGUMENTS
-    # ---------------------------------------------------------
-
     plan_cmd.add_argument(
         "import_file",
         nargs="?",
@@ -703,6 +828,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--exclude-lang",
         help="Comma-separated list of programming languages to exclude"
     )
+
+    # ---------------------------------------------------------
+    # IMPORT ARGUMENTS
+    # ---------------------------------------------------------
+
+    
 
     git_diff_cmd = sub.add_parser(
         "git-diff",
@@ -1287,15 +1418,65 @@ def main() -> None:
 
         from datetime import datetime, timezone
         import tempfile
+        from pathlib import Path
+        import json
+
+        def _load_spec_if_present(args):
+            if not args.root:
+                return None
+
+            root_path = Path(args.root)
+
+            if root_path.is_file() and root_path.suffix == ".json":
+                try:
+                    spec = json.loads(root_path.read_text(encoding="utf-8"))
+                except Exception as e:
+                    raise SystemExit(f"[Dennis] ERROR: Failed to read spec → {e}")
+
+                if "version" not in spec:
+                    raise SystemExit("[Dennis] ERROR: Invalid spec (missing version)")
+
+                print(f"[Dennis] Using spec: {root_path}")
+
+                return spec
+
+            return None
 
         def ts():
             return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
 
+        if getattr(args, "interactive", False):
+            return run_interactive_plan(args)
+
         # ----------------------------------------
-        # Detect mode (manual subcommands)
+        # Detect mode (spec support)
         # ----------------------------------------
 
-        if args.root in ("export", "import"):
+        spec = _load_spec_if_present(args)
+        spec_mode = False
+
+        if spec:
+            spec_mode = True
+
+            # override root
+            args.root = spec.get("root", ".")
+
+            # options
+            opts = spec.get("options", {})
+            args.use_git = opts.get("use_git", False)
+            args.lang = opts.get("lang", args.lang)
+
+            # helpers (spec-driven)
+            args.helper_specs = [
+                {
+                    "helper": h["file"],
+                    "target": h["target"],
+                    "line": h["line"]
+                }
+                for h in spec.get("helpers", [])
+            ]
+
+        if not spec_mode and args.root in ("export", "import"):
             args.plan_command = args.root
             args.root = None
 
@@ -1312,40 +1493,42 @@ def main() -> None:
         # Helper validation (FIXED PIPELINE)
         # ----------------------------------------
 
-        helpers = args.add_helper or []
-        targets = args.target_file or []
-        lines = args.line or []
+        if not spec_mode:
 
-        args.helper_specs = []
+            helpers = args.add_helper or []
+            targets = args.target_file or []
+            lines = args.line or []
 
-        if helpers:
+            args.helper_specs = []
 
-            if not targets:
-                raise SystemExit(
-                    "Error: --target-file required when using --add-helper"
-                )
+            if helpers:
 
-            if len(targets) != len(helpers):
-                raise SystemExit(
-                    "Error: number of --target-file must match --add-helper"
-                )
+                if not targets:
+                    raise SystemExit(
+                        "Error: --target-file required when using --add-helper"
+                    )
 
-            if lines and len(lines) != len(helpers):
-                raise SystemExit(
-                    "Error: number of --line must match --add-helper"
-                )
+                if len(targets) != len(helpers):
+                    raise SystemExit(
+                        "Error: number of --target-file must match --add-helper"
+                    )
 
-            if not lines:
-                lines = [1] * len(helpers)
+                if lines and len(lines) != len(helpers):
+                    raise SystemExit(
+                        "Error: number of --line must match --add-helper"
+                    )
 
-            args.helper_specs = [
-                {
-                    "helper": h,
-                    "target": t,
-                    "line": l
-                }
-                for h, t, l in zip(helpers, targets, lines)
-            ]
+                if not lines:
+                    lines = [1] * len(helpers)
+
+                args.helper_specs = [
+                    {
+                        "helper": h,
+                        "target": t,
+                        "line": l
+                    }
+                    for h, t, l in zip(helpers, targets, lines)
+                ]
 
         # ----------------------------------------
         # EXPORT MODE
@@ -1423,8 +1606,8 @@ def main() -> None:
             plan = {
                 "changes": changes,
                 "meta": {
-                    "baseline": args.baseline,
-                    "generated_at": ts()
+                    "baseline": args.baseline
+                    # "generated_at": ts()
                 }
             }
 
@@ -2446,6 +2629,36 @@ def main() -> None:
                             files[m.name] = f.read()
 
                 manifest = json.loads(files["manifest.json"])
+                # ----------------------------------------
+                # Extract embedded spec (intent)
+                # ----------------------------------------
+
+                intent = None
+
+                spec_bytes = files.get("meta/spec.json")
+
+                if spec_bytes:
+                    try:
+                        intent = json.loads(spec_bytes)
+                    except Exception:
+                        intent = {
+                            "error": "Failed to parse spec.json"
+                        }
+
+                    if intent:
+                        print("\nIntent")
+                        print("------")
+
+                        print(f"Mode:        {intent.get('mode')}")
+                        print(f"Root:        {intent.get('root')}")
+
+                        if intent.get("options"):
+                            print(f"Options:     {intent['options']}")
+
+                        if intent.get("helpers"):
+                            print("\nHelpers:")
+                            for h in intent["helpers"]:
+                                print(f"  - {h['file']} → {h['target']}:{h['line']}")
 
                 from dennis.dex.sign import verify_manifest_signatures
                 import base64
@@ -2515,6 +2728,8 @@ def main() -> None:
                         }
                     except Exception:
                         patch_info = {}
+                
+                    print(f"\nCreated at:  {intent.get('created_at')}")
 
                 signatures = manifest.get("signatures", [])
                 enriched_signatures = []
@@ -2617,6 +2832,7 @@ def main() -> None:
                     "lineage": manifest.get("lineage", {}),
                     "signatures": enriched_signatures,
                     "verification": verification,
+                    "intent": intent if intent else {},
                     "patches": patch_info if patch_info else {"summary": {"helpers": 0, "remove_helpers": 0}, "operations": []},
                     "diff": {
                         "files": []
