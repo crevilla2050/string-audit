@@ -24,6 +24,7 @@ LANG_EXTENSIONS = {
     "csharp": [".cs"],
     "ruby": [".rb"],
     "go": [".go"],
+    "graph": [".dot", ".graphml"],
     "rust": [".rs"],
     "text": [".txt"],
     "office XML": [".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp"],
@@ -83,9 +84,26 @@ def generate_plan(
     helpers: List[Dict] | None = None,
     git_mode: str = "tracked",
     lang: str = "python",
-    exclude_langs: set[str] | None = None
+    exclude_langs: set[str] | None = None,
+    scan_only: bool = False
 ) -> Dict:
 
+    # --------------------------------------------------
+    # SCAN MODE (read-only)
+    # --------------------------------------------------
+
+    if scan_only:
+
+        findings = scan_directory(
+            root,
+            git_mode=git_mode
+        )
+
+        return [
+            f.to_dict()
+            for f in findings
+        ]
+    
     # --------------------------------------------------
     # Ensure dictionary file exists
     # --------------------------------------------------
@@ -116,14 +134,6 @@ def generate_plan(
         if discovered:
             mapping = build_dictionary(discovered)
 
-            # ----------------------------------------
-            # DEBUG (optional but useful)
-            # ----------------------------------------
-            # # print(f"[DEBUG] Raw dictionary entries: {len(mapping)}")
-
-            # ----------------------------------------
-            # WRITE RAW DICTIONARY
-            # ----------------------------------------
             write_en_json(mapping, dict_path)
 
             print(f"[Dennis] Dictionary generated → {dict_path}")
@@ -151,6 +161,7 @@ def generate_plan(
             # IMPORTANT: Use CLEANED mapping going forward
             # ----------------------------------------
             mapping = cleaned
+            
 
     # --------------------------------------------------
     # Prepare replacement mapping (string → token)

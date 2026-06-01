@@ -224,6 +224,7 @@ class HardcodedStringDetector:
                             line=idx,
                             text=text,
                             detector=self.name,
+                            object_type=self.classify_string(text).upper(),
                         )
                     )
 
@@ -273,6 +274,7 @@ class HardcodedStringDetector:
                         line=idx,
                         text=text,
                         detector="generic-string",
+                        object_type=self.classify_string(text).upper(),
                     )
                 )
 

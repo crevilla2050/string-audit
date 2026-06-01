@@ -4,13 +4,7 @@ from ..models import Finding
 
 def write_json_report(findings: List[Finding], output_path: str) -> None:
     data = [
-        {
-            "file": f.file,
-            "line": f.line,
-            "text": f.text,
-            "detector": f.detector,
-            "severity": f.severity,
-        }
+        f.to_dict()
         for f in findings
     ]
 

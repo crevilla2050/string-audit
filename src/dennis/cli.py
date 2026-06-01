@@ -773,6 +773,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not show equivalent CLI command"
     )
 
+    plan_cmd.add_argument(
+        "--scan",
+        action="store_true",
+        help="Scan project and output observations only without generating a plan"
+    )
+
     # ---------------------------------------------------------
     # MANUAL SUBCOMMAND (KEY FIX)
     # ---------------------------------------------------------
@@ -1708,14 +1714,63 @@ def main() -> None:
                 lang.strip() for lang in args.exclude_lang.split(",")
             }
 
-        plan = generate_plan(
+        result = generate_plan(
             source_dir,
             dict_path,
             helpers=helpers,
             git_mode=git_mode,
             lang=args.lang,
-            exclude_langs=excluded_langs
+            exclude_langs=excluded_langs,
+            scan_only=getattr(args, "scan", False)
         )
+
+        if getattr(args, "scan", False):
+            scan_ts = ts()
+
+            scan_path = Path(f"scan-result-{scan_ts}.obad.json")
+
+            scan_payload = {
+                "meta": {
+                    "format": "obad",
+                    "version": 1,
+                    "generated_at": scan_ts,
+                    "project_root": str(source_dir.resolve()),
+                    "git_mode": git_mode,
+                },
+                "findings": result,
+            }
+
+            with open(scan_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    scan_payload,
+                    f,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+
+            print(f"[Dennis] Scan written → {scan_path}")
+
+            print(
+                json.dumps(
+                    scan_payload,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+            )
+
+            return
+
+        plan = result
+
+        if args.scan:
+            print(
+                json.dumps(
+                    result,
+                    indent=2,
+                    ensure_ascii=False
+                )
+            )
+            return
 
         from dennis.core.serialize import dump_json
         from dennis.core.csvio import write_csv_from_plan
@@ -2729,7 +2784,10 @@ def main() -> None:
                     except Exception:
                         patch_info = {}
                 
-                    print(f"\nCreated at:  {intent.get('created_at')}")
+                    created_at = intent.get("created_at") if intent else None
+
+                    if created_at:
+                        print(f"\nCreated at:  {created_at}")
 
                 signatures = manifest.get("signatures", [])
                 enriched_signatures = []
@@ -2839,8 +2897,10 @@ def main() -> None:
                     },
                 }
 
-            except Exception:
-                raise SystemExit("Not a Dennis artifact or unsupported file")
+            except Exception as e:
+                raise SystemExit(
+                    f"Not a Dennis artifact or unsupported file: {repr(e)}"
+                )
 
         # --------------------------------------------------------
         # REGISTRY INSPECTION
