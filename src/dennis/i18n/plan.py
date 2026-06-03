@@ -10,6 +10,8 @@ from dennis.i18n.generator import build_dictionary, write_en_json
 from dennis.scanner import scan_directory
 from dennis.plugins import PLUGINS
 from dennis.utils import iter_files
+from dennis.scanner import is_binary_file, is_dennis_generated_file
+
 
 import subprocess
 
@@ -179,8 +181,15 @@ def generate_plan(
     findings = scan_directory(root, git_mode=git_mode)
 
     # Decouple scanning from transformation: process all code files
+    
     for file_path in iter_files(root, git_mode=git_mode):
 
+        if is_dennis_generated_file(file_path):
+            continue
+
+        if is_binary_file(file_path):
+            continue
+        
         if exclude_langs:
             ext = file_path.suffix.lower()
             if any(ext in LANG_EXTENSIONS.get(lang_name, []) for lang_name in exclude_langs):

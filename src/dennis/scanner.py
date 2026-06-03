@@ -1,10 +1,39 @@
 from pathlib import Path
 from typing import List
+from fnmatch import fnmatch
 
 from .models import Finding
 from .detectors.hardcoded_strings import HardcodedStringDetector
 
 from .utils import iter_files
+
+
+DENNIS_GENERATED_PATTERNS = [
+    "scan-result-*.obad.json",
+    "dictionary-*.json",
+    "dennis-*.json",
+]
+
+
+def is_dennis_generated_file(path: Path) -> bool:
+    """
+    Returns True if the file is a Dennis-generated artifact
+    that should not be scanned.
+
+    We intentionally do NOT exclude all JSON files because
+    JSON may become a first-class scan target in the future.
+    """
+
+    if ".dennis" in path.parts:
+        return True
+
+    filename = path.name
+
+    for pattern in DENNIS_GENERATED_PATTERNS:
+        if fnmatch(filename, pattern):
+            return True
+
+    return False
 
 
 def is_binary_file(path: Path, chunk_size: int = 1024) -> bool:
@@ -31,6 +60,9 @@ def scan_directory(root: Path, git_mode: str = "tracked") -> List[Finding]:
     detector = HardcodedStringDetector()
     
     for file_path in iter_files(root, git_mode=git_mode):
+
+        if is_dennis_generated_file(file_path):
+            continue
 
         if is_binary_file(file_path):
             continue

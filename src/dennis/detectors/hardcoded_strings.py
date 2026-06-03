@@ -80,7 +80,7 @@ class HardcodedStringDetector:
     # --------------------------------------------------------
     # VALID STRING (ONLY HUMAN TEXT)
     # --------------------------------------------------------
-    def is_valid_string(self, text: str) -> bool:
+    def is_valid_translation_candidate(self, text: str) -> bool:
         
         kind = self.classify_string(text)
 
@@ -100,16 +100,15 @@ class HardcodedStringDetector:
 
         return True
     
-    # --------------------------------------------------------
-    # CSS DETECTION
-    # --------------------------------------------------------
-
 
     # --------------------------------------------------------
     # GENERIC SKIP RULES (NON-HUMAN)
     # --------------------------------------------------------
     
-    def should_skip(self, text: str) -> bool:
+    def should_skip_translation_candidate(
+    self,
+    text: str
+) -> bool:
 
         if not text:
             return True
@@ -247,16 +246,22 @@ class HardcodedStringDetector:
             from dennis.filters.code_filter import looks_like_code as looks_like_code_filter
 
             for match in self.GENERIC_STRING.finditer(line):
-                
+
                 text = match.group(2).strip()
+
+                print(
+                    f"DEBUG: [{text}] "
+                    f"type={self.classify_string(text)} "
+                    f"valid={self.is_valid_translation_candidate(text)}"
+                )
 
                 if looks_like_binary(text):
                     continue
                     
-                if self.should_skip(text):
+                if self.should_skip_translation_candidate(text):
                     continue
 
-                if not self.is_valid_string(text):
+                if not self.is_valid_translation_candidate(text):
                     continue
 
                 if looks_like_html(text):
@@ -280,3 +285,11 @@ class HardcodedStringDetector:
 
         return findings
     
+def is_valid_observation(
+    self,
+    text: str
+) -> bool:
+
+    kind = self.classify_string(text)
+
+    return kind != "empty"

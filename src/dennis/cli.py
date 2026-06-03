@@ -1072,6 +1072,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Validate output against inspect.v1.schema.json"
     )
+
+    inspect_cmd.add_argument(
+        "--goals",
+        action="store_true",
+        help="Run Goal Discovery on an OBAD artifact"
+    )
     
     # SIGNATURES 
     sig_cmd = sub.add_parser("signatures", help="Show artifact signatures")
@@ -2633,6 +2639,42 @@ def main() -> None:
 
             if not path.is_file():
                 raise SystemExit(f"Artifact file not found: {path}")
+
+            if path.suffix == ".json":
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        artifact = json.load(f)
+
+                    meta = artifact.get("meta", {})
+
+                    if meta.get("format") == "obad":
+
+                        if args.goals:
+
+                            from dennis.goals.discovery import (
+                                validate_obad,
+                                discover_goals,
+                            )
+
+                            validate_obad(artifact)
+                            
+                            result = discover_goals(artifact)
+                            result["lineage"] = {
+                                "derived_from": [
+                                    path.name
+                                ]
+                            }
+                            print(
+                                json.dumps(
+                                    result,
+                                    indent=2,
+                                    ensure_ascii=False,
+                                )
+                            )
+
+                            return
+                except Exception:
+                    pass
 
             # --------------------------------------------------------
             # Detect encrypted artifact
