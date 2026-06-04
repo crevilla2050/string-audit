@@ -111,3 +111,15 @@ This preserves:
 - Explicit workflows
 
 Dennis may provide convenience aliases (e.g., `dennis undo`) but all undo operations are grounded in reversible plans.
+
+# Dennis-on-Dennis Test
+
+A mature Dennis installation must be capable of
+inspecting its own source tree, generating
+observations, deriving goals, producing
+specifications, and proposing reviewable
+improvement plans for itself.
+
+A feature that helps Dennis understand,
+explain, or improve Dennis is considered
+strategically aligned with the project.

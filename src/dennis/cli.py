@@ -1078,6 +1078,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run Goal Discovery on an OBAD artifact"
     )
+
+    inspect_cmd.add_argument(
+        "--specs",
+        action="store_true",
+        help="Run Spec Discovery on a Goal Discovery artifact"
+    )
     
     # SIGNATURES 
     sig_cmd = sub.add_parser("signatures", help="Show artifact signatures")
@@ -2634,7 +2640,6 @@ def main() -> None:
         # --------------------------------------------------------
 
         if Path(target).exists():
-
             path = Path(target)
 
             if not path.is_file():
@@ -2646,6 +2651,35 @@ def main() -> None:
                         artifact = json.load(f)
 
                     meta = artifact.get("meta", {})
+
+                    if meta.get("format") == "goal-discovery":
+
+                        if args.specs:
+
+                            from dennis.goals.specs import (
+                                validate_goal_discovery,
+                                discover_specs,
+                            )
+
+                            validate_goal_discovery(artifact)
+
+                            result = discover_specs(artifact)
+
+                            result["lineage"] = {
+                                "derived_from": [
+                                    path.name
+                                ]
+                            }
+
+                            print(
+                                json.dumps(
+                                    result,
+                                    indent=2,
+                                    ensure_ascii=False,
+                                )
+                            )
+
+                            return
 
                     if meta.get("format") == "obad":
 

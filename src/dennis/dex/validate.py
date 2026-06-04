@@ -196,7 +196,7 @@ def _validate_provenance_chain(provenance):
         if not isinstance(step, dict):
             return False
 
-        required = ["step", "actor", "action", "timestamp"]
+        required = ["step", "actor", "action", "generated_at"]
         for r in required:
             if r not in step:
                 return False

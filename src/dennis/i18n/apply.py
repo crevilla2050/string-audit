@@ -145,7 +145,7 @@ def register_artifact(path, new_path):
 
     data[str(path)] = {
         "isolated": str(new_path),
-        "timestamp": datetime.utcnow().isoformat()
+        "generated_at": datetime.utcnow().isoformat()
     }
 
     registry.write_text(json.dumps(data, indent=2))
@@ -229,7 +229,7 @@ def register_isolated_helper(helper_id, original_path, new_path):
     data[helper_id] = {
         "original": str(original_path),
         "isolated": str(new_path),
-        "timestamp": datetime.utcnow().isoformat()
+        "generated_at": datetime.utcnow().isoformat()
     }
 
     registry_path.write_text(json.dumps(data, indent=2))
@@ -268,7 +268,7 @@ def apply_plan(
 
     log = {
         "plan": str(plan_path),
-        "timestamp": timestamp,
+        "generated_at": timestamp,
         "changes_total": len(changes),
         "changes_applied": 0,
         "warnings": [],

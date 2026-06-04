@@ -20,5 +20,5 @@ def health():
     return {
         "service": "dennis-forge",
         "status": "ok",
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "generated_at": datetime.utcnow().isoformat() + "Z"
     }
