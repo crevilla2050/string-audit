@@ -1,7 +1,7 @@
 [project]
 name = "dennis"
-version = "0.8.7"
-description = "Dennis the Forge core engine"
+version = "0.8.8"
+description = "Dennis the Forge core engine - The Malkovich release"
 readme = "README.md"
 requires-python = ">=3.9"
 
