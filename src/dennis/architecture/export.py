@@ -33,14 +33,13 @@ def save_json(
 
 def save_observation_index(
     index,
-    output_dir
+    output_dir,
+    ts
 ):
     """
     Save architecture observation
     index.
     """
-
-    ts = timestamp()
 
     path = Path(
         output_dir
@@ -57,14 +56,13 @@ def save_observation_index(
 
 def save_evidence_store(
     evidence,
-    output_dir
+    output_dir,
+    ts
 ):
     """
     Save architecture evidence
     store.
     """
-
-    ts = timestamp()
 
     path = Path(
         output_dir

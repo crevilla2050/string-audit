@@ -1047,6 +1047,34 @@ def build_parser() -> argparse.ArgumentParser:
     search_cmd.add_argument("--limit", type=int, default=20)
     search_cmd.add_argument("--offset", type=int, default=0)
     
+    # ARCHITECTURE SCAN
+    architecture = sub.add_parser(
+        "architecture",
+        help="Architecture analysis commands"
+    )
+
+    architecture_sub = architecture.add_subparsers(
+        dest="architecture_command",
+        required=True
+    )
+
+    arch_scan = architecture_sub.add_parser(
+        "scan",
+        help="Scan source tree and generate architecture observations"
+    )
+
+    arch_scan.add_argument(
+        "path",
+        help="Source tree path"
+    )
+
+    arch_scan.add_argument(
+        "--output",
+        choices=["json"],
+        default="json",
+        help="Output format"
+    )
+
     # PUBLISH
     publish_cmd = sub.add_parser(
         "publish",
@@ -1343,6 +1371,8 @@ def build_parser() -> argparse.ArgumentParser:
     logout_cmd = sub.add_parser("logout", help="Clear stored authentication")
 
     sub.add_parser("whoami", help="Show current authenticated user")
+
+    
 
     return parser
 
@@ -2621,6 +2651,28 @@ def main() -> None:
         Path(filename).write_bytes(data)
 
         print(f"Downloaded → {filename}")
+
+    # --------------------------------------------------------
+    # ARCHITECTURE  
+    # --------------------------------------------------------
+    
+    elif args.command == "architecture":
+
+        if (
+            args.architecture_command
+            == "scan"
+        ):
+
+            from dennis.architecture.scan import (
+                run_architecture_scan
+            )
+
+            run_architecture_scan(
+                source_path=args.path,
+                output_format=args.output,
+            )
+
+            return
 
     # --------------------------------------------------------
     # INSPECT
