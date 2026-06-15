@@ -14,7 +14,8 @@ dependencies = [
 "pyzipper",
 "cryptography",
 "python-dotenv==1.0.1",
-"requests"
+"requests",
+"pathspec"
 ]
 
 [project.scripts]
