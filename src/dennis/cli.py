@@ -2,6 +2,8 @@ import os
 from dennis import server
 from dotenv import load_dotenv
 
+from dennis.dex.pack import collect_project_files, export_dexscope_json, load_dexscope
+
 load_dotenv(os.path.expanduser("~/.dennis/.env"))
 
 import argparse
@@ -379,6 +381,76 @@ def show_diff(expected, actual):
     for line in diff:
         print("    " + line)
 
+def refresh_dexscope(root_dir):
+
+    root_dir = Path(root_dir)
+
+    scope_file = root_dir / ".dexscope"
+
+    if not scope_file.exists():
+        raise SystemExit(
+            "[Dennis] ERROR: .dexscope not found. "
+            "Run 'dennis scope export' first."
+        )
+
+    generated_files = {
+        str(p.relative_to(root_dir))
+        for p in collect_project_files(root_dir)
+    }
+
+    old_lines = scope_file.read_text(
+        encoding="utf-8"
+    ).splitlines()
+
+    output_lines = []
+
+    consumed = set()
+
+    for line in old_lines:
+
+        stripped = line.strip()
+
+        # preserve blank lines
+        if not stripped:
+            output_lines.append(line)
+            continue
+
+        # preserve header
+        if stripped == "# Dennis Scope v1":
+            output_lines.append(line)
+            continue
+
+        # preserve comments/inactive entries exactly
+        if stripped.startswith("#"):
+            candidate = stripped[1:].strip()
+
+            if candidate in generated_files:
+                consumed.add(candidate)
+
+            output_lines.append(line)
+            continue            
+
+        # active file entry
+        if stripped in generated_files:
+            output_lines.append(line)
+            consumed.add(stripped)
+
+    remaining = generated_files - consumed
+
+    if remaining:
+
+        output_lines.append("")
+
+        for path in sorted(remaining):
+            output_lines.append(path)
+
+    scope_file.write_text(
+        "\n".join(output_lines) + "\n",
+        encoding="utf-8"
+    )
+
+    print(f"[Dennis] Scope refreshed → {scope_file}")
+
 # ============================================================
 # IDENTITY HELPERS
 # ============================================================
@@ -469,7 +541,6 @@ def debug_identity(pub_path):
     assert id_from_bytes == id_from_pub, "❌ MISMATCH: identity derivation is inconsistent"
 
     print("✅ OK: identity derivation is consistent")
-
 
 def run_interactive_plan(args):
     import json
@@ -1168,6 +1239,68 @@ def build_parser() -> argparse.ArgumentParser:
         "--detached",
         action="store_true",
         help="Create a detached signature (optional)"
+    )
+
+    # --------------------------------------------------------
+    # SCOPE
+    # --------------------------------------------------------
+
+    scope_cmd = sub.add_parser(
+        "scope",
+        help="DEX scope management"
+    )
+
+    scope_sub = scope_cmd.add_subparsers(
+        dest="scope_command",
+        required=True
+    )
+
+    scope_export = scope_sub.add_parser(
+        "export",
+        help="Generate .dexscope from project"
+    )
+
+    scope_refresh = scope_sub.add_parser(
+        "refresh",
+        help="Refresh existing .dexscope"
+    )
+
+    scope_refresh.add_argument(
+        "root",
+        nargs="?",
+        default=".",
+        help="Project root"
+    )
+
+    scope_export.add_argument(
+        "root",
+        nargs="?",
+        default=".",
+        help="Project root"
+    )
+
+    scope_inspect = scope_sub.add_parser(
+        "inspect",
+        help="Show scope evaluation"
+    )
+
+    scope_inspect.add_argument(
+        "root",
+        nargs="?",
+        default=".",
+        help="Project root"
+    )
+
+    scope_json = scope_sub.add_parser(
+        "json",
+        help="Generate .dexscope.json"
+    )
+
+    scope_json.add_argument(
+        "root",
+        nargs="?",
+        default=".",
+        help="Project root"
     )
 
 
@@ -2842,6 +2975,29 @@ def main() -> None:
                             print("\nHelpers:")
                             for h in intent["helpers"]:
                                 print(f"  - {h['file']} → {h['target']}:{h['line']}")
+                
+                # ----------------------------------------
+                # Extract embedded scope metadata
+                # ----------------------------------------
+
+                scope_data = None
+
+                scope_bytes = files.get(
+                    "meta/dexscope.json"
+                )
+
+                if scope_bytes:
+                    try:
+                        scope_data = json.loads(
+                            scope_bytes
+                        )
+                    except Exception:
+                        scope_data = {
+                            "error": (
+                                "Failed to parse "
+                                "dexscope.json"
+                            )
+                        }
 
                 from dennis.dex.sign import verify_manifest_signatures
                 import base64
@@ -3010,6 +3166,7 @@ def main() -> None:
                         "path": str(path),
                     },
                     "meta": manifest.get("meta", {}),
+                    "scope": scope_data if scope_data else {},
                     "payload": {
                         "type": manifest.get("payload", {}).get("type"),
                         "hash": manifest.get("payload", {}).get("hash", {}).get("value"),
@@ -3115,6 +3272,47 @@ def main() -> None:
         print(f"Type:        {lineage.get('type')}")
         print(f"Lineage ID:  {lineage.get('lineage_id')}")
         print(f"Parent:      {lineage.get('parent')}")
+
+        scope = data.get("scope", {})
+
+        if scope:
+
+            print("\nScope")
+            print("-----")
+
+            active = scope.get(
+                "active",
+                []
+            )
+
+            inactive = scope.get(
+                "inactive",
+                []
+            )
+
+            comments = scope.get(
+                "comments",
+                []
+            )
+
+            print(
+                f"Active:      {len(active)}"
+            )
+
+            print(
+                f"Inactive:    {len(inactive)}"
+            )
+
+            print(
+                f"Comments:    {len(comments)}"
+            )
+
+            if inactive:
+
+                print("\nExcluded:")
+
+                for item in inactive:
+                    print(f"  {item}")
 
         sigs = data.get("signatures", [])
 
@@ -4261,3 +4459,96 @@ def main() -> None:
             raise SystemExit(f"\n✖ {failed} test(s) failed\n")
 
         print("\n✔ All conformance tests passed\n")
+
+        #--------------------------------------------------------
+    # SCOPE COMMANDS
+    #--------------------------------------------------------
+
+    elif args.command == "scope":
+
+        if args.scope_command == "export":
+
+            root_dir = Path(args.root).resolve()
+
+            files = collect_project_files(root_dir)
+
+            scope_file = root_dir / ".dexscope"
+
+            preserved_comments = []
+            excluded_paths = set()
+
+            if scope_file.exists():
+
+                for raw_line in scope_file.read_text(
+                    encoding="utf-8"
+                ).splitlines():
+
+                    if raw_line.lstrip().startswith("#"):
+
+                        # Skip generated header
+                        if raw_line.strip() == "# Dennis Scope v1":
+                            continue
+
+                        preserved_comments.append(raw_line)
+
+                        candidate = raw_line.lstrip()[1:].strip()
+
+                        if candidate:
+                            excluded_paths.add(candidate)
+
+            lines = [
+                "# Dennis Scope v1",
+                ""
+            ]
+
+            for file_path in files:
+
+                rel_path = str(
+                    file_path.relative_to(root_dir)
+                )
+
+                # User previously commented this out
+                if rel_path in excluded_paths:
+                    continue
+
+                lines.append(rel_path)
+
+            if preserved_comments:
+
+                lines.append("")
+                lines.extend(preserved_comments)
+
+            scope_file.write_text(
+                "\n".join(lines) + "\n",
+                encoding="utf-8"
+            )
+
+            print(
+                f"[Dennis] Scope exported → {scope_file}"
+            )
+
+            return
+
+        elif args.scope_command == "inspect":
+
+            print(
+                "[Dennis] Scope inspect not implemented yet."
+            )
+
+            return
+        
+        elif args.scope_command == "json":
+
+            export_dexscope_json(
+                Path(args.root).resolve()
+            )
+
+            return
+
+        elif args.scope_command == "refresh":
+
+            refresh_dexscope(
+                Path(args.root).resolve()
+            )
+
+            return

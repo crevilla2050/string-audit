@@ -8,6 +8,13 @@ __pycache__/
 venv/
 .venv/
 
+# Other Dennis related files
+.dennis/
+.dennis_cache/
+.dennis_scope/
+.dennis_forge/
+
+.pytest_cache/
 
 # Build artifacts
 dist/
@@ -27,7 +34,7 @@ testbed/
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
+*thumbs.db
 Thumbs.db
 
 *.db
@@ -49,3 +56,4 @@ string*.json
 *.7z
 *.rar
 *.gz
+test_*.py

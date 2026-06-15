@@ -1,0 +1,3360 @@
+{
+  "meta": {
+    "generated_at": "2026-06-15T04:14:07.223623+00:00"
+  },
+  "changes": [
+    {
+      "file": "scripts/mini_forge.py",
+      "line": 63,
+      "original": "            self.send_error(400, \"Invalid JSON\")",
+      "replacement": "            self.send_error(400, messages[\"INVALID_JSON\"])",
+      "token": "INVALID_JSON"
+    },
+    {
+      "file": "scripts/mini_forge.py",
+      "line": 94,
+      "original": "    print(\"🔥 Dennis Mini Forge running on http://localhost:8000\")",
+      "replacement": "    print(messages[\"DENNIS_MINI_FORGE_RUNNING_ON_HTTPLOCALHOST8000\"])",
+      "token": "DENNIS_MINI_FORGE_RUNNING_ON_HTTPLOCALHOST8000"
+    },
+    {
+      "file": "src/dennis/architecture/catalog.py",
+      "line": 10,
+      "original": "                \"the same contract.\"",
+      "replacement": "                messages[\"THE_SAME_CONTRACT\"]",
+      "token": "THE_SAME_CONTRACT"
+    },
+    {
+      "file": "src/dennis/architecture/catalog.py",
+      "line": 20,
+      "original": "                \"diverge unexpectedly.\"",
+      "replacement": "                messages[\"DIVERGE_UNEXPECTEDLY\"]",
+      "token": "DIVERGE_UNEXPECTEDLY"
+    },
+    {
+      "file": "src/dennis/architecture/catalog.py",
+      "line": 42,
+      "original": "                \"consistent with the contract.\"",
+      "replacement": "                messages[\"CONSISTENT_WITH_THE_CONTRACT\"]",
+      "token": "CONSISTENT_WITH_THE_CONTRACT"
+    },
+    {
+      "file": "src/dennis/architecture/catalog.py",
+      "line": 75,
+      "original": "                \"classification rule exists.\"",
+      "replacement": "                messages[\"CLASSIFICATION_RULE_EXISTS\"]",
+      "token": "CLASSIFICATION_RULE_EXISTS"
+    },
+    {
+      "file": "src/dennis/architecture/catalog.py",
+      "line": 85,
+      "original": "                \"classification rule.\"",
+      "replacement": "                messages[\"CLASSIFICATION_RULE\"]",
+      "token": "CLASSIFICATION_RULE"
+    },
+    {
+      "file": "src/dennis/architecture/observations.py",
+      "line": 10,
+      "original": "            \"share the same import name.\",",
+      "replacement": "            messages[\"SHARE_THE_SAME_IMPORT_NAME\"],",
+      "token": "SHARE_THE_SAME_IMPORT_NAME"
+    },
+    {
+      "file": "src/dennis/architecture/observations.py",
+      "line": 23,
+      "original": "            \"size threshold.\",",
+      "replacement": "            messages[\"SIZE_THRESHOLD\"],",
+      "token": "SIZE_THRESHOLD"
+    },
+    {
+      "file": "src/dennis/architecture/observations.py",
+      "line": 34,
+      "original": "            \"similar AST structure.\",",
+      "replacement": "            messages[\"SIMILAR_AST_STRUCTURE\"],",
+      "token": "SIMILAR_AST_STRUCTURE"
+    },
+    {
+      "file": "src/dennis/architecture/observations.py",
+      "line": 45,
+      "original": "            \"A file appears to have no references.\",",
+      "replacement": "            messages[\"A_FILE_APPEARS_TO_HAVE_NO_REFERENCES\"],",
+      "token": "A_FILE_APPEARS_TO_HAVE_NO_REFERENCES"
+    },
+    {
+      "file": "src/dennis/architecture/scan.py",
+      "line": 77,
+      "original": "        \"scan complete.\"",
+      "replacement": "        messages[\"SCAN_COMPLETE\"]",
+      "token": "SCAN_COMPLETE"
+    },
+    {
+      "file": "src/dennis/classifiers/sql.py",
+      "line": 6,
+      "original": "    \"ORDER BY\", \"GROUP BY\", \"LIMIT\", \"HAVING\",",
+      "replacement": "    messages[\"ORDER_BY\"], messages[\"GROUP_BY\"], \"LIMIT\", \"HAVING\",",
+      "token": "ORDER_BY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 152,
+      "original": "        help=\"Dictionary format\"",
+      "replacement": "        help=messages[\"DICTIONARY_FORMAT\"]",
+      "token": "DICTIONARY_FORMAT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 216,
+      "original": "            print(\"No deleted projects.\")",
+      "replacement": "            print(messages[\"NO_DELETED_PROJECTS\"])",
+      "token": "NO_DELETED_PROJECTS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 289,
+      "original": "        print(\"✔ Project restored\")",
+      "replacement": "        print(messages[\"PROJECT_RESTORED\"])",
+      "token": "PROJECT_RESTORED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 295,
+      "original": "                print(\"✔ Artifacts restored\")",
+      "replacement": "                print(messages[\"ARTIFACTS_RESTORED\"])",
+      "token": "ARTIFACTS_RESTORED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 299,
+      "original": "                print(\"(artifacts not restored)\")",
+      "replacement": "                print(messages[\"ARTIFACTS_NOT_RESTORED\"])",
+      "token": "ARTIFACTS_NOT_RESTORED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 317,
+      "original": "        print(\"No changes detected\")",
+      "replacement": "        print(messages[\"NO_CHANGES_DETECTED\"])",
+      "token": "NO_CHANGES_DETECTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 329,
+      "original": "        raise SystemExit(\"Not authenticated. Run: dennis login\")",
+      "replacement": "        raise SystemExit(messages[\"NOT_AUTHENTICATED_RUN_DENNIS_LOGIN\"])",
+      "token": "NOT_AUTHENTICATED_RUN_DENNIS_LOGIN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 359,
+      "original": "        print(\"✔ Diff artifact created:\", result.get(\"artifact_hash\"))",
+      "replacement": "        print(messages[\"DIFF_ARTIFACT_CREATED_RESULTGETARTIFACT_HASH\"]))",
+      "token": "DIFF_ARTIFACT_CREATED_RESULTGETARTIFACT_HASH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 393,
+      "original": "            \"Run 'dennis scope export' first.\"",
+      "replacement": "            messages[\"RUN_DENNIS_SCOPE_EXPORT_FIRST\"]",
+      "token": "RUN_DENNIS_SCOPE_EXPORT_FIRST"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 419,
+      "original": "        if stripped == \"# Dennis Scope v1\":",
+      "replacement": "        if stripped == messages[\"DENNIS_SCOPE_V1\"]:",
+      "token": "DENNIS_SCOPE_V1"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 541,
+      "original": "    assert id_from_bytes == id_from_pub, \"❌ MISMATCH: identity derivation is inconsistent\"",
+      "replacement": "    assert id_from_bytes == id_from_pub, messages[\"MISMATCH_IDENTITY_DERIVATION_IS_INCONSISTENT\"]",
+      "token": "MISMATCH_IDENTITY_DERIVATION_IS_INCONSISTENT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 543,
+      "original": "    print(\"✅ OK: identity derivation is consistent\")",
+      "replacement": "    print(messages[\"OK_IDENTITY_DERIVATION_IS_CONSISTENT\"])",
+      "token": "OK_IDENTITY_DERIVATION_IS_CONSISTENT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 550,
+      "original": "    print(\"[Dennis] Interactive planning mode\\n\")",
+      "replacement": "    print(messages[\"DENNIS_INTERACTIVE_PLANNING_MODEN\"])",
+      "token": "DENNIS_INTERACTIVE_PLANNING_MODEN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 557,
+      "original": "            print(\"\\n[Dennis] Interactive mode cancelled\")",
+      "replacement": "            print(messages[\"NDENNIS_INTERACTIVE_MODE_CANCELLED\"])",
+      "token": "NDENNIS_INTERACTIVE_MODE_CANCELLED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 596,
+      "original": "                raise SystemExit(\"[Dennis] ERROR: line must be a positive integer\")",
+      "replacement": "                raise SystemExit(messages[\"DENNIS_ERROR_LINE_MUST_BE_A_POSITIVE_INTEGER\"])",
+      "token": "DENNIS_ERROR_LINE_MUST_BE_A_POSITIVE_INTEGER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 652,
+      "original": "            print(\"Equivalent command:\\n\")",
+      "replacement": "            print(messages[\"EQUIVALENT_COMMANDN\"])",
+      "token": "EQUIVALENT_COMMANDN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 654,
+      "original": "            print(\"\\nTip: reuse this configuration with:\")",
+      "replacement": "            print(messages[\"NTIP_REUSE_THIS_CONFIGURATION_WITH\"])",
+      "token": "NTIP_REUSE_THIS_CONFIGURATION_WITH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 658,
+      "original": "        print(\"\\n[Dennis] Interactive mode cancelled\")",
+      "replacement": "        print(messages[\"NDENNIS_INTERACTIVE_MODE_CANCELLED\"])",
+      "token": "NDENNIS_INTERACTIVE_MODE_CANCELLED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 670,
+      "original": "        epilog=\"Forged slowly. Built for trust.\",",
+      "replacement": "        epilog=messages[\"FORGED_SLOWLY_BUILT_FOR_TRUST\"],",
+      "token": "FORGED_SLOWLY_BUILT_FOR_TRUST"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 676,
+      "original": "        help=\"Show Dennis version\"",
+      "replacement": "        help=messages[\"SHOW_DENNIS_VERSION\"]",
+      "token": "SHOW_DENNIS_VERSION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 725,
+      "original": "        help=\"Override lineage mismatch (must match artifact lineage_id)\"",
+      "replacement": "        help=messages[\"OVERRIDE_LINEAGE_MISMATCH_MUST_MATCH_ARTIFACT_LINEAGE_ID\"]",
+      "token": "OVERRIDE_LINEAGE_MISMATCH_MUST_MATCH_ARTIFACT_LINEAGE_ID"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 731,
+      "original": "        help=\"Allow applying detached artifact (no lineage)\"",
+      "replacement": "        help=messages[\"ALLOW_APPLYING_DETACHED_ARTIFACT_NO_LINEAGE\"]",
+      "token": "ALLOW_APPLYING_DETACHED_ARTIFACT_NO_LINEAGE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 741,
+      "original": "    projects_cmd = sub.add_parser(\"projects\", help=\"Manage projects\")",
+      "replacement": "    projects_cmd = sub.add_parser(\"projects\", help=messages[\"MANAGE_PROJECTS\"])",
+      "token": "MANAGE_PROJECTS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 746,
+      "original": "    projects_sub.add_parser(\"list\", help=\"List projects\")",
+      "replacement": "    projects_sub.add_parser(\"list\", help=messages[\"LIST_PROJECTS\"])",
+      "token": "LIST_PROJECTS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 749,
+      "original": "    delete_cmd = projects_sub.add_parser(\"delete\", help=\"Delete a project\")",
+      "replacement": "    delete_cmd = projects_sub.add_parser(\"delete\", help=messages[\"DELETE_A_PROJECT\"])",
+      "token": "DELETE_A_PROJECT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 753,
+      "original": "    rename_cmd = projects_sub.add_parser(\"rename\", help=\"Rename a project\")",
+      "replacement": "    rename_cmd = projects_sub.add_parser(\"rename\", help=messages[\"RENAME_A_PROJECT\"])",
+      "token": "RENAME_A_PROJECT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 758,
+      "original": "    activate_cmd = projects_sub.add_parser(\"activate\", help=\"Set active project\")",
+      "replacement": "    activate_cmd = projects_sub.add_parser(\"activate\", help=messages[\"SET_ACTIVE_PROJECT\"])",
+      "token": "SET_ACTIVE_PROJECT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 762,
+      "original": "    projects_sub.add_parser(\"deleted\", help=\"List deleted projects\")",
+      "replacement": "    projects_sub.add_parser(\"deleted\", help=messages[\"LIST_DELETED_PROJECTS\"])",
+      "token": "LIST_DELETED_PROJECTS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 765,
+      "original": "    restore_cmd = projects_sub.add_parser(\"restore\", help=\"Restore a project\")",
+      "replacement": "    restore_cmd = projects_sub.add_parser(\"restore\", help=messages[\"RESTORE_A_PROJECT\"])",
+      "token": "RESTORE_A_PROJECT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 777,
+      "original": "        help=\"Generate transformation plan or export plan\"",
+      "replacement": "        help=messages[\"GENERATE_TRANSFORMATION_PLAN_OR_EXPORT_PLAN\"]",
+      "token": "GENERATE_TRANSFORMATION_PLAN_OR_EXPORT_PLAN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 798,
+      "original": "        help=\"Project root directory (default: current directory)\"",
+      "replacement": "        help=messages[\"PROJECT_ROOT_DIRECTORY_DEFAULT_CURRENT_DIRECTORY\"]",
+      "token": "PROJECT_ROOT_DIRECTORY_DEFAULT_CURRENT_DIRECTORY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 803,
+      "original": "        help=\"Dictionary JSON file (optional, auto-generated if omitted)\"",
+      "replacement": "        help=messages[\"DICTIONARY_JSON_FILE_OPTIONAL_AUTOGENERATED_IF_OMITTED\"]",
+      "token": "DICTIONARY_JSON_FILE_OPTIONAL_AUTOGENERATED_IF_OMITTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 808,
+      "original": "        help=\"Baseline DEX artifact for diff-based plan generation\"",
+      "replacement": "        help=messages[\"BASELINE_DEX_ARTIFACT_FOR_DIFFBASED_PLAN_GENERATION\"]",
+      "token": "BASELINE_DEX_ARTIFACT_FOR_DIFFBASED_PLAN_GENERATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 813,
+      "original": "        help=\"Output plan filename\"",
+      "replacement": "        help=messages[\"OUTPUT_PLAN_FILENAME\"]",
+      "token": "OUTPUT_PLAN_FILENAME"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 819,
+      "original": "        help=\"Helper file to insert\"",
+      "replacement": "        help=messages[\"HELPER_FILE_TO_INSERT\"]",
+      "token": "HELPER_FILE_TO_INSERT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 825,
+      "original": "        help=\"Target file for helper\"",
+      "replacement": "        help=messages[\"TARGET_FILE_FOR_HELPER\"]",
+      "token": "TARGET_FILE_FOR_HELPER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 832,
+      "original": "        help=\"Insertion line for helper\"",
+      "replacement": "        help=messages[\"INSERTION_LINE_FOR_HELPER\"]",
+      "token": "INSERTION_LINE_FOR_HELPER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 844,
+      "original": "        help=\"Do not show equivalent CLI command\"",
+      "replacement": "        help=messages[\"DO_NOT_SHOW_EQUIVALENT_CLI_COMMAND\"]",
+      "token": "DO_NOT_SHOW_EQUIVALENT_CLI_COMMAND"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 850,
+      "original": "        help=\"Scan project and output observations only without generating a plan\"",
+      "replacement": "        help=messages[\"SCAN_PROJECT_AND_OUTPUT_OBSERVATIONS_ONLY_WITHOUT_GENERATING_A_PLAN\"]",
+      "token": "SCAN_PROJECT_AND_OUTPUT_OBSERVATIONS_ONLY_WITHOUT_GENERATING_A_PLAN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 861,
+      "original": "        help=\"Optional subcommand\"",
+      "replacement": "        help=messages[\"OPTIONAL_SUBCOMMAND\"]",
+      "token": "OPTIONAL_SUBCOMMAND"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 871,
+      "original": "        help=\"Plan JSON file (for export)\"",
+      "replacement": "        help=messages[\"PLAN_JSON_FILE_FOR_EXPORT\"]",
+      "token": "PLAN_JSON_FILE_FOR_EXPORT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 878,
+      "original": "        help=\"Export format\"",
+      "replacement": "        help=messages[\"EXPORT_FORMAT\"]",
+      "token": "EXPORT_FORMAT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 883,
+      "original": "        help=\"Output filename\"",
+      "replacement": "        help=messages[\"OUTPUT_FILENAME\"]",
+      "token": "OUTPUT_FILENAME"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 889,
+      "original": "        help=\"Limit scan to files changed according to git\"",
+      "replacement": "        help=messages[\"LIMIT_SCAN_TO_FILES_CHANGED_ACCORDING_TO_GIT\"]",
+      "token": "LIMIT_SCAN_TO_FILES_CHANGED_ACCORDING_TO_GIT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 895,
+      "original": "        help=\"CSV file with helper mappings (for import)\"",
+      "replacement": "        help=messages[\"CSV_FILE_WITH_HELPER_MAPPINGS_FOR_IMPORT\"]",
+      "token": "CSV_FILE_WITH_HELPER_MAPPINGS_FOR_IMPORT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 901,
+      "original": "        help=\"Language plugin to use (default: python)\"",
+      "replacement": "        help=messages[\"LANGUAGE_PLUGIN_TO_USE_DEFAULT_PYTHON\"]",
+      "token": "LANGUAGE_PLUGIN_TO_USE_DEFAULT_PYTHON"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 906,
+      "original": "        help=\"Comma-separated list of programming languages to exclude\"",
+      "replacement": "        help=messages[\"COMMASEPARATED_LIST_OF_PROGRAMMING_LANGUAGES_TO_EXCLUDE\"]",
+      "token": "COMMASEPARATED_LIST_OF_PROGRAMMING_LANGUAGES_TO_EXCLUDE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 917,
+      "original": "        help=\"Create artifact from git diff\"",
+      "replacement": "        help=messages[\"CREATE_ARTIFACT_FROM_GIT_DIFF\"]",
+      "token": "CREATE_ARTIFACT_FROM_GIT_DIFF"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 922,
+      "original": "        help=\"Create artifact by comparing two directories\"",
+      "replacement": "        help=messages[\"CREATE_ARTIFACT_BY_COMPARING_TWO_DIRECTORIES\"]",
+      "token": "CREATE_ARTIFACT_BY_COMPARING_TWO_DIRECTORIES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 927,
+      "original": "        help=\"Source directory path\"",
+      "replacement": "        help=messages[\"SOURCE_DIRECTORY_PATH\"]",
+      "token": "SOURCE_DIRECTORY_PATH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 932,
+      "original": "        help=\"Target directory path\"",
+      "replacement": "        help=messages[\"TARGET_DIRECTORY_PATH\"]",
+      "token": "TARGET_DIRECTORY_PATH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 938,
+      "original": "        help=\"Enable verbose output (debug information)\"",
+      "replacement": "        help=messages[\"ENABLE_VERBOSE_OUTPUT_DEBUG_INFORMATION\"]",
+      "token": "ENABLE_VERBOSE_OUTPUT_DEBUG_INFORMATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 944,
+      "original": "        help=\"Generate a plan.json from observed differences\"",
+      "replacement": "        help=messages[\"GENERATE_A_PLANJSON_FROM_OBSERVED_DIFFERENCES\"]",
+      "token": "GENERATE_A_PLANJSON_FROM_OBSERVED_DIFFERENCES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 950,
+      "original": "        help=\"Compare planned vs observed diffs (reconciliation)\"",
+      "replacement": "        help=messages[\"COMPARE_PLANNED_VS_OBSERVED_DIFFS_RECONCILIATION\"]",
+      "token": "COMPARE_PLANNED_VS_OBSERVED_DIFFS_RECONCILIATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 955,
+      "original": "        help=\"Path to planned diff DEX artifact\"",
+      "replacement": "        help=messages[\"PATH_TO_PLANNED_DIFF_DEX_ARTIFACT\"]",
+      "token": "PATH_TO_PLANNED_DIFF_DEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 960,
+      "original": "        help=\"Path to observed diff DEX artifact\"",
+      "replacement": "        help=messages[\"PATH_TO_OBSERVED_DIFF_DEX_ARTIFACT\"]",
+      "token": "PATH_TO_OBSERVED_DIFF_DEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 969,
+      "original": "        help=\"Verify that execution matched expected diff\"",
+      "replacement": "        help=messages[\"VERIFY_THAT_EXECUTION_MATCHED_EXPECTED_DIFF\"]",
+      "token": "VERIFY_THAT_EXECUTION_MATCHED_EXPECTED_DIFF"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 975,
+      "original": "        help=\"Path to expected diff JSON (dennis-expected-*.json)\"",
+      "replacement": "        help=messages[\"PATH_TO_EXPECTED_DIFF_JSON_DENNISEXPECTEDJSON\"]",
+      "token": "PATH_TO_EXPECTED_DIFF_JSON_DENNISEXPECTEDJSON"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 981,
+      "original": "        help=\"Path to observed diff JSON (dennis-observed-*.json)\"",
+      "replacement": "        help=messages[\"PATH_TO_OBSERVED_DIFF_JSON_DENNISOBSERVEDJSON\"]",
+      "token": "PATH_TO_OBSERVED_DIFF_JSON_DENNISOBSERVEDJSON"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 987,
+      "original": "        help=\"Fail verification when execution scope differs from planned scope\"",
+      "replacement": "        help=messages[\"FAIL_VERIFICATION_WHEN_EXECUTION_SCOPE_DIFFERS_FROM_PLANNED_SCOPE\"]",
+      "token": "FAIL_VERIFICATION_WHEN_EXECUTION_SCOPE_DIFFERS_FROM_PLANNED_SCOPE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 996,
+      "original": "        help=\"Convert DEX → XDEX (encrypt artifact)\"",
+      "replacement": "        help=messages[\"CONVERT_DEX_XDEX_ENCRYPT_ARTIFACT\"]",
+      "token": "CONVERT_DEX_XDEX_ENCRYPT_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1001,
+      "original": "        help=\"Path to .dex artifact\"",
+      "replacement": "        help=messages[\"PATH_TO_DEX_ARTIFACT\"]",
+      "token": "PATH_TO_DEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1006,
+      "original": "        help=\"Output .xdex file (optional)\"",
+      "replacement": "        help=messages[\"OUTPUT_XDEX_FILE_OPTIONAL\"]",
+      "token": "OUTPUT_XDEX_FILE_OPTIONAL"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1016,
+      "original": "        help=\"Convert XDEX → DEX (decrypt artifact)\"",
+      "replacement": "        help=messages[\"CONVERT_XDEX_DEX_DECRYPT_ARTIFACT\"]",
+      "token": "CONVERT_XDEX_DEX_DECRYPT_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1021,
+      "original": "        help=\"Path to .xdex artifact\"",
+      "replacement": "        help=messages[\"PATH_TO_XDEX_ARTIFACT\"]",
+      "token": "PATH_TO_XDEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1026,
+      "original": "        help=\"Output .dex file (optional)\"",
+      "replacement": "        help=messages[\"OUTPUT_DEX_FILE_OPTIONAL\"]",
+      "token": "OUTPUT_DEX_FILE_OPTIONAL"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1033,
+      "original": "        help=\"Restore project context from DEX artifact\"",
+      "replacement": "        help=messages[\"RESTORE_PROJECT_CONTEXT_FROM_DEX_ARTIFACT\"]",
+      "token": "RESTORE_PROJECT_CONTEXT_FROM_DEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1044,
+      "original": "        help=\"Output directory (default: current directory)\"",
+      "replacement": "        help=messages[\"OUTPUT_DIRECTORY_DEFAULT_CURRENT_DIRECTORY\"]",
+      "token": "OUTPUT_DIRECTORY_DEFAULT_CURRENT_DIRECTORY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1048,
+      "original": "    validate = sub.add_parser(\"validate\", help=\"Validate a DEX artifact\")",
+      "replacement": "    validate = sub.add_parser(\"validate\", help=messages[\"VALIDATE_A_DEX_ARTIFACT\"])",
+      "token": "VALIDATE_A_DEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1049,
+      "original": "    validate.add_argument(\"path\", help=\"Path to .dex file\")",
+      "replacement": "    validate.add_argument(\"path\", help=messages[\"PATH_TO_DEX_FILE\"])",
+      "token": "PATH_TO_DEX_FILE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1053,
+      "original": "        help=\"External public key file(s) to use for signature verification\"",
+      "replacement": "        help=messages[\"EXTERNAL_PUBLIC_KEY_FILES_TO_USE_FOR_SIGNATURE_VERIFICATION\"]",
+      "token": "EXTERNAL_PUBLIC_KEY_FILES_TO_USE_FOR_SIGNATURE_VERIFICATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1072,
+      "original": "    pull_cmd = sub.add_parser(\"pull\", help=\"Download artifact from registry\")",
+      "replacement": "    pull_cmd = sub.add_parser(\"pull\", help=messages[\"DOWNLOAD_ARTIFACT_FROM_REGISTRY\"])",
+      "token": "DOWNLOAD_ARTIFACT_FROM_REGISTRY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1073,
+      "original": "    pull_cmd.add_argument(\"hash\", help=\"Full artifact hash\")",
+      "replacement": "    pull_cmd.add_argument(\"hash\", help=messages[\"FULL_ARTIFACT_HASH\"])",
+      "token": "FULL_ARTIFACT_HASH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1078,
+      "original": "    qr_parser = sub.add_parser(\"qr\", help=\"Generate Dennis QR codes\")",
+      "replacement": "    qr_parser = sub.add_parser(\"qr\", help=messages[\"GENERATE_DENNIS_QR_CODES\"])",
+      "token": "GENERATE_DENNIS_QR_CODES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1081,
+      "original": "    qr_parser.add_argument(\"--png\", help=\"Output PNG file path\")",
+      "replacement": "    qr_parser.add_argument(\"--png\", help=messages[\"OUTPUT_PNG_FILE_PATH\"])",
+      "token": "OUTPUT_PNG_FILE_PATH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1094,
+      "original": "    identity_use = identity_sub.add_parser(\"use\", help=\"Set active identity\")",
+      "replacement": "    identity_use = identity_sub.add_parser(\"use\", help=messages[\"SET_ACTIVE_IDENTITY\"])",
+      "token": "SET_ACTIVE_IDENTITY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1095,
+      "original": "    identity_use.add_argument(\"name\", help=\"Identity key name (without extension)\")",
+      "replacement": "    identity_use.add_argument(\"name\", help=messages[\"IDENTITY_KEY_NAME_WITHOUT_EXTENSION\"])",
+      "token": "IDENTITY_KEY_NAME_WITHOUT_EXTENSION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1097,
+      "original": "    identity_sub.add_parser(\"current\", help=\"Show active identity\")",
+      "replacement": "    identity_sub.add_parser(\"current\", help=messages[\"SHOW_ACTIVE_IDENTITY\"])",
+      "token": "SHOW_ACTIVE_IDENTITY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1098,
+      "original": "    identity_sub.add_parser(\"list\", help=\"List available identities\")",
+      "replacement": "    identity_sub.add_parser(\"list\", help=messages[\"LIST_AVAILABLE_IDENTITIES\"])",
+      "token": "LIST_AVAILABLE_IDENTITIES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1101,
+      "original": "    dex = sub.add_parser(\"dex\", help=\"DEX artifact actions\")",
+      "replacement": "    dex = sub.add_parser(\"dex\", help=messages[\"DEX_ARTIFACT_ACTIONS\"])",
+      "token": "DEX_ARTIFACT_ACTIONS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1104,
+      "original": "    dex_sign = dex_sub.add_parser(\"sign\", help=\"Sign a DEX artifact\")",
+      "replacement": "    dex_sign = dex_sub.add_parser(\"sign\", help=messages[\"SIGN_A_DEX_ARTIFACT\"])",
+      "token": "SIGN_A_DEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1105,
+      "original": "    dex_sign.add_argument(\"artifact\", help=\"Path to artifact.dex\")",
+      "replacement": "    dex_sign.add_argument(\"artifact\", help=messages[\"PATH_TO_ARTIFACTDEX\"])",
+      "token": "PATH_TO_ARTIFACTDEX"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1106,
+      "original": "    dex_sign.add_argument(\"--key\", help=\"Private key file (ed25519). Overrides active identity.\")",
+      "replacement": "    dex_sign.add_argument(\"--key\", help=messages[\"PRIVATE_KEY_FILE_ED25519_OVERRIDES_ACTIVE_IDENTITY\"])",
+      "token": "PRIVATE_KEY_FILE_ED25519_OVERRIDES_ACTIVE_IDENTITY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1109,
+      "original": "    dex_verify = dex_sub.add_parser(\"verify\", help=\"Verify signatures on a DEX artifact\")",
+      "replacement": "    dex_verify = dex_sub.add_parser(\"verify\", help=messages[\"VERIFY_SIGNATURES_ON_A_DEX_ARTIFACT\"])",
+      "token": "VERIFY_SIGNATURES_ON_A_DEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1110,
+      "original": "    dex_verify.add_argument(\"artifact\", help=\"Path to artifact.dex\")",
+      "replacement": "    dex_verify.add_argument(\"artifact\", help=messages[\"PATH_TO_ARTIFACTDEX\"])",
+      "token": "PATH_TO_ARTIFACTDEX"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1111,
+      "original": "    dex_verify.add_argument(\"--verbose\", action=\"store_true\", help=\"Show extra verification info (counts only)\")",
+      "replacement": "    dex_verify.add_argument(\"--verbose\", action=\"store_true\", help=messages[\"SHOW_EXTRA_VERIFICATION_INFO_COUNTS_ONLY\"])",
+      "token": "SHOW_EXTRA_VERIFICATION_INFO_COUNTS_ONLY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1114,
+      "original": "    search_cmd = sub.add_parser(\"search\", help=\"Search artifacts in registry\")",
+      "replacement": "    search_cmd = sub.add_parser(\"search\", help=messages[\"SEARCH_ARTIFACTS_IN_REGISTRY\"])",
+      "token": "SEARCH_ARTIFACTS_IN_REGISTRY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1116,
+      "original": "    search_cmd.add_argument(\"--type\", dest=\"payload_type\", help=\"Filter by payload type\")",
+      "replacement": "    search_cmd.add_argument(\"--type\", dest=\"payload_type\", help=messages[\"FILTER_BY_PAYLOAD_TYPE\"])",
+      "token": "FILTER_BY_PAYLOAD_TYPE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1117,
+      "original": "    search_cmd.add_argument(\"--hash\", dest=\"hash_prefix\", help=\"Search by artifact hash prefix\")",
+      "replacement": "    search_cmd.add_argument(\"--hash\", dest=\"hash_prefix\", help=messages[\"SEARCH_BY_ARTIFACT_HASH_PREFIX\"])",
+      "token": "SEARCH_BY_ARTIFACT_HASH_PREFIX"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1124,
+      "original": "        help=\"Architecture analysis commands\"",
+      "replacement": "        help=messages[\"ARCHITECTURE_ANALYSIS_COMMANDS\"]",
+      "token": "ARCHITECTURE_ANALYSIS_COMMANDS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1134,
+      "original": "        help=\"Scan source tree and generate architecture observations\"",
+      "replacement": "        help=messages[\"SCAN_SOURCE_TREE_AND_GENERATE_ARCHITECTURE_OBSERVATIONS\"]",
+      "token": "SCAN_SOURCE_TREE_AND_GENERATE_ARCHITECTURE_OBSERVATIONS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1139,
+      "original": "        help=\"Source tree path\"",
+      "replacement": "        help=messages[\"SOURCE_TREE_PATH\"]",
+      "token": "SOURCE_TREE_PATH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1146,
+      "original": "        help=\"Output format\"",
+      "replacement": "        help=messages[\"OUTPUT_FORMAT\"]",
+      "token": "OUTPUT_FORMAT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1152,
+      "original": "        help=\"Publish a signed DEX artifact to a registry\"",
+      "replacement": "        help=messages[\"PUBLISH_A_SIGNED_DEX_ARTIFACT_TO_A_REGISTRY\"]",
+      "token": "PUBLISH_A_SIGNED_DEX_ARTIFACT_TO_A_REGISTRY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1154,
+      "original": "    publish_cmd.add_argument(\"artifact\", help=\"Path to artifact.dex\")",
+      "replacement": "    publish_cmd.add_argument(\"artifact\", help=messages[\"PATH_TO_ARTIFACTDEX\"])",
+      "token": "PATH_TO_ARTIFACTDEX"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1158,
+      "original": "    inspect_cmd = sub.add_parser(\"inspect\", help=\"Inspect artifact metadata\")",
+      "replacement": "    inspect_cmd = sub.add_parser(\"inspect\", help=messages[\"INSPECT_ARTIFACT_METADATA\"])",
+      "token": "INSPECT_ARTIFACT_METADATA"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1159,
+      "original": "    inspect_cmd.add_argument(\"target\", help=\"Artifact hash or .dex file\")",
+      "replacement": "    inspect_cmd.add_argument(\"target\", help=messages[\"ARTIFACT_HASH_OR_DEX_FILE\"])",
+      "token": "ARTIFACT_HASH_OR_DEX_FILE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1166,
+      "original": "        help=\"Output format\"",
+      "replacement": "        help=messages[\"OUTPUT_FORMAT\"]",
+      "token": "OUTPUT_FORMAT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1178,
+      "original": "        help=\"Run Goal Discovery on an OBAD artifact\"",
+      "replacement": "        help=messages[\"RUN_GOAL_DISCOVERY_ON_AN_OBAD_ARTIFACT\"]",
+      "token": "RUN_GOAL_DISCOVERY_ON_AN_OBAD_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1184,
+      "original": "        help=\"Run Spec Discovery on a Goal Discovery artifact\"",
+      "replacement": "        help=messages[\"RUN_SPEC_DISCOVERY_ON_A_GOAL_DISCOVERY_ARTIFACT\"]",
+      "token": "RUN_SPEC_DISCOVERY_ON_A_GOAL_DISCOVERY_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1188,
+      "original": "    sig_cmd = sub.add_parser(\"signatures\", help=\"Show artifact signatures\")",
+      "replacement": "    sig_cmd = sub.add_parser(\"signatures\", help=messages[\"SHOW_ARTIFACT_SIGNATURES\"])",
+      "token": "SHOW_ARTIFACT_SIGNATURES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1194,
+      "original": "    lin_cmd = sub.add_parser(\"lineage\", help=\"Show artifact provenance chain\")",
+      "replacement": "    lin_cmd = sub.add_parser(\"lineage\", help=messages[\"SHOW_ARTIFACT_PROVENANCE_CHAIN\"])",
+      "token": "SHOW_ARTIFACT_PROVENANCE_CHAIN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1200,
+      "original": "    diff_cmd = sub.add_parser(\"diff\", help=\"Compare two Dennis artifacts\")",
+      "replacement": "    diff_cmd = sub.add_parser(\"diff\", help=messages[\"COMPARE_TWO_DENNIS_ARTIFACTS\"])",
+      "token": "COMPARE_TWO_DENNIS_ARTIFACTS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1208,
+      "original": "        help=\"Run Dennis diff conformance tests\"",
+      "replacement": "        help=messages[\"RUN_DENNIS_DIFF_CONFORMANCE_TESTS\"]",
+      "token": "RUN_DENNIS_DIFF_CONFORMANCE_TESTS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1213,
+      "original": "        help=\"Generate expected.hash files (bootstrap mode)\"",
+      "replacement": "        help=messages[\"GENERATE_EXPECTEDHASH_FILES_BOOTSTRAP_MODE\"]",
+      "token": "GENERATE_EXPECTEDHASH_FILES_BOOTSTRAP_MODE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1217,
+      "original": "        help=\"Run a single test case (e.g. case_003_block_merge)\"",
+      "replacement": "        help=messages[\"RUN_A_SINGLE_TEST_CASE_EG_CASE_003_BLOCK_MERGE\"]",
+      "token": "RUN_A_SINGLE_TEST_CASE_EG_CASE_003_BLOCK_MERGE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1222,
+      "original": "        help=\"Show detailed mismatch information\"",
+      "replacement": "        help=messages[\"SHOW_DETAILED_MISMATCH_INFORMATION\"]",
+      "token": "SHOW_DETAILED_MISMATCH_INFORMATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1226,
+      "original": "    pack_cmd = sub.add_parser(\"pack\", help=\"Create deterministic DEX artifact\")",
+      "replacement": "    pack_cmd = sub.add_parser(\"pack\", help=messages[\"CREATE_DETERMINISTIC_DEX_ARTIFACT\"])",
+      "token": "CREATE_DETERMINISTIC_DEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1227,
+      "original": "    pack_cmd.add_argument(\"payload\", help=\"Path to plan.json payload\")",
+      "replacement": "    pack_cmd.add_argument(\"payload\", help=messages[\"PATH_TO_PLANJSON_PAYLOAD\"])",
+      "token": "PATH_TO_PLANJSON_PAYLOAD"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1228,
+      "original": "    pack_cmd.add_argument(\"out\", help=\"Output artifact.dex\")",
+      "replacement": "    pack_cmd.add_argument(\"out\", help=messages[\"OUTPUT_ARTIFACTDEX\"])",
+      "token": "OUTPUT_ARTIFACTDEX"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1232,
+      "original": "        help=\"Payload type (default: dennis.plan.v1)\"",
+      "replacement": "        help=messages[\"PAYLOAD_TYPE_DEFAULT_DENNISPLANV1\"]",
+      "token": "PAYLOAD_TYPE_DEFAULT_DENNISPLANV1"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1241,
+      "original": "        help=\"Create a detached signature (optional)\"",
+      "replacement": "        help=messages[\"CREATE_A_DETACHED_SIGNATURE_OPTIONAL\"]",
+      "token": "CREATE_A_DETACHED_SIGNATURE_OPTIONAL"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1260,
+      "original": "        help=\"Generate .dexscope from project\"",
+      "replacement": "        help=messages[\"GENERATE_DEXSCOPE_FROM_PROJECT\"]",
+      "token": "GENERATE_DEXSCOPE_FROM_PROJECT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1265,
+      "original": "        help=\"Refresh existing .dexscope\"",
+      "replacement": "        help=messages[\"REFRESH_EXISTING_DEXSCOPE\"]",
+      "token": "REFRESH_EXISTING_DEXSCOPE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1272,
+      "original": "        help=\"Project root\"",
+      "replacement": "        help=messages[\"PROJECT_ROOT\"]",
+      "token": "PROJECT_ROOT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1279,
+      "original": "        help=\"Project root\"",
+      "replacement": "        help=messages[\"PROJECT_ROOT\"]",
+      "token": "PROJECT_ROOT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1284,
+      "original": "        help=\"Show scope evaluation\"",
+      "replacement": "        help=messages[\"SHOW_SCOPE_EVALUATION\"]",
+      "token": "SHOW_SCOPE_EVALUATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1291,
+      "original": "        help=\"Project root\"",
+      "replacement": "        help=messages[\"PROJECT_ROOT\"]",
+      "token": "PROJECT_ROOT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1303,
+      "original": "        help=\"Project root\"",
+      "replacement": "        help=messages[\"PROJECT_ROOT\"]",
+      "token": "PROJECT_ROOT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1308,
+      "original": "    unpack_cmd = sub.add_parser(\"unpack\", help=\"Extract DEX artifact\")",
+      "replacement": "    unpack_cmd = sub.add_parser(\"unpack\", help=messages[\"EXTRACT_DEX_ARTIFACT\"])",
+      "token": "EXTRACT_DEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1313,
+      "original": "    registry = sub.add_parser(\"registry\", help=\"Registry federation commands\")",
+      "replacement": "    registry = sub.add_parser(\"registry\", help=messages[\"REGISTRY_FEDERATION_COMMANDS\"])",
+      "token": "REGISTRY_FEDERATION_COMMANDS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1332,
+      "original": "        help=\"Execute transformation plan\"",
+      "replacement": "        help=messages[\"EXECUTE_TRANSFORMATION_PLAN\"]",
+      "token": "EXECUTE_TRANSFORMATION_PLAN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1334,
+      "original": "    apply_cmd.add_argument(\"plan\", help=\"Path to plan.json or artifact.dex\")",
+      "replacement": "    apply_cmd.add_argument(\"plan\", help=messages[\"PATH_TO_PLANJSON_OR_ARTIFACTDEX\"])",
+      "token": "PATH_TO_PLANJSON_OR_ARTIFACTDEX"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1338,
+      "original": "        help=\"Confirm execution using payload hash prefix\"",
+      "replacement": "        help=messages[\"CONFIRM_EXECUTION_USING_PAYLOAD_HASH_PREFIX\"]",
+      "token": "CONFIRM_EXECUTION_USING_PAYLOAD_HASH_PREFIX"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1344,
+      "original": "        help=\"Control helper file lifecycle after undo\"",
+      "replacement": "        help=messages[\"CONTROL_HELPER_FILE_LIFECYCLE_AFTER_UNDO\"]",
+      "token": "CONTROL_HELPER_FILE_LIFECYCLE_AFTER_UNDO"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1350,
+      "original": "        help=\"Control handling of execution artifacts after apply\"",
+      "replacement": "        help=messages[\"CONTROL_HANDLING_OF_EXECUTION_ARTIFACTS_AFTER_APPLY\"]",
+      "token": "CONTROL_HANDLING_OF_EXECUTION_ARTIFACTS_AFTER_APPLY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1355,
+      "original": "    dict_cmd = sub.add_parser(\"dict\", help=\"Dictionary utilities\")",
+      "replacement": "    dict_cmd = sub.add_parser(\"dict\", help=messages[\"DICTIONARY_UTILITIES\"])",
+      "token": "DICTIONARY_UTILITIES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1359,
+      "original": "    export_cmd = dict_sub.add_parser(\"export\", help=\"Export dictionary\")",
+      "replacement": "    export_cmd = dict_sub.add_parser(\"export\", help=messages[\"EXPORT_DICTIONARY\"])",
+      "token": "EXPORT_DICTIONARY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1368,
+      "original": "        help=\"Output filename\"",
+      "replacement": "        help=messages[\"OUTPUT_FILENAME\"]",
+      "token": "OUTPUT_FILENAME"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1373,
+      "original": "    import_cmd = dict_sub.add_parser(\"import\", help=\"Import dictionary\")",
+      "replacement": "    import_cmd = dict_sub.add_parser(\"import\", help=messages[\"IMPORT_DICTIONARY\"])",
+      "token": "IMPORT_DICTIONARY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1380,
+      "original": "        help=\"Generate a Dennis signing keypair\"",
+      "replacement": "        help=messages[\"GENERATE_A_DENNIS_SIGNING_KEYPAIR\"]",
+      "token": "GENERATE_A_DENNIS_SIGNING_KEYPAIR"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1394,
+      "original": "        help=\"Filters to apply (default: sql css url)\"",
+      "replacement": "        help=messages[\"FILTERS_TO_APPLY_DEFAULT_SQL_CSS_URL\"]",
+      "token": "FILTERS_TO_APPLY_DEFAULT_SQL_CSS_URL"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1399,
+      "original": "        help=\"Optional output file (otherwise auto-named)\"",
+      "replacement": "        help=messages[\"OPTIONAL_OUTPUT_FILE_OTHERWISE_AUTONAMED\"]",
+      "token": "OPTIONAL_OUTPUT_FILE_OTHERWISE_AUTONAMED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1408,
+      "original": "        help=\"Generate inverse plan (undo plan)\"",
+      "replacement": "        help=messages[\"GENERATE_INVERSE_PLAN_UNDO_PLAN\"]",
+      "token": "GENERATE_INVERSE_PLAN_UNDO_PLAN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1413,
+      "original": "        help=\"Plan JSON file\"",
+      "replacement": "        help=messages[\"PLAN_JSON_FILE\"]",
+      "token": "PLAN_JSON_FILE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1419,
+      "original": "        help=\"Write inverse plan to stdout\"",
+      "replacement": "        help=messages[\"WRITE_INVERSE_PLAN_TO_STDOUT\"]",
+      "token": "WRITE_INVERSE_PLAN_TO_STDOUT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1424,
+      "original": "        help=\"Install a plugin or dictionary for Dennis\"",
+      "replacement": "        help=messages[\"INSTALL_A_PLUGIN_OR_DICTIONARY_FOR_DENNIS\"]",
+      "token": "INSTALL_A_PLUGIN_OR_DICTIONARY_FOR_DENNIS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1432,
+      "original": "        help=\"Overwrite existing file\"",
+      "replacement": "        help=messages[\"OVERWRITE_EXISTING_FILE\"]",
+      "token": "OVERWRITE_EXISTING_FILE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1438,
+      "original": "        help=\"Backup existing file before installing\"",
+      "replacement": "        help=messages[\"BACKUP_EXISTING_FILE_BEFORE_INSTALLING\"]",
+      "token": "BACKUP_EXISTING_FILE_BEFORE_INSTALLING"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1468,
+      "original": "        help=\"Debug identity derivation from a public key\"",
+      "replacement": "        help=messages[\"DEBUG_IDENTITY_DERIVATION_FROM_A_PUBLIC_KEY\"]",
+      "token": "DEBUG_IDENTITY_DERIVATION_FROM_A_PUBLIC_KEY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1474,
+      "original": "        help=\"Validate transformation plan inside artifact\"",
+      "replacement": "        help=messages[\"VALIDATE_TRANSFORMATION_PLAN_INSIDE_ARTIFACT\"]",
+      "token": "VALIDATE_TRANSFORMATION_PLAN_INSIDE_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1479,
+      "original": "        help=\"Path to artifact.dex\"",
+      "replacement": "        help=messages[\"PATH_TO_ARTIFACTDEX\"]",
+      "token": "PATH_TO_ARTIFACTDEX"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1491,
+      "original": "    user_create = user_sub.add_parser(\"create\", help=\"Create a new user\")",
+      "replacement": "    user_create = user_sub.add_parser(\"create\", help=messages[\"CREATE_A_NEW_USER\"])",
+      "token": "CREATE_A_NEW_USER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1498,
+      "original": "    login_cmd = sub.add_parser(\"login\", help=\"Authenticate with Dennis The Forge\")",
+      "replacement": "    login_cmd = sub.add_parser(\"login\", help=messages[\"AUTHENTICATE_WITH_DENNIS_THE_FORGE\"])",
+      "token": "AUTHENTICATE_WITH_DENNIS_THE_FORGE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1502,
+      "original": "    login_cmd.add_argument(\"--token\", help=\"Use existing token (for automation)\")",
+      "replacement": "    login_cmd.add_argument(\"--token\", help=messages[\"USE_EXISTING_TOKEN_FOR_AUTOMATION\"])",
+      "token": "USE_EXISTING_TOKEN_FOR_AUTOMATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1504,
+      "original": "    logout_cmd = sub.add_parser(\"logout\", help=\"Clear stored authentication\")",
+      "replacement": "    logout_cmd = sub.add_parser(\"logout\", help=messages[\"CLEAR_STORED_AUTHENTICATION\"])",
+      "token": "CLEAR_STORED_AUTHENTICATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1506,
+      "original": "    sub.add_parser(\"whoami\", help=\"Show current authenticated user\")",
+      "replacement": "    sub.add_parser(\"whoami\", help=messages[\"SHOW_CURRENT_AUTHENTICATED_USER\"])",
+      "token": "SHOW_CURRENT_AUTHENTICATED_USER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1537,
+      "original": "            raise SystemExit(\"Server not configured. Use --server or set DENNIS_SERVER\")",
+      "replacement": "            raise SystemExit(messages[\"SERVER_NOT_CONFIGURED_USE_SERVER_OR_SET_DENNIS_SERVER\"])",
+      "token": "SERVER_NOT_CONFIGURED_USE_SERVER_OR_SET_DENNIS_SERVER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1557,
+      "original": "        print(\"\\n[ Dennis Validate ]\\n\")",
+      "replacement": "        print(messages[\"N_DENNIS_VALIDATE_N\"])",
+      "token": "N_DENNIS_VALIDATE_N"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1575,
+      "original": "            print(\"[FAIL] Provenance chain invalid\")",
+      "replacement": "            print(messages[\"FAIL_PROVENANCE_CHAIN_INVALID\"])",
+      "token": "FAIL_PROVENANCE_CHAIN_INVALID"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1578,
+      "original": "        print(\"\\nPayload Hash:\", results.get(\"payload_hash\"))",
+      "replacement": "        print(messages[\"NPAYLOAD_HASH_RESULTSGETPAYLOAD_HASH\"]))",
+      "token": "NPAYLOAD_HASH_RESULTSGETPAYLOAD_HASH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1579,
+      "original": "        print(\"Trust State:\", results.get(\"provenance_hash\"))",
+      "replacement": "        print(messages[\"TRUST_STATE_RESULTSGETPROVENANCE_HASH\"]))",
+      "token": "TRUST_STATE_RESULTSGETPROVENANCE_HASH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1580,
+      "original": "        print(\"Container:\", results.get(\"container\", \"unknown\"))",
+      "replacement": "        print(messages[\"CONTAINER_RESULTSGETCONTAINER_UNKNOWN\"]))",
+      "token": "CONTAINER_RESULTSGETCONTAINER_UNKNOWN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1583,
+      "original": "            print(\"Header:\", \"valid\" if results.get(\"header_valid\") else \"invalid\") ",
+      "replacement": "            print(messages[\"HEADER_VALID_IF_RESULTSGETHEADER_VALID\"]) else \"invalid\") ",
+      "token": "HEADER_VALID_IF_RESULTSGETHEADER_VALID"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1618,
+      "original": "                    raise SystemExit(\"[Dennis] ERROR: Invalid spec (missing version)\")",
+      "replacement": "                    raise SystemExit(messages[\"DENNIS_ERROR_INVALID_SPEC_MISSING_VERSION\"])",
+      "token": "DENNIS_ERROR_INVALID_SPEC_MISSING_VERSION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1689,
+      "original": "                        \"Error: --target-file required when using --add-helper\"",
+      "replacement": "                        messages[\"ERROR_TARGETFILE_REQUIRED_WHEN_USING_ADDHELPER\"]",
+      "token": "ERROR_TARGETFILE_REQUIRED_WHEN_USING_ADDHELPER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1694,
+      "original": "                        \"Error: number of --target-file must match --add-helper\"",
+      "replacement": "                        messages[\"ERROR_NUMBER_OF_TARGETFILE_MUST_MATCH_ADDHELPER\"]",
+      "token": "ERROR_NUMBER_OF_TARGETFILE_MUST_MATCH_ADDHELPER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1699,
+      "original": "                        \"Error: number of --line must match --add-helper\"",
+      "replacement": "                        messages[\"ERROR_NUMBER_OF_LINE_MUST_MATCH_ADDHELPER\"]",
+      "token": "ERROR_NUMBER_OF_LINE_MUST_MATCH_ADDHELPER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1722,
+      "original": "                raise SystemExit(\"export requires: plan file\")",
+      "replacement": "                raise SystemExit(messages[\"EXPORT_REQUIRES_PLAN_FILE\"])",
+      "token": "EXPORT_REQUIRES_PLAN_FILE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1748,
+      "original": "                raise SystemExit(\"import requires: csv file\")",
+      "replacement": "                raise SystemExit(messages[\"IMPORT_REQUIRES_CSV_FILE\"])",
+      "token": "IMPORT_REQUIRES_CSV_FILE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1758,
+      "original": "            raise SystemExit(\"dennis plan requires a root directory (before snapshot)\")",
+      "replacement": "            raise SystemExit(messages[\"DENNIS_PLAN_REQUIRES_A_ROOT_DIRECTORY_BEFORE_SNAPSHOT\"])",
+      "token": "DENNIS_PLAN_REQUIRES_A_ROOT_DIRECTORY_BEFORE_SNAPSHOT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1784,
+      "original": "                print(\"[Dennis] Computing diff...\")",
+      "replacement": "                print(messages[\"DENNIS_COMPUTING_DIFF\"])",
+      "token": "DENNIS_COMPUTING_DIFF"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1814,
+      "original": "                    raise ValueError(\"Generated expected diff is invalid\")",
+      "replacement": "                    raise ValueError(messages[\"GENERATED_EXPECTED_DIFF_IS_INVALID\"])",
+      "token": "GENERATED_EXPECTED_DIFF_IS_INVALID"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1833,
+      "original": "                print(\"\\n[Dennis] Canonical Diff Generated\")",
+      "replacement": "                print(messages[\"NDENNIS_CANONICAL_DIFF_GENERATED\"])",
+      "token": "NDENNIS_CANONICAL_DIFF_GENERATED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1883,
+      "original": "                raise SystemExit(\"[Dennis] --use-git requires a git repository.\")",
+      "replacement": "                raise SystemExit(messages[\"DENNIS_USEGIT_REQUIRES_A_GIT_REPOSITORY\"])",
+      "token": "DENNIS_USEGIT_REQUIRES_A_GIT_REPOSITORY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 1982,
+      "original": "                raise ValueError(\"Generated expected diff is invalid\")",
+      "replacement": "                raise ValueError(messages[\"GENERATED_EXPECTED_DIFF_IS_INVALID\"])",
+      "token": "GENERATED_EXPECTED_DIFF_IS_INVALID"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2003,
+      "original": "            print(\"\\n[Dennis] Canonical Diff Generated\")",
+      "replacement": "            print(messages[\"NDENNIS_CANONICAL_DIFF_GENERATED\"])",
+      "token": "NDENNIS_CANONICAL_DIFF_GENERATED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2093,
+      "original": "            print(\"Federation sync started\")",
+      "replacement": "            print(messages[\"FEDERATION_SYNC_STARTED\"])",
+      "token": "FEDERATION_SYNC_STARTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2105,
+      "original": "                raise SystemExit(\"Server not configured. Use --server or set DENNIS_SERVER\")",
+      "replacement": "                raise SystemExit(messages[\"SERVER_NOT_CONFIGURED_USE_SERVER_OR_SET_DENNIS_SERVER\"])",
+      "token": "SERVER_NOT_CONFIGURED_USE_SERVER_OR_SET_DENNIS_SERVER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2125,
+      "original": "                print(\"✔ User created\")",
+      "replacement": "                print(messages[\"USER_CREATED\"])",
+      "token": "USER_CREATED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2134,
+      "original": "                raise SystemExit(\"Server not configured\")",
+      "replacement": "                raise SystemExit(messages[\"SERVER_NOT_CONFIGURED\"])",
+      "token": "SERVER_NOT_CONFIGURED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2171,
+      "original": "                raise SystemExit(\"No active identity. Use: dennis identity use <key>\")",
+      "replacement": "                raise SystemExit(messages[\"NO_ACTIVE_IDENTITY_USE_DENNIS_IDENTITY_USE_KEY\"])",
+      "token": "NO_ACTIVE_IDENTITY_USE_DENNIS_IDENTITY_USE_KEY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2186,
+      "original": "                print(\"No identities found.\")",
+      "replacement": "                print(messages[\"NO_IDENTITIES_FOUND\"])",
+      "token": "NO_IDENTITIES_FOUND"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2209,
+      "original": "            print(\"No active identity. Use: dennis identity use <key>\")",
+      "replacement": "            print(messages[\"NO_ACTIVE_IDENTITY_USE_DENNIS_IDENTITY_USE_KEY\"])",
+      "token": "NO_ACTIVE_IDENTITY_USE_DENNIS_IDENTITY_USE_KEY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2235,
+      "original": "            raise SystemExit(\"Not authenticated. Run: dennis login\")",
+      "replacement": "            raise SystemExit(messages[\"NOT_AUTHENTICATED_RUN_DENNIS_LOGIN\"])",
+      "token": "NOT_AUTHENTICATED_RUN_DENNIS_LOGIN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2255,
+      "original": "                print(\"No projects found.\")",
+      "replacement": "                print(messages[\"NO_PROJECTS_FOUND\"])",
+      "token": "NO_PROJECTS_FOUND"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2271,
+      "original": "                print(\">> = active project\")",
+      "replacement": "                print(messages[\"ACTIVE_PROJECT\"])",
+      "token": "ACTIVE_PROJECT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2273,
+      "original": "                print(\"⚠ No active project set\")",
+      "replacement": "                print(messages[\"NO_ACTIVE_PROJECT_SET\"])",
+      "token": "NO_ACTIVE_PROJECT_SET"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2274,
+      "original": "                print(\"Use: dennis projects activate <uuid>\")",
+      "replacement": "                print(messages[\"USE_DENNIS_PROJECTS_ACTIVATE_UUID\"])",
+      "token": "USE_DENNIS_PROJECTS_ACTIVATE_UUID"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2298,
+      "original": "                raise SystemExit(\"Project not found\")",
+      "replacement": "                raise SystemExit(messages[\"PROJECT_NOT_FOUND\"])",
+      "token": "PROJECT_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2328,
+      "original": "                raise SystemExit(\"Project not found\")",
+      "replacement": "                raise SystemExit(messages[\"PROJECT_NOT_FOUND\"])",
+      "token": "PROJECT_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2330,
+      "original": "            print(\"⚠ You are about to delete project:\")",
+      "replacement": "            print(messages[\"YOU_ARE_ABOUT_TO_DELETE_PROJECT\"])",
+      "token": "YOU_ARE_ABOUT_TO_DELETE_PROJECT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2333,
+      "original": "            print(\"To confirm, type the first 6 characters of the UUID:\")",
+      "replacement": "            print(messages[\"TO_CONFIRM_TYPE_THE_FIRST_6_CHARACTERS_OF_THE_UUID\"])",
+      "token": "TO_CONFIRM_TYPE_THE_FIRST_6_CHARACTERS_OF_THE_UUID"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2338,
+      "original": "                raise SystemExit(\"❌ Confirmation failed. Aborting.\")",
+      "replacement": "                raise SystemExit(messages[\"CONFIRMATION_FAILED_ABORTING\"])",
+      "token": "CONFIRMATION_FAILED_ABORTING"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2350,
+      "original": "            print(\"✔ Project deleted\")",
+      "replacement": "            print(messages[\"PROJECT_DELETED\"])",
+      "token": "PROJECT_DELETED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2392,
+      "original": "            raise SystemExit(\"Unknown projects command\")",
+      "replacement": "            raise SystemExit(messages[\"UNKNOWN_PROJECTS_COMMAND\"])",
+      "token": "UNKNOWN_PROJECTS_COMMAND"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2415,
+      "original": "                    raise SystemExit(\"No active identity set. Use:\\n  dennis identity use <key>\")",
+      "replacement": "                    raise SystemExit(messages[\"NO_ACTIVE_IDENTITY_SET_USEN_DENNIS_IDENTITY_USE_KEY\"])",
+      "token": "NO_ACTIVE_IDENTITY_SET_USEN_DENNIS_IDENTITY_USE_KEY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2528,
+      "original": "            print(\"QR artifacts:\")",
+      "replacement": "            print(messages[\"QR_ARTIFACTS\"])",
+      "token": "QR_ARTIFACTS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2587,
+      "original": "            raise SystemExit(\"Specify --ascii or --image\")",
+      "replacement": "            raise SystemExit(messages[\"SPECIFY_ASCII_OR_IMAGE\"])",
+      "token": "SPECIFY_ASCII_OR_IMAGE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2589,
+      "original": "        print(\"DFP URI:\")",
+      "replacement": "        print(messages[\"DFP_URI\"])",
+      "token": "DFP_URI"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2593,
+      "original": "        print(\"\\nParsed:\")",
+      "replacement": "        print(messages[\"NPARSED\"])",
+      "token": "NPARSED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2627,
+      "original": "            print(\"No artifacts found.\")",
+      "replacement": "            print(messages[\"NO_ARTIFACTS_FOUND\"])",
+      "token": "NO_ARTIFACTS_FOUND"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2658,
+      "original": "        print(\"[Dennis] Validating plan...\")",
+      "replacement": "        print(messages[\"DENNIS_VALIDATING_PLAN\"])",
+      "token": "DENNIS_VALIDATING_PLAN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2668,
+      "original": "            raise SystemExit(\"validate-plan failed\")",
+      "replacement": "            raise SystemExit(messages[\"VALIDATEPLAN_FAILED\"])",
+      "token": "VALIDATEPLAN_FAILED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2674,
+      "original": "            raise SystemExit(\"❌ Plan validation failed\")",
+      "replacement": "            raise SystemExit(messages[\"PLAN_VALIDATION_FAILED\"])",
+      "token": "PLAN_VALIDATION_FAILED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2676,
+      "original": "        print(\"✔ Plan valid\")",
+      "replacement": "        print(messages[\"PLAN_VALID\"])",
+      "token": "PLAN_VALID"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2681,
+      "original": "        print(\"[Dennis] Verifying artifact...\")",
+      "replacement": "        print(messages[\"DENNIS_VERIFYING_ARTIFACT\"])",
+      "token": "DENNIS_VERIFYING_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2691,
+      "original": "            raise SystemExit(\"verify failed\")",
+      "replacement": "            raise SystemExit(messages[\"VERIFY_FAILED\"])",
+      "token": "VERIFY_FAILED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2697,
+      "original": "            raise SystemExit(\"❌ Artifact is not properly signed\")",
+      "replacement": "            raise SystemExit(messages[\"ARTIFACT_IS_NOT_PROPERLY_SIGNED\"])",
+      "token": "ARTIFACT_IS_NOT_PROPERLY_SIGNED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2699,
+      "original": "        print(\"✔ Signature valid\")",
+      "replacement": "        print(messages[\"SIGNATURE_VALID\"])",
+      "token": "SIGNATURE_VALID"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2708,
+      "original": "            raise SystemExit(\"No server configured\")",
+      "replacement": "            raise SystemExit(messages[\"NO_SERVER_CONFIGURED\"])",
+      "token": "NO_SERVER_CONFIGURED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2711,
+      "original": "            raise SystemExit(\"Not authenticated. Please run: dennis login\")",
+      "replacement": "            raise SystemExit(messages[\"NOT_AUTHENTICATED_PLEASE_RUN_DENNIS_LOGIN\"])",
+      "token": "NOT_AUTHENTICATED_PLEASE_RUN_DENNIS_LOGIN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2751,
+      "original": "            print(\"⚠ Artifact already exists with following hash:\")",
+      "replacement": "            print(messages[\"ARTIFACT_ALREADY_EXISTS_WITH_FOLLOWING_HASH\"])",
+      "token": "ARTIFACT_ALREADY_EXISTS_WITH_FOLLOWING_HASH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2771,
+      "original": "            raise SystemExit(\"Error: full artifact hash required (64 hex chars)\")",
+      "replacement": "            raise SystemExit(messages[\"ERROR_FULL_ARTIFACT_HASH_REQUIRED_64_HEX_CHARS\"])",
+      "token": "ERROR_FULL_ARTIFACT_HASH_REQUIRED_64_HEX_CHARS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2914,
+      "original": "                    print(\"\\n[ Dennis ]\")",
+      "replacement": "                    print(messages[\"N_DENNIS\"])",
+      "token": "N_DENNIS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2917,
+      "original": "                        print(\"XDEX header is INVALID. The file may be corrupted or tampered with.\")",
+      "replacement": "                        print(messages[\"XDEX_HEADER_IS_INVALID_THE_FILE_MAY_BE_CORRUPTED_OR_TAMPERED_WITH\"])",
+      "token": "XDEX_HEADER_IS_INVALID_THE_FILE_MAY_BE_CORRUPTED_OR_TAMPERED_WITH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2920,
+      "original": "                    print(\"XDEX artifact detected\")",
+      "replacement": "                    print(messages[\"XDEX_ARTIFACT_DETECTED\"])",
+      "token": "XDEX_ARTIFACT_DETECTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2921,
+      "original": "                    print(\"Payload: encrypted\")",
+      "replacement": "                    print(messages[\"PAYLOAD_ENCRYPTED\"])",
+      "token": "PAYLOAD_ENCRYPTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2922,
+      "original": "                    print(\"Decryption required for full inspection\")",
+      "replacement": "                    print(messages[\"DECRYPTION_REQUIRED_FOR_FULL_INSPECTION\"])",
+      "token": "DECRYPTION_REQUIRED_FOR_FULL_INSPECTION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2965,
+      "original": "                        print(\"\\nIntent\")",
+      "replacement": "                        print(messages[\"NINTENT\"])",
+      "token": "NINTENT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 2975,
+      "original": "                            print(\"\\nHelpers:\")",
+      "replacement": "                            print(messages[\"NHELPERS\"])",
+      "token": "NHELPERS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3175,
+      "original": "                raise SystemExit(\"Error: full artifact hash required (64 hex chars)\")",
+      "replacement": "                raise SystemExit(messages[\"ERROR_FULL_ARTIFACT_HASH_REQUIRED_64_HEX_CHARS\"])",
+      "token": "ERROR_FULL_ARTIFACT_HASH_REQUIRED_64_HEX_CHARS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3187,
+      "original": "                print(\"\\n[Dennis] Unable to reach registry.\")",
+      "replacement": "                print(messages[\"NDENNIS_UNABLE_TO_REACH_REGISTRY\"])",
+      "token": "NDENNIS_UNABLE_TO_REACH_REGISTRY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3190,
+      "original": "                print(\"\\n[Dennis] If you want to inspect a local artifact, use:\")",
+      "replacement": "                print(messages[\"NDENNIS_IF_YOU_WANT_TO_INSPECT_A_LOCAL_ARTIFACT_USE\"])",
+      "token": "NDENNIS_IF_YOU_WANT_TO_INSPECT_A_LOCAL_ARTIFACT_USE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3191,
+      "original": "                print(\"  dennis inspect <artifact.dex>\")",
+      "replacement": "                print(messages[\"DENNIS_INSPECT_ARTIFACTDEX\"])",
+      "token": "DENNIS_INSPECT_ARTIFACTDEX"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3193,
+      "original": "                print(\"\\n[Dennis] To inspect a registry artifact, specify a registry:\")",
+      "replacement": "                print(messages[\"NDENNIS_TO_INSPECT_A_REGISTRY_ARTIFACT_SPECIFY_A_REGISTRY\"])",
+      "token": "NDENNIS_TO_INSPECT_A_REGISTRY_ARTIFACT_SPECIFY_A_REGISTRY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3225,
+      "original": "        print(\"\\nArtifact\")",
+      "replacement": "        print(messages[\"NARTIFACT\"])",
+      "token": "NARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3226,
+      "original": "        print(\"--------\")",
+      "replacement": "        print(messages[\"_2\"])",
+      "token": "_2"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3231,
+      "original": "        print(\"\\nMeta\")",
+      "replacement": "        print(messages[\"NMETA\"])",
+      "token": "NMETA"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3232,
+      "original": "        print(\"----\")",
+      "replacement": "        print(messages[\"_3\"])",
+      "token": "_3"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3239,
+      "original": "        print(\"\\nPayload\")",
+      "replacement": "        print(messages[\"NPAYLOAD\"])",
+      "token": "NPAYLOAD"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3240,
+      "original": "        print(\"-------\")",
+      "replacement": "        print(messages[\"_4\"])",
+      "token": "_4"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3246,
+      "original": "        print(\"\\nLineage\")",
+      "replacement": "        print(messages[\"NLINEAGE\"])",
+      "token": "NLINEAGE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3247,
+      "original": "        print(\"-------\")",
+      "replacement": "        print(messages[\"_4\"])",
+      "token": "_4"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3254,
+      "original": "        print(\"\\nSignatures\")",
+      "replacement": "        print(messages[\"NSIGNATURES\"])",
+      "token": "NSIGNATURES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3255,
+      "original": "        print(\"----------\")",
+      "replacement": "        print(messages[\"_5\"])",
+      "token": "_5"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3258,
+      "original": "            print(\"None\")",
+      "replacement": "            print(messages[\"NONE\"])",
+      "token": "NONE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3295,
+      "original": "            print(\"\\nVerification\")",
+      "replacement": "            print(messages[\"NVERIFICATION\"])",
+      "token": "NVERIFICATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3296,
+      "original": "            print(\"------------\")",
+      "replacement": "            print(messages[\"_6\"])",
+      "token": "_6"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3303,
+      "original": "            accepted_str = \"✔ yes\" if accepted else \"✖ no\"",
+      "replacement": "            accepted_str = messages[\"YES\"] if accepted else messages[\"NO\"]",
+      "token": "YES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3305,
+      "original": "            status_str = \"✔ valid\" if status == \"valid\" else \"✖ invalid\"",
+      "replacement": "            status_str = messages[\"VALID\"] if status == \"valid\" else messages[\"INVALID\"]",
+      "token": "VALID"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3319,
+      "original": "                print(\"\\nSignature Details\")",
+      "replacement": "                print(messages[\"NSIGNATURE_DETAILS\"])",
+      "token": "NSIGNATURE_DETAILS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3320,
+      "original": "                print(\"-----------------\")",
+      "replacement": "                print(messages[\"_7\"])",
+      "token": "_7"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3336,
+      "original": "                print(\"\\nDecision\")",
+      "replacement": "                print(messages[\"NDECISION\"])",
+      "token": "NDECISION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3337,
+      "original": "                print(\"--------\")",
+      "replacement": "                print(messages[\"_2\"])",
+      "token": "_2"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3344,
+      "original": "            print(\"\\nRegistry\")",
+      "replacement": "            print(messages[\"NREGISTRY\"])",
+      "token": "NREGISTRY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3345,
+      "original": "            print(\"--------\")",
+      "replacement": "            print(messages[\"_2\"])",
+      "token": "_2"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3357,
+      "original": "            print(\"\\nPatches\")",
+      "replacement": "            print(messages[\"NPATCHES\"])",
+      "token": "NPATCHES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3358,
+      "original": "            print(\"-------\")",
+      "replacement": "            print(messages[\"_4\"])",
+      "token": "_4"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3379,
+      "original": "            print(\"No signatures.\")",
+      "replacement": "            print(messages[\"NO_SIGNATURES\"])",
+      "token": "NO_SIGNATURES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3471,
+      "original": "        print(\"✔ Diff artifact created locally:\")",
+      "replacement": "        print(messages[\"DIFF_ARTIFACT_CREATED_LOCALLY\"])",
+      "token": "DIFF_ARTIFACT_CREATED_LOCALLY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3475,
+      "original": "        print(\"Next step:\")",
+      "replacement": "        print(messages[\"NEXT_STEP\"])",
+      "token": "NEXT_STEP"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3539,
+      "original": "        print(\"✔ Diff artifact created locally:\")",
+      "replacement": "        print(messages[\"DIFF_ARTIFACT_CREATED_LOCALLY\"])",
+      "token": "DIFF_ARTIFACT_CREATED_LOCALLY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3543,
+      "original": "        print(\"Next step:\")",
+      "replacement": "        print(messages[\"NEXT_STEP\"])",
+      "token": "NEXT_STEP"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3611,
+      "original": "        print(\"✔ Reconciliation diff created:\")",
+      "replacement": "        print(messages[\"RECONCILIATION_DIFF_CREATED\"])",
+      "token": "RECONCILIATION_DIFF_CREATED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3615,
+      "original": "        print(\"Summary:\")",
+      "replacement": "        print(messages[\"SUMMARY\"])",
+      "token": "SUMMARY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3621,
+      "original": "        print(\"Next step:\")",
+      "replacement": "        print(messages[\"NEXT_STEP\"])",
+      "token": "NEXT_STEP"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3644,
+      "original": "        print(\"Forging artifact...\")",
+      "replacement": "        print(messages[\"FORGING_ARTIFACT\"])",
+      "token": "FORGING_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3660,
+      "original": "            print(\"[Dennis] Using explicit parent:\", parent_path)",
+      "replacement": "            print(messages[\"DENNIS_USING_EXPLICIT_PARENT\"], parent_path)",
+      "token": "DENNIS_USING_EXPLICIT_PARENT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3674,
+      "original": "                    print(\"[Dennis] Using implicit parent from context:\", parent_path)",
+      "replacement": "                    print(messages[\"DENNIS_USING_IMPLICIT_PARENT_FROM_CONTEXT\"], parent_path)",
+      "token": "DENNIS_USING_IMPLICIT_PARENT_FROM_CONTEXT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3677,
+      "original": "                    print(\"[Dennis] Context parent not found, ignoring context\")",
+      "replacement": "                    print(messages[\"DENNIS_CONTEXT_PARENT_NOT_FOUND_IGNORING_CONTEXT\"])",
+      "token": "DENNIS_CONTEXT_PARENT_NOT_FOUND_IGNORING_CONTEXT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3679,
+      "original": "                print(\"[Dennis] No parent specified, creating root artifact\")",
+      "replacement": "                print(messages[\"DENNIS_NO_PARENT_SPECIFIED_CREATING_ROOT_ARTIFACT\"])",
+      "token": "DENNIS_NO_PARENT_SPECIFIED_CREATING_ROOT_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3682,
+      "original": "            raise SystemExit(\"[Dennis] Cannot use --parent and --detached together\")",
+      "replacement": "            raise SystemExit(messages[\"DENNIS_CANNOT_USE_PARENT_AND_DETACHED_TOGETHER\"])",
+      "token": "DENNIS_CANNOT_USE_PARENT_AND_DETACHED_TOGETHER"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3708,
+      "original": "            print(\"[Dennis] Context updated\")",
+      "replacement": "            print(messages[\"DENNIS_CONTEXT_UPDATED\"])",
+      "token": "DENNIS_CONTEXT_UPDATED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3722,
+      "original": "        print(\"[Dennis] Lineage context cleared\")",
+      "replacement": "        print(messages[\"DENNIS_LINEAGE_CONTEXT_CLEARED\"])",
+      "token": "DENNIS_LINEAGE_CONTEXT_CLEARED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3843,
+      "original": "                print(\"[Dennis] WARNING: Detached artifact detected\")",
+      "replacement": "                print(messages[\"DENNIS_WARNING_DETACHED_ARTIFACT_DETECTED\"])",
+      "token": "DENNIS_WARNING_DETACHED_ARTIFACT_DETECTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3847,
+      "original": "                        \"[Dennis] ERROR: Detached artifact requires --accept-detached\"",
+      "replacement": "                        messages[\"DENNIS_ERROR_DETACHED_ARTIFACT_REQUIRES_ACCEPTDETACHED\"]",
+      "token": "DENNIS_ERROR_DETACHED_ARTIFACT_REQUIRES_ACCEPTDETACHED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3850,
+      "original": "                print(\"[Dennis] Detached artifact explicitly accepted\")",
+      "replacement": "                print(messages[\"DENNIS_DETACHED_ARTIFACT_EXPLICITLY_ACCEPTED\"])",
+      "token": "DENNIS_DETACHED_ARTIFACT_EXPLICITLY_ACCEPTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3860,
+      "original": "                        \"[Dennis] ERROR: Cannot initialize lineage from detached artifact\"",
+      "replacement": "                        messages[\"DENNIS_ERROR_CANNOT_INITIALIZE_LINEAGE_FROM_DETACHED_ARTIFACT\"]",
+      "token": "DENNIS_ERROR_CANNOT_INITIALIZE_LINEAGE_FROM_DETACHED_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3872,
+      "original": "                print(\"[Dennis] ERROR: Lineage mismatch\")",
+      "replacement": "                print(messages[\"DENNIS_ERROR_LINEAGE_MISMATCH\"])",
+      "token": "DENNIS_ERROR_LINEAGE_MISMATCH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3884,
+      "original": "                        \"[Dennis] Provided lineage does not match artifact.\"",
+      "replacement": "                        messages[\"DENNIS_PROVIDED_LINEAGE_DOES_NOT_MATCH_ARTIFACT\"]",
+      "token": "DENNIS_PROVIDED_LINEAGE_DOES_NOT_MATCH_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 3887,
+      "original": "                print(\"[Dennis] WARNING: Lineage override accepted\")",
+      "replacement": "                print(messages[\"DENNIS_WARNING_LINEAGE_OVERRIDE_ACCEPTED\"])",
+      "token": "DENNIS_WARNING_LINEAGE_OVERRIDE_ACCEPTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4034,
+      "original": "            raise SystemExit(\"Unknown key command\")",
+      "replacement": "            raise SystemExit(messages[\"UNKNOWN_KEY_COMMAND\"])",
+      "token": "UNKNOWN_KEY_COMMAND"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4078,
+      "original": "            raise SystemExit(\"Login failed: no token returned\")",
+      "replacement": "            raise SystemExit(messages[\"LOGIN_FAILED_NO_TOKEN_RETURNED\"])",
+      "token": "LOGIN_FAILED_NO_TOKEN_RETURNED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4095,
+      "original": "            print(\"✔ Token stored\")",
+      "replacement": "            print(messages[\"TOKEN_STORED\"])",
+      "token": "TOKEN_STORED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4098,
+      "original": "        print(\"✔ Logged in successfully\\n\")",
+      "replacement": "        print(messages[\"LOGGED_IN_SUCCESSFULLYN\"])",
+      "token": "LOGGED_IN_SUCCESSFULLYN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4112,
+      "original": "        print(\"✔ Logged out successfully\")",
+      "replacement": "        print(messages[\"LOGGED_OUT_SUCCESSFULLY\"])",
+      "token": "LOGGED_OUT_SUCCESSFULLY"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4123,
+      "original": "        print(\"Generating diff from git changes...\")",
+      "replacement": "        print(messages[\"GENERATING_DIFF_FROM_GIT_CHANGES\"])",
+      "token": "GENERATING_DIFF_FROM_GIT_CHANGES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4127,
+      "original": "            print(\"No changes detected in git.\")",
+      "replacement": "            print(messages[\"NO_CHANGES_DETECTED_IN_GIT\"])",
+      "token": "NO_CHANGES_DETECTED_IN_GIT"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4160,
+      "original": "        print(f\"Comparing directories...\")",
+      "replacement": "        print(fmessages[\"COMPARING_DIRECTORIES\"])",
+      "token": "COMPARING_DIRECTORIES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4167,
+      "original": "            print(\"No differences detected.\")",
+      "replacement": "            print(messages[\"NO_DIFFERENCES_DETECTED\"])",
+      "token": "NO_DIFFERENCES_DETECTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4206,
+      "original": "        print(\"Loading diff artifacts...\")",
+      "replacement": "        print(messages[\"LOADING_DIFF_ARTIFACTS\"])",
+      "token": "LOADING_DIFF_ARTIFACTS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4210,
+      "original": "        print(\"Generating reconciliation...\")",
+      "replacement": "        print(messages[\"GENERATING_RECONCILIATION\"])",
+      "token": "GENERATING_RECONCILIATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4220,
+      "original": "        print(\"✓ Reconciliation complete:\")",
+      "replacement": "        print(messages[\"RECONCILIATION_COMPLETE\"])",
+      "token": "RECONCILIATION_COMPLETE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4232,
+      "original": "                print(\"  🎉 High confidence: Plan executed as expected\")",
+      "replacement": "                print(messages[\"HIGH_CONFIDENCE_PLAN_EXECUTED_AS_EXPECTED\"])",
+      "token": "HIGH_CONFIDENCE_PLAN_EXECUTED_AS_EXPECTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4234,
+      "original": "                print(\"  ⚠️ Moderate confidence: Some deviations detected\")",
+      "replacement": "                print(messages[\"MODERATE_CONFIDENCE_SOME_DEVIATIONS_DETECTED\"])",
+      "token": "MODERATE_CONFIDENCE_SOME_DEVIATIONS_DETECTED"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4236,
+      "original": "                print(\"  ❌ Low confidence: Significant deviations from plan\")",
+      "replacement": "                print(messages[\"LOW_CONFIDENCE_SIGNIFICANT_DEVIATIONS_FROM_PLAN\"])",
+      "token": "LOW_CONFIDENCE_SIGNIFICANT_DEVIATIONS_FROM_PLAN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4252,
+      "original": "        print(\"Loading diff artifacts...\")",
+      "replacement": "        print(messages[\"LOADING_DIFF_ARTIFACTS\"])",
+      "token": "LOADING_DIFF_ARTIFACTS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4256,
+      "original": "        print(\"Verifying execution...\")",
+      "replacement": "        print(messages[\"VERIFYING_EXECUTION\"])",
+      "token": "VERIFYING_EXECUTION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4265,
+      "original": "            print(\"\\n[Dennis] WARNING: Unexpected files detected (not in plan):\")",
+      "replacement": "            print(messages[\"NDENNIS_WARNING_UNEXPECTED_FILES_DETECTED_NOT_IN_PLAN\"])",
+      "token": "NDENNIS_WARNING_UNEXPECTED_FILES_DETECTED_NOT_IN_PLAN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4270,
+      "original": "            print(\"\\n[Dennis] WARNING: Planned files missing from execution:\")",
+      "replacement": "            print(messages[\"NDENNIS_WARNING_PLANNED_FILES_MISSING_FROM_EXECUTION\"])",
+      "token": "NDENNIS_WARNING_PLANNED_FILES_MISSING_FROM_EXECUTION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4275,
+      "original": "            print(\"\\n[Dennis] Possible causes:\")",
+      "replacement": "            print(messages[\"NDENNIS_POSSIBLE_CAUSES\"])",
+      "token": "NDENNIS_POSSIBLE_CAUSES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4276,
+      "original": "            print(\"  • .gitignore mismatch\")",
+      "replacement": "            print(messages[\"GITIGNORE_MISMATCH\"])",
+      "token": "GITIGNORE_MISMATCH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4277,
+      "original": "            print(\"  • Different source/target directories\")",
+      "replacement": "            print(messages[\"DIFFERENT_SOURCETARGET_DIRECTORIES\"])",
+      "token": "DIFFERENT_SOURCETARGET_DIRECTORIES"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4278,
+      "original": "            print(\"  • Unintended global transformations\")",
+      "replacement": "            print(messages[\"UNINTENDED_GLOBAL_TRANSFORMATIONS\"])",
+      "token": "UNINTENDED_GLOBAL_TRANSFORMATIONS"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4280,
+      "original": "                print(\"\\n[Dennis] ERROR: Scope mismatch detected (strict mode)\")",
+      "replacement": "                print(messages[\"NDENNIS_ERROR_SCOPE_MISMATCH_DETECTED_STRICT_MODE\"])",
+      "token": "NDENNIS_ERROR_SCOPE_MISMATCH_DETECTED_STRICT_MODE"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4295,
+      "original": "        print(\"\\n[Dennis] Execution Verification\")",
+      "replacement": "        print(messages[\"NDENNIS_EXECUTION_VERIFICATION\"])",
+      "token": "NDENNIS_EXECUTION_VERIFICATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4303,
+      "original": "            print(\"\\n[INFO] Hashes do not match. Running detailed reconciliation...\")",
+      "replacement": "            print(messages[\"NINFO_HASHES_DO_NOT_MATCH_RUNNING_DETAILED_RECONCILIATION\"])",
+      "token": "NINFO_HASHES_DO_NOT_MATCH_RUNNING_DETAILED_RECONCILIATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4316,
+      "original": "            print(\"\\n✓ Execution matches expected transformation\")",
+      "replacement": "            print(messages[\"N_EXECUTION_MATCHES_EXPECTED_TRANSFORMATION\"])",
+      "token": "N_EXECUTION_MATCHES_EXPECTED_TRANSFORMATION"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4328,
+      "original": "            raise SystemExit(\"tests/diff_conformance directory not found\")",
+      "replacement": "            raise SystemExit(messages[\"TESTSDIFF_CONFORMANCE_DIRECTORY_NOT_FOUND\"])",
+      "token": "TESTSDIFF_CONFORMANCE_DIRECTORY_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4330,
+      "original": "        print(\"\\n[ Dennis Diff Conformance ]\\n\")",
+      "replacement": "        print(messages[\"N_DENNIS_DIFF_CONFORMANCE_N\"])",
+      "token": "N_DENNIS_DIFF_CONFORMANCE_N"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4378,
+      "original": "                        print(\"  → Canonical mismatch\")",
+      "replacement": "                        print(messages[\"CANONICAL_MISMATCH\"])",
+      "token": "CANONICAL_MISMATCH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4384,
+      "original": "                        print(\"  → Hash mismatch\")",
+      "replacement": "                        print(messages[\"HASH_MISMATCH\"])",
+      "token": "HASH_MISMATCH"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4396,
+      "original": "        print(\"\\n✔ All conformance tests passed\\n\")",
+      "replacement": "        print(messages[\"N_ALL_CONFORMANCE_TESTS_PASSEDN\"])",
+      "token": "N_ALL_CONFORMANCE_TESTS_PASSEDN"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4424,
+      "original": "                        if raw_line.strip() == \"# Dennis Scope v1\":",
+      "replacement": "                        if raw_line.strip() == messages[\"DENNIS_SCOPE_V1\"]:",
+      "token": "DENNIS_SCOPE_V1"
+    },
+    {
+      "file": "src/dennis/cli.py",
+      "line": 4435,
+      "original": "                \"# Dennis Scope v1\",",
+      "replacement": "                messages[\"DENNIS_SCOPE_V1\"],",
+      "token": "DENNIS_SCOPE_V1"
+    },
+    {
+      "file": "src/dennis/core/csvio.py",
+      "line": 33,
+      "original": "        raise ValueError(\"Invalid plan: missing 'changes'\")",
+      "replacement": "        raise ValueError(messages[\"INVALID_PLAN_MISSING_CHANGES\"])",
+      "token": "INVALID_PLAN_MISSING_CHANGES"
+    },
+    {
+      "file": "src/dennis/core/import_xml.py",
+      "line": 13,
+      "original": "        raise ValueError(\"Not a Dennis XML file\")",
+      "replacement": "        raise ValueError(messages[\"NOT_A_DENNIS_XML_FILE\"])",
+      "token": "NOT_A_DENNIS_XML_FILE"
+    },
+    {
+      "file": "src/dennis/core/keys.py",
+      "line": 182,
+      "original": "    print(\"\\n[Dennis] Trusted keys:\\n\")",
+      "replacement": "    print(messages[\"NDENNIS_TRUSTED_KEYSN\"])",
+      "token": "NDENNIS_TRUSTED_KEYSN"
+    },
+    {
+      "file": "src/dennis/core/plan_validator.py",
+      "line": 18,
+      "original": "            \"errors\": [\"Artifact not found\"],",
+      "replacement": "            \"errors\": [messages[\"ARTIFACT_NOT_FOUND\"]],",
+      "token": "ARTIFACT_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/core/plan_validator.py",
+      "line": 30,
+      "original": "                \"errors\": [\"Invalid or corrupted DEX archive\"],",
+      "replacement": "                \"errors\": [messages[\"INVALID_OR_CORRUPTED_DEX_ARCHIVE\"]],",
+      "token": "INVALID_OR_CORRUPTED_DEX_ARCHIVE"
+    },
+    {
+      "file": "src/dennis/core/plan_validator.py",
+      "line": 49,
+      "original": "            errors.append(\"Plan has no changes\")",
+      "replacement": "            errors.append(messages[\"PLAN_HAS_NO_CHANGES\"])",
+      "token": "PLAN_HAS_NO_CHANGES"
+    },
+    {
+      "file": "src/dennis/core/rehydrate.py",
+      "line": 70,
+      "original": "        print(\"[Dennis] Rehydrate mode: STATE\")",
+      "replacement": "        print(messages[\"DENNIS_REHYDRATE_MODE_STATE\"])",
+      "token": "DENNIS_REHYDRATE_MODE_STATE"
+    },
+    {
+      "file": "src/dennis/core/rehydrate.py",
+      "line": 87,
+      "original": "        print(\"[Dennis] Files restored\")",
+      "replacement": "        print(messages[\"DENNIS_FILES_RESTORED\"])",
+      "token": "DENNIS_FILES_RESTORED"
+    },
+    {
+      "file": "src/dennis/core/rehydrate.py",
+      "line": 115,
+      "original": "            print(\"[Dennis] No helpers found in payload\")",
+      "replacement": "            print(messages[\"DENNIS_NO_HELPERS_FOUND_IN_PAYLOAD\"])",
+      "token": "DENNIS_NO_HELPERS_FOUND_IN_PAYLOAD"
+    },
+    {
+      "file": "src/dennis/core/rehydrate.py",
+      "line": 123,
+      "original": "    print(\"[Dennis] Rehydrate mode: PLAN\")",
+      "replacement": "    print(messages[\"DENNIS_REHYDRATE_MODE_PLAN\"])",
+      "token": "DENNIS_REHYDRATE_MODE_PLAN"
+    },
+    {
+      "file": "src/dennis/core/rehydrate.py",
+      "line": 126,
+      "original": "        raise SystemExit(\"Invalid DEX: missing payload/plan.json\")",
+      "replacement": "        raise SystemExit(messages[\"INVALID_DEX_MISSING_PAYLOADPLANJSON\"])",
+      "token": "INVALID_DEX_MISSING_PAYLOADPLANJSON"
+    },
+    {
+      "file": "src/dennis/core/rehydrate.py",
+      "line": 186,
+      "original": "            print(\"[Dennis] Reconstructing helper changes from payload\")",
+      "replacement": "            print(messages[\"DENNIS_RECONSTRUCTING_HELPER_CHANGES_FROM_PAYLOAD\"])",
+      "token": "DENNIS_RECONSTRUCTING_HELPER_CHANGES_FROM_PAYLOAD"
+    },
+    {
+      "file": "src/dennis/core/verification.py",
+      "line": 43,
+      "original": "            \"errors\": [\"No signatures present\"],",
+      "replacement": "            \"errors\": [messages[\"NO_SIGNATURES_PRESENT\"]],",
+      "token": "NO_SIGNATURES_PRESENT"
+    },
+    {
+      "file": "src/dennis/core/verification.py",
+      "line": 44,
+      "original": "            \"message\": \"✖ No signatures found\"",
+      "replacement": "            \"message\": messages[\"NO_SIGNATURES_FOUND\"]",
+      "token": "NO_SIGNATURES_FOUND"
+    },
+    {
+      "file": "src/dennis/core/verification.py",
+      "line": 81,
+      "original": "            \"✖ Not accepted (no trusted signatures)\"",
+      "replacement": "            messages[\"NOT_ACCEPTED_NO_TRUSTED_SIGNATURES\"]",
+      "token": "NOT_ACCEPTED_NO_TRUSTED_SIGNATURES"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 76,
+      "original": "    \"\"\"Check if a file is binary by reading the first 1024 bytes.\"\"\"",
+      "replacement": "    \"\"messages[\"CHECK_IF_A_FILE_IS_BINARY_BY_READING_THE_FIRST_1024_BYTES\"]\"\"",
+      "token": "CHECK_IF_A_FILE_IS_BINARY_BY_READING_THE_FIRST_1024_BYTES"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 88,
+      "original": "    \"\"\"Check if a directory is a git repository.\"\"\"",
+      "replacement": "    \"\"messages[\"CHECK_IF_A_DIRECTORY_IS_A_GIT_REPOSITORY\"]\"\"",
+      "token": "CHECK_IF_A_DIRECTORY_IS_A_GIT_REPOSITORY"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 279,
+      "original": "        raise ValueError(\"Invalid diff artifact\")",
+      "replacement": "        raise ValueError(messages[\"INVALID_DIFF_ARTIFACT\"])",
+      "token": "INVALID_DIFF_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 445,
+      "original": "        if line.startswith('diff --git'):",
+      "replacement": "        if line.startswith(messages[\"DIFF_GIT\"]):",
+      "token": "DIFF_GIT"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 467,
+      "original": "                while j < len(lines) and not lines[j].startswith('diff --git'):",
+      "replacement": "                while j < len(lines) and not lines[j].startswith(messages[\"DIFF_GIT\"]):",
+      "token": "DIFF_GIT"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 504,
+      "original": "                while j < len(lines) and not lines[j].startswith('@@') and not lines[j].startswith('diff --git'):",
+      "replacement": "                while j < len(lines) and not lines[j].startswith('@@') and not lines[j].startswith(messages[\"DIFF_GIT\"]):",
+      "token": "DIFF_GIT"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 796,
+      "original": "        raise ValueError(\"generate_planned_diff requires base_dir (source snapshot)\")",
+      "replacement": "        raise ValueError(messages[\"GENERATE_PLANNED_DIFF_REQUIRES_BASE_DIR_SOURCE_SNAPSHOT\"])",
+      "token": "GENERATE_PLANNED_DIFF_REQUIRES_BASE_DIR_SOURCE_SNAPSHOT"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 810,
+      "original": "        \"\"\"Load helper file lines from deterministic helper sources.\"\"\"",
+      "replacement": "        \"\"messages[\"LOAD_HELPER_FILE_LINES_FROM_DETERMINISTIC_HELPER_SOURCES\"]\"\"",
+      "token": "LOAD_HELPER_FILE_LINES_FROM_DETERMINISTIC_HELPER_SOURCES"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 834,
+      "original": "        \"\"\"Check if file exists in source snapshot.\"\"\"",
+      "replacement": "        \"\"messages[\"CHECK_IF_FILE_EXISTS_IN_SOURCE_SNAPSHOT\"]\"\"",
+      "token": "CHECK_IF_FILE_EXISTS_IN_SOURCE_SNAPSHOT"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 892,
+      "original": "    print(\"DEBUG helpers_in_A:\", sorted(helpers_in_A))",
+      "replacement": "    print(messages[\"DEBUG_HELPERS_IN_A\"], sorted(helpers_in_A))",
+      "token": "DEBUG_HELPERS_IN_A"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 893,
+      "original": "    print(\"DEBUG helpers_in_B:\", sorted(helpers_in_B))",
+      "replacement": "    print(messages[\"DEBUG_HELPERS_IN_B\"], sorted(helpers_in_B))",
+      "token": "DEBUG_HELPERS_IN_B"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 894,
+      "original": "    print(\"DEBUG added_helpers:\", sorted(added_helpers))",
+      "replacement": "    print(messages[\"DEBUG_ADDED_HELPERS\"], sorted(added_helpers))",
+      "token": "DEBUG_ADDED_HELPERS"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1327,
+      "original": "                        'before': ['hello'],",
+      "replacement": "                        'before': [messages[\"HELLO\"]],",
+      "token": "HELLO"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1358,
+      "original": "                        'before': ['print(\"hello\")'],",
+      "replacement": "                        'before': ['print(messages[\"HELLO\"])'],",
+      "token": "HELLO"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1396,
+      "original": "                        'before': ['print(\"hello\")'],",
+      "replacement": "                        'before': ['print(messages[\"HELLO\"])'],",
+      "token": "HELLO"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1408,
+      "original": "            results['details'].append(\"✓ Cross-input determinism: Different file orders → Same canonical form\")",
+      "replacement": "            results['details'].append(messages[\"CROSSINPUT_DETERMINISM_DIFFERENT_FILE_ORDERS_SAME_CANONICAL_FORM\"])",
+      "token": "CROSSINPUT_DETERMINISM_DIFFERENT_FILE_ORDERS_SAME_CANONICAL_FORM"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1410,
+      "original": "            results['details'].append(\"✗ Cross-input determinism failed\")",
+      "replacement": "            results['details'].append(messages[\"CROSSINPUT_DETERMINISM_FAILED\"])",
+      "token": "CROSSINPUT_DETERMINISM_FAILED"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1427,
+      "original": "                        'before': ['hello'],",
+      "replacement": "                        'before': [messages[\"HELLO\"]],",
+      "token": "HELLO"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1442,
+      "original": "            results['details'].append(\"✗ Hash stability failed\")",
+      "replacement": "            results['details'].append(messages[\"HASH_STABILITY_FAILED\"])",
+      "token": "HASH_STABILITY_FAILED"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1470,
+      "original": "                        'before': ['hello'],",
+      "replacement": "                        'before': [messages[\"HELLO\"]],",
+      "token": "HELLO"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1486,
+      "original": "            results['details'].append(\"✗ Minimal invariant failed\")",
+      "replacement": "            results['details'].append(messages[\"MINIMAL_INVARIANT_FAILED\"])",
+      "token": "MINIMAL_INVARIANT_FAILED"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1506,
+      "original": "            results['details'].append(\"✓ Block determinism: Adjacent changes merged\")",
+      "replacement": "            results['details'].append(messages[\"BLOCK_DETERMINISM_ADJACENT_CHANGES_MERGED\"])",
+      "token": "BLOCK_DETERMINISM_ADJACENT_CHANGES_MERGED"
+    },
+    {
+      "file": "src/dennis/dex/canonical_diff.py",
+      "line": 1508,
+      "original": "            results['details'].append(\"✗ Block determinism failed\")",
+      "replacement": "            results['details'].append(messages[\"BLOCK_DETERMINISM_FAILED\"])",
+      "token": "BLOCK_DETERMINISM_FAILED"
+    },
+    {
+      "file": "src/dennis/dex/crypto.py",
+      "line": 38,
+      "original": "            raise ValueError(\"Passphrases do not match\")",
+      "replacement": "            raise ValueError(messages[\"PASSPHRASES_DO_NOT_MATCH\"])",
+      "token": "PASSPHRASES_DO_NOT_MATCH"
+    },
+    {
+      "file": "src/dennis/dex/crypto.py",
+      "line": 59,
+      "original": "        raise SystemExit(\"Expected a .dex artifact\")",
+      "replacement": "        raise SystemExit(messages[\"EXPECTED_A_DEX_ARTIFACT\"])",
+      "token": "EXPECTED_A_DEX_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/dex/crypto.py",
+      "line": 115,
+      "original": "            raise SystemExit(\"Invalid XDEX file\")",
+      "replacement": "            raise SystemExit(messages[\"INVALID_XDEX_FILE\"])",
+      "token": "INVALID_XDEX_FILE"
+    },
+    {
+      "file": "src/dennis/dex/crypto.py",
+      "line": 128,
+      "original": "            raise SystemExit(\"Corrupted XDEX header\")",
+      "replacement": "            raise SystemExit(messages[\"CORRUPTED_XDEX_HEADER\"])",
+      "token": "CORRUPTED_XDEX_HEADER"
+    },
+    {
+      "file": "src/dennis/dex/crypto.py",
+      "line": 143,
+      "original": "        raise SystemExit(\"Decryption failed (wrong password or corrupted file)\")",
+      "replacement": "        raise SystemExit(messages[\"DECRYPTION_FAILED_WRONG_PASSWORD_OR_CORRUPTED_FILE\"])",
+      "token": "DECRYPTION_FAILED_WRONG_PASSWORD_OR_CORRUPTED_FILE"
+    },
+    {
+      "file": "src/dennis/dex/crypto.py",
+      "line": 170,
+      "original": "            raise ValueError(\"Unsupported key format\")",
+      "replacement": "            raise ValueError(messages[\"UNSUPPORTED_KEY_FORMAT\"])",
+      "token": "UNSUPPORTED_KEY_FORMAT"
+    },
+    {
+      "file": "src/dennis/dex/crypto.py",
+      "line": 190,
+      "original": "        raise SystemExit(\"Invalid passphrase or corrupted key file.\")",
+      "replacement": "        raise SystemExit(messages[\"INVALID_PASSPHRASE_OR_CORRUPTED_KEY_FILE\"])",
+      "token": "INVALID_PASSPHRASE_OR_CORRUPTED_KEY_FILE"
+    },
+    {
+      "file": "src/dennis/dex/importer.py",
+      "line": 47,
+      "original": "        raise ValueError(\"DEX missing manifest.json\")",
+      "replacement": "        raise ValueError(messages[\"DEX_MISSING_MANIFESTJSON\"])",
+      "token": "DEX_MISSING_MANIFESTJSON"
+    },
+    {
+      "file": "src/dennis/dex/importer.py",
+      "line": 54,
+      "original": "        raise ValueError(\"DEX missing payload/plan.json\")",
+      "replacement": "        raise ValueError(messages[\"DEX_MISSING_PAYLOADPLANJSON\"])",
+      "token": "DEX_MISSING_PAYLOADPLANJSON"
+    },
+    {
+      "file": "src/dennis/dex/importer.py",
+      "line": 99,
+      "original": "            raise ValueError(\"payload file missing\")",
+      "replacement": "            raise ValueError(messages[\"PAYLOAD_FILE_MISSING\"])",
+      "token": "PAYLOAD_FILE_MISSING"
+    },
+    {
+      "file": "src/dennis/dex/importer.py",
+      "line": 104,
+      "original": "            raise ValueError(\"manifest.json could not be read\")",
+      "replacement": "            raise ValueError(messages[\"MANIFESTJSON_COULD_NOT_BE_READ\"])",
+      "token": "MANIFESTJSON_COULD_NOT_BE_READ"
+    },
+    {
+      "file": "src/dennis/dex/importer.py",
+      "line": 112,
+      "original": "            raise ValueError(\"payload could not be read\")",
+      "replacement": "            raise ValueError(messages[\"PAYLOAD_COULD_NOT_BE_READ\"])",
+      "token": "PAYLOAD_COULD_NOT_BE_READ"
+    },
+    {
+      "file": "src/dennis/dex/importer.py",
+      "line": 129,
+      "original": "        raise ValueError(\"Payload hash mismatch\")",
+      "replacement": "        raise ValueError(messages[\"PAYLOAD_HASH_MISMATCH\"])",
+      "token": "PAYLOAD_HASH_MISMATCH"
+    },
+    {
+      "file": "src/dennis/dex/importer.py",
+      "line": 152,
+      "original": "            raise SystemExit(\"Invalid XDEX file\")",
+      "replacement": "            raise SystemExit(messages[\"INVALID_XDEX_FILE\"])",
+      "token": "INVALID_XDEX_FILE"
+    },
+    {
+      "file": "src/dennis/dex/importer.py",
+      "line": 160,
+      "original": "            raise SystemExit(\"XDEX header is INVALID. The file may be corrupted or tampered with.\")",
+      "replacement": "            raise SystemExit(messages[\"XDEX_HEADER_IS_INVALID_THE_FILE_MAY_BE_CORRUPTED_OR_TAMPERED_WITH\"])",
+      "token": "XDEX_HEADER_IS_INVALID_THE_FILE_MAY_BE_CORRUPTED_OR_TAMPERED_WITH"
+    },
+    {
+      "file": "src/dennis/dex/keygen.py",
+      "line": 22,
+      "original": "            print(\"\\n\\n[Aborted] Key generation cancelled by user.\\n\")",
+      "replacement": "            print(messages[\"NNABORTED_KEY_GENERATION_CANCELLED_BY_USERN\"])",
+      "token": "NNABORTED_KEY_GENERATION_CANCELLED_BY_USERN"
+    },
+    {
+      "file": "src/dennis/dex/keygen.py",
+      "line": 28,
+      "original": "        print(\"This field is required.\")",
+      "replacement": "        print(messages[\"THIS_FIELD_IS_REQUIRED\"])",
+      "token": "THIS_FIELD_IS_REQUIRED"
+    },
+    {
+      "file": "src/dennis/dex/keygen.py",
+      "line": 41,
+      "original": "        print(\"\\n[Dennis] Key Generation\\n\")",
+      "replacement": "        print(messages[\"NDENNIS_KEY_GENERATIONN\"])",
+      "token": "NDENNIS_KEY_GENERATIONN"
+    },
+    {
+      "file": "src/dennis/dex/keygen.py",
+      "line": 43,
+      "original": "        raise RuntimeError(\"Both private_path and public_path must be provided together\")",
+      "replacement": "        raise RuntimeError(messages[\"BOTH_PRIVATE_PATH_AND_PUBLIC_PATH_MUST_BE_PROVIDED_TOGETHER\"])",
+      "token": "BOTH_PRIVATE_PATH_AND_PUBLIC_PATH_MUST_BE_PROVIDED_TOGETHER"
+    },
+    {
+      "file": "src/dennis/dex/keygen.py",
+      "line": 69,
+      "original": "            print(\"\\n\\n[Aborted] Key generation cancelled by user.\\n\")",
+      "replacement": "            print(messages[\"NNABORTED_KEY_GENERATION_CANCELLED_BY_USERN\"])",
+      "token": "NNABORTED_KEY_GENERATION_CANCELLED_BY_USERN"
+    },
+    {
+      "file": "src/dennis/dex/keygen.py",
+      "line": 78,
+      "original": "            print(\"Please try again.\\n\")",
+      "replacement": "            print(messages[\"PLEASE_TRY_AGAINN\"])",
+      "token": "PLEASE_TRY_AGAINN"
+    },
+    {
+      "file": "src/dennis/dex/keygen.py",
+      "line": 125,
+      "original": "    print(\"\\n[Dennis] Key generated:\")",
+      "replacement": "    print(messages[\"NDENNIS_KEY_GENERATED\"])",
+      "token": "NDENNIS_KEY_GENERATED"
+    },
+    {
+      "file": "src/dennis/dex/manifest.py",
+      "line": 89,
+      "original": "        raise ValueError(\"Parent lineage missing lineage_id\")",
+      "replacement": "        raise ValueError(messages[\"PARENT_LINEAGE_MISSING_LINEAGE_ID\"])",
+      "token": "PARENT_LINEAGE_MISSING_LINEAGE_ID"
+    },
+    {
+      "file": "src/dennis/dex/manifest.py",
+      "line": 135,
+      "original": "        raise ValueError(\"Missing lineage block\")",
+      "replacement": "        raise ValueError(messages[\"MISSING_LINEAGE_BLOCK\"])",
+      "token": "MISSING_LINEAGE_BLOCK"
+    },
+    {
+      "file": "src/dennis/dex/manifest.py",
+      "line": 144,
+      "original": "            raise ValueError(\"Root must not have parent\")",
+      "replacement": "            raise ValueError(messages[\"ROOT_MUST_NOT_HAVE_PARENT\"])",
+      "token": "ROOT_MUST_NOT_HAVE_PARENT"
+    },
+    {
+      "file": "src/dennis/dex/manifest.py",
+      "line": 147,
+      "original": "            raise ValueError(\"Root must define lineage_id\")",
+      "replacement": "            raise ValueError(messages[\"ROOT_MUST_DEFINE_LINEAGE_ID\"])",
+      "token": "ROOT_MUST_DEFINE_LINEAGE_ID"
+    },
+    {
+      "file": "src/dennis/dex/manifest.py",
+      "line": 151,
+      "original": "            raise ValueError(\"Derived must have parent\")",
+      "replacement": "            raise ValueError(messages[\"DERIVED_MUST_HAVE_PARENT\"])",
+      "token": "DERIVED_MUST_HAVE_PARENT"
+    },
+    {
+      "file": "src/dennis/dex/manifest.py",
+      "line": 154,
+      "original": "            raise ValueError(\"Derived must have lineage_id\")",
+      "replacement": "            raise ValueError(messages[\"DERIVED_MUST_HAVE_LINEAGE_ID\"])",
+      "token": "DERIVED_MUST_HAVE_LINEAGE_ID"
+    },
+    {
+      "file": "src/dennis/dex/manifest.py",
+      "line": 158,
+      "original": "            raise ValueError(\"Detached must not define lineage_id\")",
+      "replacement": "            raise ValueError(messages[\"DETACHED_MUST_NOT_DEFINE_LINEAGE_ID\"])",
+      "token": "DETACHED_MUST_NOT_DEFINE_LINEAGE_ID"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 102,
+      "original": "        if line.strip() == \"# Dennis Scope v1\":",
+      "replacement": "        if line.strip() == messages[\"DENNIS_SCOPE_V1\"]:",
+      "token": "DENNIS_SCOPE_V1"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 203,
+      "original": "            \"[Dennis] ERROR: .dexscope not found.\"",
+      "replacement": "            messages[\"DENNIS_ERROR_DEXSCOPE_NOT_FOUND\"]",
+      "token": "DENNIS_ERROR_DEXSCOPE_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 321,
+      "original": "                raise SystemExit(\"[Dennis] ERROR: helper_source missing in plan\")",
+      "replacement": "                raise SystemExit(messages[\"DENNIS_ERROR_HELPER_SOURCE_MISSING_IN_PLAN\"])",
+      "token": "DENNIS_ERROR_HELPER_SOURCE_MISSING_IN_PLAN"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 368,
+      "original": "        raise ValueError(\"Cannot use both parent_manifest and force_detached\")",
+      "replacement": "        raise ValueError(messages[\"CANNOT_USE_BOTH_PARENT_MANIFEST_AND_FORCE_DETACHED\"])",
+      "token": "CANNOT_USE_BOTH_PARENT_MANIFEST_AND_FORCE_DETACHED"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 376,
+      "original": "            raise ValueError(\"Parent manifest missing lineage\")",
+      "replacement": "            raise ValueError(messages[\"PARENT_MANIFEST_MISSING_LINEAGE\"])",
+      "token": "PARENT_MANIFEST_MISSING_LINEAGE"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 379,
+      "original": "            raise ValueError(\"Cannot derive from detached artifact\")",
+      "replacement": "            raise ValueError(messages[\"CANNOT_DERIVE_FROM_DETACHED_ARTIFACT\"])",
+      "token": "CANNOT_DERIVE_FROM_DETACHED_ARTIFACT"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 382,
+      "original": "            raise ValueError(\"Parent lineage missing lineage_id\")",
+      "replacement": "            raise ValueError(messages[\"PARENT_LINEAGE_MISSING_LINEAGE_ID\"])",
+      "token": "PARENT_LINEAGE_MISSING_LINEAGE_ID"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 391,
+      "original": "        print(\"[Dennis] Lineage type:\", lineage[\"type\"])",
+      "replacement": "        print(messages[\"DENNIS_LINEAGE_TYPE\"], lineage[\"type\"])",
+      "token": "DENNIS_LINEAGE_TYPE"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 392,
+      "original": "        print(\"[Dennis] Lineage ID:\", lineage[\"lineage_id\"])",
+      "replacement": "        print(messages[\"DENNIS_LINEAGE_ID\"], lineage[\"lineage_id\"])",
+      "token": "DENNIS_LINEAGE_ID"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 393,
+      "original": "        print(\"[Dennis] Parent:\", lineage[\"parent\"])",
+      "replacement": "        print(messages[\"DENNIS_PARENT\"], lineage[\"parent\"])",
+      "token": "DENNIS_PARENT"
+    },
+    {
+      "file": "src/dennis/dex/pack.py",
+      "line": 443,
+      "original": "                print(\"[Dennis] Using .dexscope\")",
+      "replacement": "                print(messages[\"DENNIS_USING_DEXSCOPE\"])",
+      "token": "DENNIS_USING_DEXSCOPE"
+    },
+    {
+      "file": "src/dennis/dex/sign.py",
+      "line": 59,
+      "original": "            raise ValueError(\"Unsupported key format\")",
+      "replacement": "            raise ValueError(messages[\"UNSUPPORTED_KEY_FORMAT\"])",
+      "token": "UNSUPPORTED_KEY_FORMAT"
+    },
+    {
+      "file": "src/dennis/dex/sign.py",
+      "line": 82,
+      "original": "        raise SystemExit(\"Invalid passphrase or corrupted key file.\")",
+      "replacement": "        raise SystemExit(messages[\"INVALID_PASSPHRASE_OR_CORRUPTED_KEY_FILE\"])",
+      "token": "INVALID_PASSPHRASE_OR_CORRUPTED_KEY_FILE"
+    },
+    {
+      "file": "src/dennis/dex/sign.py",
+      "line": 101,
+      "original": "        print(\"\\n[Dennis] WARNING: key_id does not match derived identity\")",
+      "replacement": "        print(messages[\"NDENNIS_WARNING_KEY_ID_DOES_NOT_MATCH_DERIVED_IDENTITY\"])",
+      "token": "NDENNIS_WARNING_KEY_ID_DOES_NOT_MATCH_DERIVED_IDENTITY"
+    },
+    {
+      "file": "src/dennis/dex/validate.py",
+      "line": 81,
+      "original": "            raise SystemExit(\"Invalid XDEX header (tampered or corrupted)\")",
+      "replacement": "            raise SystemExit(messages[\"INVALID_XDEX_HEADER_TAMPERED_OR_CORRUPTED\"])",
+      "token": "INVALID_XDEX_HEADER_TAMPERED_OR_CORRUPTED"
+    },
+    {
+      "file": "src/dennis/dex/validate.py",
+      "line": 243,
+      "original": "        print(\"[OK] Payload integrity verified\")",
+      "replacement": "        print(messages[\"OK_PAYLOAD_INTEGRITY_VERIFIED\"])",
+      "token": "OK_PAYLOAD_INTEGRITY_VERIFIED"
+    },
+    {
+      "file": "src/dennis/dex/validate.py",
+      "line": 245,
+      "original": "        print(\"[FAIL] Payload integrity mismatch\")",
+      "replacement": "        print(messages[\"FAIL_PAYLOAD_INTEGRITY_MISMATCH\"])",
+      "token": "FAIL_PAYLOAD_INTEGRITY_MISMATCH"
+    },
+    {
+      "file": "src/dennis/filters/sql_filter.py",
+      "line": 99,
+      "original": "        \"ORDER BY\",",
+      "replacement": "        messages[\"ORDER_BY\"],",
+      "token": "ORDER_BY"
+    },
+    {
+      "file": "src/dennis/filters/sql_filter.py",
+      "line": 100,
+      "original": "        \"GROUP BY\",",
+      "replacement": "        messages[\"GROUP_BY\"],",
+      "token": "GROUP_BY"
+    },
+    {
+      "file": "src/dennis/forge/bundle_crypto.py",
+      "line": 37,
+      "original": "            raise ValueError(\"Passwords do not match\")",
+      "replacement": "            raise ValueError(messages[\"PASSWORDS_DO_NOT_MATCH\"])",
+      "token": "PASSWORDS_DO_NOT_MATCH"
+    },
+    {
+      "file": "src/dennis/forge/publish.py",
+      "line": 9,
+      "original": "        raise Exception(\"Artifact not found\")",
+      "replacement": "        raise Exception(messages[\"ARTIFACT_NOT_FOUND\"])",
+      "token": "ARTIFACT_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/forge/publish.py",
+      "line": 16,
+      "original": "        raise Exception(\"No server configured\")",
+      "replacement": "        raise Exception(messages[\"NO_SERVER_CONFIGURED\"])",
+      "token": "NO_SERVER_CONFIGURED"
+    },
+    {
+      "file": "src/dennis/forge/publish.py",
+      "line": 19,
+      "original": "        raise Exception(\"Not authenticated\")",
+      "replacement": "        raise Exception(messages[\"NOT_AUTHENTICATED\"])",
+      "token": "NOT_AUTHENTICATED"
+    },
+    {
+      "file": "src/dennis/forge/storage/plan_storage.py",
+      "line": 29,
+      "original": "            raise ValueError(\"Hash mismatch during storage\")",
+      "replacement": "            raise ValueError(messages[\"HASH_MISMATCH_DURING_STORAGE\"])",
+      "token": "HASH_MISMATCH_DURING_STORAGE"
+    },
+    {
+      "file": "src/dennis/goals/discovery.py",
+      "line": 79,
+      "original": "        raise ValueError(\"OBAD must be a dictionary\")",
+      "replacement": "        raise ValueError(messages[\"OBAD_MUST_BE_A_DICTIONARY\"])",
+      "token": "OBAD_MUST_BE_A_DICTIONARY"
+    },
+    {
+      "file": "src/dennis/goals/discovery.py",
+      "line": 84,
+      "original": "        raise ValueError(\"Missing meta section\")",
+      "replacement": "        raise ValueError(messages[\"MISSING_META_SECTION\"])",
+      "token": "MISSING_META_SECTION"
+    },
+    {
+      "file": "src/dennis/goals/discovery.py",
+      "line": 88,
+      "original": "            \"Expected artifact format 'obad'\"",
+      "replacement": "            messages[\"EXPECTED_ARTIFACT_FORMAT_OBAD\"]",
+      "token": "EXPECTED_ARTIFACT_FORMAT_OBAD"
+    },
+    {
+      "file": "src/dennis/goals/discovery.py",
+      "line": 95,
+      "original": "            \"OBAD findings must be a list\"",
+      "replacement": "            messages[\"OBAD_FINDINGS_MUST_BE_A_LIST\"]",
+      "token": "OBAD_FINDINGS_MUST_BE_A_LIST"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 12,
+      "original": "            \"Goal Discovery artifact must be a dictionary\"",
+      "replacement": "            messages[\"GOAL_DISCOVERY_ARTIFACT_MUST_BE_A_DICTIONARY\"]",
+      "token": "GOAL_DISCOVERY_ARTIFACT_MUST_BE_A_DICTIONARY"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 19,
+      "original": "            \"Missing meta section\"",
+      "replacement": "            messages[\"MISSING_META_SECTION\"]",
+      "token": "MISSING_META_SECTION"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 24,
+      "original": "            \"Expected artifact format 'goal-discovery'\"",
+      "replacement": "            messages[\"EXPECTED_ARTIFACT_FORMAT_GOALDISCOVERY\"]",
+      "token": "EXPECTED_ARTIFACT_FORMAT_GOALDISCOVERY"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 31,
+      "original": "            \"Goal Discovery goals must be a list\"",
+      "replacement": "            messages[\"GOAL_DISCOVERY_GOALS_MUST_BE_A_LIST\"]",
+      "token": "GOAL_DISCOVERY_GOALS_MUST_BE_A_LIST"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 37,
+      "original": "            \"Extract human-readable strings\",",
+      "replacement": "            messages[\"EXTRACT_HUMANREADABLE_STRINGS\"],",
+      "token": "EXTRACT_HUMANREADABLE_STRINGS"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 38,
+      "original": "            \"Create translation keys\",",
+      "replacement": "            messages[\"CREATE_TRANSLATION_KEYS\"],",
+      "token": "CREATE_TRANSLATION_KEYS"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 39,
+      "original": "            \"Externalize messages\",",
+      "replacement": "            messages[\"EXTERNALIZE_MESSAGES\"],",
+      "token": "EXTERNALIZE_MESSAGES"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 45,
+      "original": "            \"Replace repeated literals with constants\",",
+      "replacement": "            messages[\"REPLACE_REPEATED_LITERALS_WITH_CONSTANTS\"],",
+      "token": "REPLACE_REPEATED_LITERALS_WITH_CONSTANTS"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 51,
+      "original": "            \"Move URLs into configuration\",",
+      "replacement": "            messages[\"MOVE_URLS_INTO_CONFIGURATION\"],",
+      "token": "MOVE_URLS_INTO_CONFIGURATION"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 57,
+      "original": "            \"Review unknown observations\",",
+      "replacement": "            messages[\"REVIEW_UNKNOWN_OBSERVATIONS\"],",
+      "token": "REVIEW_UNKNOWN_OBSERVATIONS"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 108,
+      "original": "            \"Spec Discovery artifact must be a dictionary\"",
+      "replacement": "            messages[\"SPEC_DISCOVERY_ARTIFACT_MUST_BE_A_DICTIONARY\"]",
+      "token": "SPEC_DISCOVERY_ARTIFACT_MUST_BE_A_DICTIONARY"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 115,
+      "original": "            \"Missing meta section\"",
+      "replacement": "            messages[\"MISSING_META_SECTION\"]",
+      "token": "MISSING_META_SECTION"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 120,
+      "original": "            \"Expected artifact format 'spec-discovery'\"",
+      "replacement": "            messages[\"EXPECTED_ARTIFACT_FORMAT_SPECDISCOVERY\"]",
+      "token": "EXPECTED_ARTIFACT_FORMAT_SPECDISCOVERY"
+    },
+    {
+      "file": "src/dennis/goals/specs.py",
+      "line": 127,
+      "original": "            \"Spec Discovery specs must be a list\"",
+      "replacement": "            messages[\"SPEC_DISCOVERY_SPECS_MUST_BE_A_LIST\"]",
+      "token": "SPEC_DISCOVERY_SPECS_MUST_BE_A_LIST"
+    },
+    {
+      "file": "src/dennis/i18n/apply.py",
+      "line": 206,
+      "original": "        if \"dictionary.json\" in l or \"messages =\" in l:",
+      "replacement": "        if \"dictionary.json\" in l or messages[\"MESSAGES\"] in l:",
+      "token": "MESSAGES"
+    },
+    {
+      "file": "src/dennis/i18n/apply.py",
+      "line": 283,
+      "original": "        print(\"\\n[Dennis] PREVIEW MODE — no changes will be applied\\n\")",
+      "replacement": "        print(messages[\"NDENNIS_PREVIEW_MODE_NO_CHANGES_WILL_BE_APPLIEDN\"])",
+      "token": "NDENNIS_PREVIEW_MODE_NO_CHANGES_WILL_BE_APPLIEDN"
+    },
+    {
+      "file": "src/dennis/i18n/apply.py",
+      "line": 288,
+      "original": "        print(\"\\nTo apply this artifact, run:\\n\")",
+      "replacement": "        print(messages[\"NTO_APPLY_THIS_ARTIFACT_RUNN\"])",
+      "token": "NTO_APPLY_THIS_ARTIFACT_RUNN"
+    },
+    {
+      "file": "src/dennis/i18n/apply.py",
+      "line": 297,
+      "original": "        print(\"\\n[Dennis] ERROR: Confirmation hash mismatch\\n\")",
+      "replacement": "        print(messages[\"NDENNIS_ERROR_CONFIRMATION_HASH_MISMATCHN\"])",
+      "token": "NDENNIS_ERROR_CONFIRMATION_HASH_MISMATCHN"
+    },
+    {
+      "file": "src/dennis/i18n/apply.py",
+      "line": 435,
+      "original": "                    print(\"[Dennis] Creating artifact bundle (isolate mode)\")",
+      "replacement": "                    print(messages[\"DENNIS_CREATING_ARTIFACT_BUNDLE_ISOLATE_MODE\"])",
+      "token": "DENNIS_CREATING_ARTIFACT_BUNDLE_ISOLATE_MODE"
+    },
+    {
+      "file": "src/dennis/i18n/plan.py",
+      "line": 32,
+      "original": "    \"office XML\": [\".docx\", \".xlsx\", \".pptx\", \".odt\", \".ods\", \".odp\"],",
+      "replacement": "    messages[\"OFFICE_XML\"]: [\".docx\", \".xlsx\", \".pptx\", \".odt\", \".ods\", \".odp\"],",
+      "token": "OFFICE_XML"
+    },
+    {
+      "file": "src/dennis/i18n/plan.py",
+      "line": 53,
+      "original": "        print(\"[Dennis] WARNING: git diff failed, falling back to full scan\")",
+      "replacement": "        print(messages[\"DENNIS_WARNING_GIT_DIFF_FAILED_FALLING_BACK_TO_FULL_SCAN\"])",
+      "token": "DENNIS_WARNING_GIT_DIFF_FAILED_FALLING_BACK_TO_FULL_SCAN"
+    },
+    {
+      "file": "src/dennis/i18n/plan.py",
+      "line": 160,
+      "original": "            print(\"[Dennis] Continuing with plan generation...\")",
+      "replacement": "            print(messages[\"DENNIS_CONTINUING_WITH_PLAN_GENERATION\"])",
+      "token": "DENNIS_CONTINUING_WITH_PLAN_GENERATION"
+    },
+    {
+      "file": "src/dennis/qr/decode.py",
+      "line": 12,
+      "original": "        raise ValueError(\"No QR code detected\")",
+      "replacement": "        raise ValueError(messages[\"NO_QR_CODE_DETECTED\"])",
+      "token": "NO_QR_CODE_DETECTED"
+    },
+    {
+      "file": "src/dennis/qr/decode.py",
+      "line": 17,
+      "original": "        raise ValueError(\"Not a Dennis QR\")",
+      "replacement": "        raise ValueError(messages[\"NOT_A_DENNIS_QR\"])",
+      "token": "NOT_A_DENNIS_QR"
+    },
+    {
+      "file": "src/dennis/qr/decode.py",
+      "line": 34,
+      "original": "    raise ValueError(\"No DFP payload found in ASCII input\")",
+      "replacement": "    raise ValueError(messages[\"NO_DFP_PAYLOAD_FOUND_IN_ASCII_INPUT\"])",
+      "token": "NO_DFP_PAYLOAD_FOUND_IN_ASCII_INPUT"
+    },
+    {
+      "file": "src/dennis/qr/decode.py",
+      "line": 44,
+      "original": "        \"Will be added with optional pyzbar dependency.\"",
+      "replacement": "        messages[\"WILL_BE_ADDED_WITH_OPTIONAL_PYZBAR_DEPENDENCY\"]",
+      "token": "WILL_BE_ADDED_WITH_OPTIONAL_PYZBAR_DEPENDENCY"
+    },
+    {
+      "file": "src/dennis/qr/decode.py",
+      "line": 55,
+      "original": "        raise ValueError(\"No DFP URI found in ASCII payload\")",
+      "replacement": "        raise ValueError(messages[\"NO_DFP_URI_FOUND_IN_ASCII_PAYLOAD\"])",
+      "token": "NO_DFP_URI_FOUND_IN_ASCII_PAYLOAD"
+    },
+    {
+      "file": "src/dennis/qr/dfp.py",
+      "line": 10,
+      "original": "    \"\"\"Create canonical DFP URI.\"\"\"",
+      "replacement": "    \"\"messages[\"CREATE_CANONICAL_DFP_URI\"]\"\"",
+      "token": "CREATE_CANONICAL_DFP_URI"
+    },
+    {
+      "file": "src/dennis/qr/dfp.py",
+      "line": 12,
+      "original": "        raise ValueError(\"Invalid SHA-256 hash\")",
+      "replacement": "        raise ValueError(messages[\"INVALID_SHA256_HASH\"])",
+      "token": "INVALID_SHA256_HASH"
+    },
+    {
+      "file": "src/dennis/qr/dfp.py",
+      "line": 17,
+      "original": "    \"\"\"Extract hash from a DFP URI.\"\"\"",
+      "replacement": "    \"\"messages[\"EXTRACT_HASH_FROM_A_DFP_URI\"]\"\"",
+      "token": "EXTRACT_HASH_FROM_A_DFP_URI"
+    },
+    {
+      "file": "src/dennis/qr/dfp.py",
+      "line": 19,
+      "original": "        raise ValueError(\"Not a DFP v1 forge URI\")",
+      "replacement": "        raise ValueError(messages[\"NOT_A_DFP_V1_FORGE_URI\"])",
+      "token": "NOT_A_DFP_V1_FORGE_URI"
+    },
+    {
+      "file": "src/dennis/qr/dfp.py",
+      "line": 24,
+      "original": "        raise ValueError(\"Malformed DFP hash\")",
+      "replacement": "        raise ValueError(messages[\"MALFORMED_DFP_HASH\"])",
+      "token": "MALFORMED_DFP_HASH"
+    },
+    {
+      "file": "src/dennis/qr/uri.py",
+      "line": 13,
+      "original": "        raise DFPURIError(\"Not a DFP URI\")",
+      "replacement": "        raise DFPURIError(messages[\"NOT_A_DFP_URI\"])",
+      "token": "NOT_A_DFP_URI"
+    },
+    {
+      "file": "src/dennis/qr/uri.py",
+      "line": 21,
+      "original": "        raise DFPURIError(\"Unsupported DFP version\")",
+      "replacement": "        raise DFPURIError(messages[\"UNSUPPORTED_DFP_VERSION\"])",
+      "token": "UNSUPPORTED_DFP_VERSION"
+    },
+    {
+      "file": "src/dennis/qr/uri.py",
+      "line": 24,
+      "original": "        raise DFPURIError(\"Invalid DFP URI format\")",
+      "replacement": "        raise DFPURIError(messages[\"INVALID_DFP_URI_FORMAT\"])",
+      "token": "INVALID_DFP_URI_FORMAT"
+    },
+    {
+      "file": "src/dennis/qr/uri.py",
+      "line": 29,
+      "original": "        raise DFPURIError(\"Invalid SHA-256 hash\")",
+      "replacement": "        raise DFPURIError(messages[\"INVALID_SHA256_HASH\"])",
+      "token": "INVALID_SHA256_HASH"
+    },
+    {
+      "file": "src/dennis/reporters/human.py",
+      "line": 6,
+      "original": "        print(\"No suspicious hardcoded strings found.\")",
+      "replacement": "        print(messages[\"NO_SUSPICIOUS_HARDCODED_STRINGS_FOUND\"])",
+      "token": "NO_SUSPICIOUS_HARDCODED_STRINGS_FOUND"
+    },
+    {
+      "file": "src/dennis/server/app.py",
+      "line": 8,
+      "original": "    title=\"Dennis Forge API\",",
+      "replacement": "    title=messages[\"DENNIS_FORGE_API\"],",
+      "token": "DENNIS_FORGE_API"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 31,
+      "original": "        raise HTTPException(status_code=404, detail=\"Artifact not found\")",
+      "replacement": "        raise HTTPException(status_code=404, detail=messages[\"ARTIFACT_NOT_FOUND\"])",
+      "token": "ARTIFACT_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 41,
+      "original": "        raise HTTPException(status_code=400, detail=\"Only .dex artifacts allowed\")",
+      "replacement": "        raise HTTPException(status_code=400, detail=messages[\"ONLY_DEX_ARTIFACTS_ALLOWED\"])",
+      "token": "ONLY_DEX_ARTIFACTS_ALLOWED"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 44,
+      "original": "        print(\"----- DEBUG DEX INGEST V.2 -----\")",
+      "replacement": "        print(messages[\"DEBUG_DEX_INGEST_V2\"])",
+      "token": "DEBUG_DEX_INGEST_V2"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 66,
+      "original": "        print(\"----- DEBUG DEX INGEST -----\")",
+      "replacement": "        print(messages[\"DEBUG_DEX_INGEST\"])",
+      "token": "DEBUG_DEX_INGEST"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 67,
+      "original": "        print(\"Manifest payload:\", manifest[\"payload\"])",
+      "replacement": "        print(messages[\"MANIFEST_PAYLOAD\"], manifest[\"payload\"])",
+      "token": "MANIFEST_PAYLOAD"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 68,
+      "original": "        print(\"Payload bytes length:\", len(payload_bytes))",
+      "replacement": "        print(messages[\"PAYLOAD_BYTES_LENGTH\"], len(payload_bytes))",
+      "token": "PAYLOAD_BYTES_LENGTH"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 69,
+      "original": "        print(\"Payload bytes preview:\", payload_bytes[:200])",
+      "replacement": "        print(messages[\"PAYLOAD_BYTES_PREVIEW\"], payload_bytes[:200])",
+      "token": "PAYLOAD_BYTES_PREVIEW"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 78,
+      "original": "            raise Exception(\"manifest missing payload hash\")",
+      "replacement": "            raise Exception(messages[\"MANIFEST_MISSING_PAYLOAD_HASH\"])",
+      "token": "MANIFEST_MISSING_PAYLOAD_HASH"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 94,
+      "original": "            raise Exception(\"payload hash mismatch\")",
+      "replacement": "            raise Exception(messages[\"PAYLOAD_HASH_MISMATCH_2\"])",
+      "token": "PAYLOAD_HASH_MISMATCH_2"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 271,
+      "original": "        raise HTTPException(status_code=404, detail=\"Artifact not found\")",
+      "replacement": "        raise HTTPException(status_code=404, detail=messages[\"ARTIFACT_NOT_FOUND\"])",
+      "token": "ARTIFACT_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 320,
+      "original": "        raise HTTPException(status_code=404, detail=\"Artifact not found\")",
+      "replacement": "        raise HTTPException(status_code=404, detail=messages[\"ARTIFACT_NOT_FOUND\"])",
+      "token": "ARTIFACT_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 338,
+      "original": "        raise HTTPException(status_code=404, detail=\"Artifact not found\")",
+      "replacement": "        raise HTTPException(status_code=404, detail=messages[\"ARTIFACT_NOT_FOUND\"])",
+      "token": "ARTIFACT_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/server/routers/artifacts.py",
+      "line": 420,
+      "original": "        raise HTTPException(status_code=404, detail=\"Artifact not found\")",
+      "replacement": "        raise HTTPException(status_code=404, detail=messages[\"ARTIFACT_NOT_FOUND\"])",
+      "token": "ARTIFACT_NOT_FOUND"
+    },
+    {
+      "file": "src/dennis/storage/sqlite.py",
+      "line": 14,
+      "original": "        self.conn.execute(\"PRAGMA foreign_keys = ON\")",
+      "replacement": "        self.conn.execute(messages[\"PRAGMA_FOREIGN_KEYS_ON\"])",
+      "token": "PRAGMA_FOREIGN_KEYS_ON"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 12,
+      "original": "        (root / \"hello.py\").write_text('print(\"Hello world.\")\\n', encoding=\"utf-8\")",
+      "replacement": "        (root / \"hello.py\").write_text('print(messages[\"HELLO_WORLD_2\"])\\n', encoding=\"utf-8\")",
+      "token": "HELLO_WORLD_2"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 26,
+      "original": "        (root / \"hello.py\").write_text('print(\"Hello world.\")\\n', encoding=\"utf-8\")",
+      "replacement": "        (root / \"hello.py\").write_text('print(messages[\"HELLO_WORLD_2\"])\\n', encoding=\"utf-8\")",
+      "token": "HELLO_WORLD_2"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 39,
+      "original": "                    \"original\": 'print(\"Hello world.\")',",
+      "replacement": "                    \"original\": 'print(messages[\"HELLO_WORLD_2\"])',",
+      "token": "HELLO_WORLD_2"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 69,
+      "original": "            [\"# >>> DENNIS HELPER START: testhelper\"] == change.get(\"after\", [])[:1]",
+      "replacement": "            [messages[\"DENNIS_HELPER_START_TESTHELPER\"]] == change.get(\"after\", [])[:1]",
+      "token": "DENNIS_HELPER_START_TESTHELPER"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 76,
+      "original": "        assert file_paths[\"helpers/helper_test.py\"][\"changes\"][0][\"after\"] == ['def helper():', '    return True']",
+      "replacement": "        assert file_paths[\"helpers/helper_test.py\"][\"changes\"][0][\"after\"] == [messages[\"DEF_HELPER\"], '    return True']",
+      "token": "DEF_HELPER"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 87,
+      "original": "            'print(\"Hello world.\")\\n'",
+      "replacement": "            'print(messages[\"HELLO_WORLD_2\"])\\n'",
+      "token": "HELLO_WORLD_2"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 88,
+      "original": "            'print(\"Goodbye\")\\n',",
+      "replacement": "            'print(messages[\"GOODBYE\"])\\n',",
+      "token": "GOODBYE"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 114,
+      "original": "                    \"original\": 'print(\"Goodbye\")',",
+      "replacement": "                    \"original\": 'print(messages[\"GOODBYE\"])',",
+      "token": "GOODBYE"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 137,
+      "original": "        (root / \"hello.py\").write_text('print(\"Hello world.\")\\n', encoding=\"utf-8\")",
+      "replacement": "        (root / \"hello.py\").write_text('print(messages[\"HELLO_WORLD_2\"])\\n', encoding=\"utf-8\")",
+      "token": "HELLO_WORLD_2"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 150,
+      "original": "                    \"original\": 'print(\"Hello world.\")',",
+      "replacement": "                    \"original\": 'print(messages[\"HELLO_WORLD_2\"])',",
+      "token": "HELLO_WORLD_2"
+    },
+    {
+      "file": "src/dennis/tests/test_generate_planned_diff.py",
+      "line": 172,
+      "original": "        assert file_paths[\"helpers/helper_test.py\"][\"changes\"][0][\"after\"] == ['def helper():', '    return True']",
+      "replacement": "        assert file_paths[\"helpers/helper_test.py\"][\"changes\"][0][\"after\"] == [messages[\"DEF_HELPER\"], '    return True']",
+      "token": "DEF_HELPER"
+    },
+    {
+      "file": "src/dennis/tests/test_git_use_git_mode.py",
+      "line": 15,
+      "original": "        (root / \"a.py\").write_text(\"print('hello')\\n\", encoding=\"utf-8\")",
+      "replacement": "        (root / \"a.py\").write_text(\"print(messages[\"HELLO\"])\\n\", encoding=\"utf-8\")",
+      "token": "HELLO"
+    },
+    {
+      "file": "src/dennis/tests/test_git_use_git_mode.py",
+      "line": 16,
+      "original": "        (root / \"b.py\").write_text(\"print('untracked')\\n\", encoding=\"utf-8\")",
+      "replacement": "        (root / \"b.py\").write_text(\"print(messages[\"UNTRACKED\"])\\n\", encoding=\"utf-8\")",
+      "token": "UNTRACKED"
+    },
+    {
+      "file": "src/dennis/tests/test_verify_execution.py",
+      "line": 89,
+      "original": "        assert \"Unexpected files detected\" in captured.out",
+      "replacement": "        assert messages[\"UNEXPECTED_FILES_DETECTED\"] in captured.out",
+      "token": "UNEXPECTED_FILES_DETECTED"
+    },
+    {
+      "file": "src/dennis/tests/test_verify_execution.py",
+      "line": 90,
+      "original": "        assert \"Scope mismatch detected\" in captured.out",
+      "replacement": "        assert messages[\"SCOPE_MISMATCH_DETECTED\"] in captured.out",
+      "token": "SCOPE_MISMATCH_DETECTED"
+    },
+    {
+      "file": "src/dennis/tools/html_i18n.py",
+      "line": 12,
+      "original": "    \"\"\"Extract i18n strings from a single HTML file.\"\"\"",
+      "replacement": "    \"\"messages[\"EXTRACT_I18N_STRINGS_FROM_A_SINGLE_HTML_FILE\"]\"\"",
+      "token": "EXTRACT_I18N_STRINGS_FROM_A_SINGLE_HTML_FILE"
+    },
+    {
+      "file": "src/dennis/tools/html_i18n.py",
+      "line": 28,
+      "original": "    \"\"\"Return HTML files from source.\"\"\"",
+      "replacement": "    \"\"messages[\"RETURN_HTML_FILES_FROM_SOURCE\"]\"\"",
+      "token": "RETURN_HTML_FILES_FROM_SOURCE"
+    },
+    {
+      "file": "src/dennis/tools/html_i18n.py",
+      "line": 41,
+      "original": "    \"\"\"Extract i18n keys from HTML files into a JSON file.\"\"\"",
+      "replacement": "    \"\"messages[\"EXTRACT_I18N_KEYS_FROM_HTML_FILES_INTO_A_JSON_FILE\"]\"\"",
+      "token": "EXTRACT_I18N_KEYS_FROM_HTML_FILES_INTO_A_JSON_FILE"
+    },
+    {
+      "file": "src/dennis/tools/html_i18n.py",
+      "line": 78,
+      "original": "    parser = argparse.ArgumentParser(description=\"Extract i18n strings from HTML\")",
+      "replacement": "    parser = argparse.ArgumentParser(description=messages[\"EXTRACT_I18N_STRINGS_FROM_HTML\"])",
+      "token": "EXTRACT_I18N_STRINGS_FROM_HTML"
+    },
+    {
+      "file": "src/dennis/tools/html_i18n.py",
+      "line": 79,
+      "original": "    parser.add_argument(\"source\", help=\"HTML file or directory\")",
+      "replacement": "    parser.add_argument(\"source\", help=messages[\"HTML_FILE_OR_DIRECTORY\"])",
+      "token": "HTML_FILE_OR_DIRECTORY"
+    },
+    {
+      "file": "src/dennis/tools/html_i18n.py",
+      "line": 80,
+      "original": "    parser.add_argument(\"--out\", default=\"i18n/en.json\", help=\"Output JSON file\")",
+      "replacement": "    parser.add_argument(\"--out\", default=\"i18n/en.json\", help=messages[\"OUTPUT_JSON_FILE\"])",
+      "token": "OUTPUT_JSON_FILE"
+    },
+    {
+      "file": "src/dennis/tools/html_i18n.py",
+      "line": 81,
+      "original": "    parser.add_argument(\"--recursive\", action=\"store_true\", help=\"Scan directories recursively\")",
+      "replacement": "    parser.add_argument(\"--recursive\", action=\"store_true\", help=messages[\"SCAN_DIRECTORIES_RECURSIVELY\"])",
+      "token": "SCAN_DIRECTORIES_RECURSIVELY"
+    },
+    {
+      "file": "src/dennis/utils.py",
+      "line": 212,
+      "original": "                print(\"[Dennis] No git changes detected. Scanning git repository files excluding .gitignore.\")",
+      "replacement": "                print(messages[\"DENNIS_NO_GIT_CHANGES_DETECTED_SCANNING_GIT_REPOSITORY_FILES_EXCLUDING_GITIGNORE\"])",
+      "token": "DENNIS_NO_GIT_CHANGES_DETECTED_SCANNING_GIT_REPOSITORY_FILES_EXCLUDING_GITIGNORE"
+    }
+  ]
+}

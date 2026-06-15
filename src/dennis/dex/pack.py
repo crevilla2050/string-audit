@@ -57,6 +57,7 @@ def _tarinfo_for_bytes(name: str, data: bytes) -> tarfile.TarInfo:
     ti.mode = 0o644
     return ti
 
+
 def load_gitignore(root: Path):
     gitignore = root / ".gitignore"
 
@@ -65,6 +66,180 @@ def load_gitignore(root: Path):
 
     lines = gitignore.read_text(encoding="utf-8").splitlines()
     return PathSpec.from_lines(GitWildMatchPattern, lines)
+
+def load_dexscope(root_dir):
+    """
+    Load .dexscope file.
+
+    Returns:
+        None if .dexscope does not exist.
+
+        Otherwise returns:
+        {
+            "active": [...],
+            "inactive": [...]
+            "comments": [...]
+        }
+    """
+    scope_file = root_dir / ".dexscope"
+
+    if not scope_file.exists():
+        return None
+
+    active = []
+    inactive = []
+    comments = []
+
+    for raw_line in scope_file.read_text(
+        encoding="utf-8"
+    ).splitlines():
+
+        line = raw_line.rstrip()
+
+        if not line.strip():
+            continue
+
+        if line.strip() == "# Dennis Scope v1":
+            continue
+
+        if line.lstrip().startswith("#"):
+
+            candidate = line.lstrip()[1:].strip()
+
+            candidate_path = root_dir / candidate
+
+            if candidate and candidate_path.exists():
+                inactive.append(candidate)
+            else:
+                comments.append(candidate)
+
+            continue
+
+        active.append(line.strip())
+
+    return {
+        "active": active,
+        "inactive": inactive,
+        "comments": comments
+    }
+
+
+def collect_scoped_files(root_dir):
+    """
+    Return files listed in .dexscope.
+
+    Returns:
+        None if .dexscope does not exist.
+    """
+
+    scope = load_dexscope(root_dir)
+
+    if scope is None:
+        return None
+
+    files = []
+
+    for path_str in scope["active"]:
+        path = root_dir / path_str
+        if not path.exists():
+            print(
+                f"[Dennis] WARNING: Missing scope file: {path}"
+            )
+            continue
+
+        if not path.is_file():
+            continue
+
+        files.append(path)
+
+    return sorted(files)
+
+def collect_project_files(root_dir):
+    gitignore_spec = load_gitignore(root_dir)
+
+    default_spec = PathSpec.from_lines(
+        GitWildMatchPattern,
+        DEFAULT_IGNORES
+    )
+
+    def is_ignored(path_str):
+        if default_spec.match_file(path_str):
+            return True
+
+        if gitignore_spec and gitignore_spec.match_file(path_str):
+            return True
+
+        return False
+
+    files = []
+
+    for file_path in sorted(root_dir.rglob("*")):
+
+        if not file_path.is_file():
+            continue
+
+        if file_path.name.endswith(".dex"):
+            continue
+
+        rel_path = file_path.relative_to(root_dir)
+
+        if is_ignored(str(rel_path)):
+            continue
+
+        files.append(file_path)
+
+    return files
+
+def export_dexscope_json(root_dir):
+
+    root_dir = Path(root_dir)
+
+    scope = load_dexscope(root_dir)
+
+    if scope is None:
+        raise SystemExit(
+            "[Dennis] ERROR: .dexscope not found."
+        )
+
+    output = {
+        "version": 1,
+        "generated": True,
+        "canonical_source": ".dexscope",
+        "active": sorted(scope["active"]),
+        "inactive": sorted(scope["inactive"]),
+        "comments": scope["comments"]
+    }
+
+    output_file = root_dir / ".dexscope.json"
+
+    output_file.write_text(
+        json.dumps(
+            output,
+            indent=2,
+            ensure_ascii=False
+        ) + "\n",
+        encoding="utf-8"
+    )
+
+    print(
+        f"[Dennis] Scope JSON exported → {output_file}"
+    )
+
+def build_dexscope_json(root_dir):
+
+    scope = load_dexscope(root_dir)
+
+    if scope is None:
+        return None
+
+    return {
+        "version": 1,
+        "generated": True,
+        "canonical_source": ".dexscope",
+        "active": sorted(scope["active"]),
+        "inactive": sorted(scope["inactive"]),
+        "comments": scope["comments"]
+    }
 
 # ------------------------------------------------------------
 # Main packer
@@ -230,6 +405,8 @@ def pack_dex(
         ensure_ascii=False
     ).encode("utf-8")
 
+    # print(load_dexscope(payload_path.parent))
+
     # --------------------------------------------------------
     # Tar creation
     # --------------------------------------------------------
@@ -253,23 +430,22 @@ def pack_dex(
         if include_files:
             root_dir = payload_path.parent  # project dir assumption
 
-            gitignore_spec = load_gitignore(root_dir)
+            # ----------------------------------------
+            # FILE SELECTION
+            # ----------------------------------------
 
-            default_spec = PathSpec.from_lines(GitWildMatchPattern, DEFAULT_IGNORES)
+            scope_files = collect_scoped_files(root_dir)
 
-            def is_ignored(path_str):
-                if default_spec.match_file(path_str):
-                    return True
-                if gitignore_spec and gitignore_spec.match_file(path_str):
-                    return True
-                return False
-                print(
-                    "[Dennis] WARNING: No .gitignore found.\n"
-                    "         Using default ignore rules.\n"
-                    "         Consider adding a .gitignore for better control."
-                )
+            if scope_files is not None:
 
-            for file_path in sorted(root_dir.rglob("*")):
+                print("[Dennis] Using .dexscope")
+                files_to_pack = scope_files
+
+            else:
+                files_to_pack = collect_project_files(root_dir)
+                
+
+            for file_path in files_to_pack:
 
                 if not file_path.is_file():
                     continue
@@ -279,12 +455,6 @@ def pack_dex(
                     continue
 
                 rel_path = file_path.relative_to(root_dir)
-
-                # ----------------------------------------
-                # IGNORE FILTER (NEW)
-                # ----------------------------------------
-                if is_ignored(str(rel_path)):
-                    continue
 
                 data = file_path.read_bytes()
 
@@ -330,6 +500,36 @@ def pack_dex(
             tar.addfile(ti, io.BytesIO(spec_bytes))
 
             print(f"[Dennis] Embedded spec → {latest_spec}")
+        
+        # ----------------------------------------
+        # OPTIONAL: embed dexscope metadata
+        # ----------------------------------------
+
+        scope_json = build_dexscope_json(
+            payload_path.parent
+        )
+
+        if scope_json is not None:
+
+            scope_bytes = json.dumps(
+                scope_json,
+                indent=2,
+                ensure_ascii=False
+            ).encode("utf-8")
+
+            ti = _tarinfo_for_bytes(
+                "meta/dexscope.json",
+                scope_bytes
+            )
+
+            tar.addfile(
+                ti,
+                io.BytesIO(scope_bytes)
+            )
+
+            print(
+                "[Dennis] Embedded scope metadata"
+            )
 
     tar_bytes = tar_buffer.getvalue()
 
