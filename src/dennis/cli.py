@@ -22,7 +22,7 @@ import hashlib
 from dennis.scanner import scan_directory
 from dennis.reporters.human import print_human_report
 from dennis.reporters.json_reporter import write_json_report
-
+from dennis.commands.projects import register_projects_commands
 
 from dennis.i18n.generator import (
     load_findings,
@@ -196,110 +196,10 @@ def is_binary_file(path: Path) -> bool:
         return True  # safest fallback
     
 
-def projects_deleted(server, api_prefix, token):
-    
-    if api_prefix is None:
-        api_prefix = "/api"
-
-    url = f"{server}{api_prefix}/projects/deleted"
-    # print("DEBUG URL:", url)
-
-
-    req = urllib.request.Request(url)
-    req.add_header("Authorization", f"Bearer {token}")
-
-    try:
-        with urllib.request.urlopen(req) as res:
-            data = json.loads(res.read().decode())
-
-        if not data:
-            print("No deleted projects.")
-            return
-
-        for p in data:
-            print(f"{p['uuid_project']}  {p['name']}")
-
-    except Exception as e:
-        print("Error:", e)
-
-def projects_restore(server, api_prefix, token, project_id, with_artifacts=False, no_artifacts=False):
-
-    if api_prefix is None:
-        api_prefix = "/api"
-
-    # --------------------------------------------------------
-    # 1. TRY TO FETCH ARTIFACT COUNT
-    # --------------------------------------------------------
-    artifact_count = None
-
-    try:
-        artifacts_url = f"{server}{api_prefix}/projects/{project_id}/artifacts"
-
-        req = urllib.request.Request(artifacts_url)
-        req.add_header("Authorization", f"Bearer {token}")
-
-        with urllib.request.urlopen(req) as res:
-            artifacts = json.loads(res.read().decode())
-
-        artifact_count = len(artifacts)
-
-    except Exception:
-        # silently ignore if endpoint not available
-        artifact_count = None
-
-    # --------------------------------------------------------
-    # 2. DECIDE RESTORE STRATEGY
-    # --------------------------------------------------------
-    restore_artifacts = with_artifacts
-
-    if not with_artifacts and not no_artifacts:
-
-        if artifact_count is not None and artifact_count > 0:
-
-            print(f"This project has {artifact_count} artifacts associated with it.")
-            print("Do you want to restore them as well? (y/N)")
-
-            choice = input("> ").strip().lower()
-
-            restore_artifacts = choice == "y"
-
-    if no_artifacts:
-        restore_artifacts = False
-
-    # --------------------------------------------------------
-    # 3. CALL BACKEND
-    # --------------------------------------------------------
-    url = f"{server}{api_prefix}/projects/{project_id}/restore"
-
-    payload = json.dumps({
-        "restore_artifacts": restore_artifacts
-    }).encode()
-
-    req = urllib.request.Request(url, data=payload, method="POST")
-    req.add_header("Authorization", f"Bearer {token}")
-    req.add_header("Content-Type", "application/json")
-
-    try:
-        with urllib.request.urlopen(req) as res:
-            data = json.loads(res.read().decode())
-
-        # --------------------------------------------------------
-        # 4. UX OUTPUT
-        # --------------------------------------------------------
-        print("✔ Project restored")
-
-        if restore_artifacts:
-            if artifact_count is not None:
-                print(f"✔ Restored {artifact_count} artifacts")
-            else:
-                print("✔ Artifacts restored")
-
-        else:
-            if artifact_count:
-                print("(artifacts not restored)")
-
-    except Exception as e:
-        print("Error:", e)
+from dennis.commands.projects import (
+    projects_deleted,
+    projects_restore
+)
 
 import subprocess
 
@@ -733,39 +633,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 
     sub = parser.add_subparsers(dest="command")
-
-    # --------------------------------------------------------
-    # PROJECTS
-    # --------------------------------------------------------
-
-    projects_cmd = sub.add_parser("projects", help="Manage projects")
-    projects_sub = projects_cmd.add_subparsers(dest="subcommand")
-    projects_sub.required = True
-
-    # projects list
-    projects_sub.add_parser("list", help="List projects")
-
-    # projects delete
-    delete_cmd = projects_sub.add_parser("delete", help="Delete a project")
-    delete_cmd.add_argument("project_id")
-
-    # projects rename
-    rename_cmd = projects_sub.add_parser("rename", help="Rename a project")
-    rename_cmd.add_argument("project_id")
-    rename_cmd.add_argument("new_name")
-
-    # projects activate
-    activate_cmd = projects_sub.add_parser("activate", help="Set active project")
-    activate_cmd.add_argument("project_id")
-
-    # projects deleted
-    projects_sub.add_parser("deleted", help="List deleted projects")
-
-    # projects restore
-    restore_cmd = projects_sub.add_parser("restore", help="Restore a project")
-    restore_cmd.add_argument("project_id")
-    restore_cmd.add_argument("--with-artifacts", action="store_true")
-    restore_cmd.add_argument("--no-artifacts", action="store_true")
 
 
     # --------------------------------------------------------
@@ -1505,7 +1372,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("whoami", help="Show current authenticated user")
 
-    
+    register_projects_commands(sub)
 
     return parser
 
@@ -2224,172 +2091,8 @@ def main() -> None:
     # --------------------------------------------------------
 
     elif args.command == "projects":
-
-        from dennis.forge.config import load_config, save_config
-
-        config = load_config()
-        token = config.get("auth", {}).get("token")
-        active_project = config.get("active_project")
-
-        if not token:
-            raise SystemExit("Not authenticated. Run: dennis login")
-
-        # --------------------------------------------------------
-        # LIST PROJECTS
-        # --------------------------------------------------------
-        if args.subcommand == "list":
-
-            url = f"{server.rstrip('/')}{api_prefix}/projects"
-
-            resp = requests.get(
-                url,
-                headers={"Authorization": f"Bearer {token}"}
-            )
-
-            if resp.status_code != 200:
-                raise SystemExit(f"Error: {resp.text}")
-
-            projects = resp.json()
-
-            if not projects:
-                print("No projects found.")
-                return
-
-            found_active = False
-
-            for p in projects:
-                prefix = ">>" if p["uuid_project"] == active_project else "  "
-
-                if p["uuid_project"] == active_project:
-                    found_active = True
-
-                print(f"{prefix} {p['uuid_project']}  {p['name']}")
-
-            print()
-
-            if active_project and found_active:
-                print(">> = active project")
-            else:
-                print("⚠ No active project set")
-                print("Use: dennis projects activate <uuid>")
-
-        # --------------------------------------------------------
-        # ACTIVATE PROJECT
-        # --------------------------------------------------------
-        elif args.subcommand == "activate":
-
-            project_id = args.project_id
-
-            url = f"{server.rstrip('/')}{api_prefix}/projects"
-
-            resp = requests.get(
-                url,
-                headers={"Authorization": f"Bearer {token}"}
-            )
-
-            if resp.status_code != 200:
-                raise SystemExit(f"Error: {resp.text}")
-
-            projects = resp.json()
-
-            match = next((p for p in projects if p["uuid_project"] == project_id), None)
-
-            if not match:
-                raise SystemExit("Project not found")
-
-            config["active_project"] = project_id
-            save_config(config)
-
-            print(f"✔ Active project set → {match['name']} ({project_id})")
-
-        # --------------------------------------------------------
-        # DELETE PROJECT (WITH SAFEGUARD)
-        # --------------------------------------------------------
-        elif args.subcommand == "delete":
-
-            project_id = args.project_id
-
-            # fetch project name
-            url = f"{server.rstrip('/')}{api_prefix}/projects"
-
-            resp = requests.get(
-                url,
-                headers={"Authorization": f"Bearer {token}"}
-            )
-
-            if resp.status_code != 200:
-                raise SystemExit(f"Error: {resp.text}")
-
-            projects = resp.json()
-
-            match = next((p for p in projects if p["uuid_project"] == project_id), None)
-
-            if not match:
-                raise SystemExit("Project not found")
-
-            print("⚠ You are about to delete project:")
-            print(f"  {match['name']} ({project_id})")
-            print()
-            print("To confirm, type the first 6 characters of the UUID:")
-
-            confirm = input("> ").strip()
-
-            if confirm != project_id[:6]:
-                raise SystemExit("❌ Confirmation failed. Aborting.")
-
-            delete_url = f"{server.rstrip('/')}{api_prefix}/projects/{project_id}"
-
-            resp = requests.delete(
-                delete_url,
-                headers={"Authorization": f"Bearer {token}"}
-            )
-
-            if resp.status_code != 200:
-                raise SystemExit(f"Error: {resp.text}")
-
-            print("✔ Project deleted")
-
-        # --------------------------------------------------------
-        # RENAME PROJECT
-        # --------------------------------------------------------
-        elif args.subcommand == "rename":
-
-            project_id = args.project_id
-            new_name = args.new_name
-
-            url = f"{server.rstrip('/')}{api_prefix}/projects/{project_id}"
-
-            resp = requests.put(
-                url,
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json"
-                },
-                json={"name": new_name}
-            )
-
-            if resp.status_code != 200:
-                raise SystemExit(f"Error: {resp.text}")
-
-            print(f"✔ Project renamed → {new_name}")
-
-        # --------------------------------------------------------
-        # EXISTING COMMANDS (UNCHANGED)
-        # --------------------------------------------------------
-        elif args.subcommand == "deleted":
-            projects_deleted(server, api_prefix, token)
-
-        elif args.subcommand == "restore":
-            projects_restore(
-                server,
-                api_prefix,
-                token,
-                args.project_id,
-                args.with_artifacts
-            )
-
-        else:
-            raise SystemExit("Unknown projects command")
+        pass  # handled in register_projects_commands
+        
 
     # --------------------------------------------------------
     # DEX COMMANDS
