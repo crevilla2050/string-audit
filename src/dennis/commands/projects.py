@@ -1,9 +1,39 @@
 import json
 import urllib.request
+import requests
+from pathlib import Path
+from dennis.forge.config import load_config
+
 
 """
 Project-related CLI commands.
 """
+
+def projects_list(server, api_prefix, token):
+
+    api_prefix = api_prefix or "/api"
+
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+
+    r = requests.get(
+        f"{server}{api_prefix}/projects",
+        headers=headers,
+        timeout=30
+    )
+
+    r.raise_for_status()
+
+    payload = r.json()
+
+    if not payload:
+        print("No projects found.")
+        return
+
+    print(json.dumps(payload, indent=2))
+
+
 def projects_deleted(server, api_prefix, token):
     
     if api_prefix is None:
@@ -147,4 +177,35 @@ def register_projects_commands(sub):
     pass
 
 def handle_projects(args):
-    pass
+
+    cfg = load_config()
+
+    if args.subcommand == "list":
+
+        return projects_list(
+            cfg["server"],
+            cfg.get("api_prefix"),
+            cfg.get("auth", {}).get("token")
+        )
+
+    elif args.subcommand == "deleted":
+
+        return projects_deleted(
+            cfg["server"],
+            cfg.get("api_prefix"),
+            cfg.get("auth", {}).get("token")
+        )
+
+    elif args.subcommand == "restore":
+
+        return projects_restore(
+            server=cfg["server"],
+            api_prefix=cfg.get("api_prefix"),
+            token=cfg.get("auth", {}).get("token"),
+            project_id=args.project_id,
+            with_artifacts=args.with_artifacts,
+            no_artifacts=args.no_artifacts
+        )
+
+    print("Unknown projects subcommand:", args.subcommand)
+    return 1

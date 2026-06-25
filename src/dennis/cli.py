@@ -22,7 +22,6 @@ import hashlib
 from dennis.scanner import scan_directory
 from dennis.reporters.human import print_human_report
 from dennis.reporters.json_reporter import write_json_report
-from dennis.domain.projects import handle_projects, register_projects_commands
 
 from dennis.i18n.generator import (
     load_findings,
@@ -73,6 +72,16 @@ from dennis.commands.identity import (
     register_identity_commands,
     handle_identity,
 )
+
+from dennis.commands.identity import (
+    register_identity_commands,
+    handle_identity,
+    handle_whoami,
+    resolve_identity_paths,
+)
+
+from dennis.commands.projects import register_projects_commands, handle_projects
+from dennis.dex.canonical_diff import generate_observed_diff_git
 
 
 def load_json(path: Path):
@@ -187,10 +196,14 @@ def get_git_tracked_files(path: str | Path) -> list[str]:
     result = subprocess.run(
         ["git", "-C", str(path), "ls-files"],
         capture_output=True,
-        text=True,
+        text=False,
         check=True
     )
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return [
+        line.decode("utf-8", errors="replace").strip()
+        for line in result.stdout.splitlines()
+        if line.strip()
+    ]
 
 def is_binary_file(path: Path) -> bool:
     try:
@@ -200,18 +213,12 @@ def is_binary_file(path: Path) -> bool:
     except Exception:
         return True  # safest fallback
     
-
-from dennis.domain.projects import (
-    projects_deleted,
-    projects_restore
-)
-
 import subprocess
 
 def command_diff():
     import tempfile, json, os, requests
     from dennis.forge.config import load_config
-    from dennis.dex.canonical_diff import generate_observed_diff_git
+    
 
     # ----------------------------------------
     # 1. GET DIFF (use canonical generator)
@@ -355,17 +362,6 @@ def refresh_dexscope(root_dir):
     )
 
     print(f"[Dennis] Scope refreshed → {scope_file}")
-
-# ============================================================
-# IDENTITY HELPERS
-# ============================================================
-# Invariants:
-# - key_id = canonical_hash(public_key_bytes)[:16] (implemented as sha256 hex prefix)
-# - CLI never auto-selects identity.
-# - No active identity -> signing must fail.
-# - --key always overrides active identity.
-# - whoami derives identity and never trusts stored values.
-
 
 def _context_path():
     return Path.home() / ".dennis" / "context.json"
@@ -745,11 +741,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comma-separated list of programming languages to exclude"
     )
 
-    # ---------------------------------------------------------
-    # IMPORT ARGUMENTS
-    # ---------------------------------------------------------
 
-    
 
     git_diff_cmd = sub.add_parser(
         "git-diff",
@@ -798,6 +790,52 @@ def build_parser() -> argparse.ArgumentParser:
         "observed_diff",
         help="Path to observed diff DEX artifact"
     )
+
+    # --------------------------------------------------------
+    # DEX DIFF ARTIFACTS
+    # --------------------------------------------------------
+
+    dex_diff_cmd = sub.add_parser(
+        "dex-diff",
+        help="Create DEX artifacts from diffs"
+    )
+
+    dex_diff_sub = dex_diff_cmd.add_subparsers(
+        dest="dex_diff_command",
+        required=True
+    )
+
+    dex_diff_sub.add_parser(
+        "git",
+        help="Create DEX artifact from git diff"
+    )
+
+    dex_dirs = dex_diff_sub.add_parser(
+        "directories",
+        help="Create DEX artifact by comparing directories"
+    )
+
+    dex_dirs.add_argument("source_dir")
+    dex_dirs.add_argument("target_dir")
+    dex_dirs.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output"
+    )
+
+    dex_dirs.add_argument(
+        "--create-plan",
+        action="store_true",
+        help="Generate a plan.json from observed differences"
+    )
+
+    dex_compare = dex_diff_sub.add_parser(
+        "compare",
+        help="Create reconciliation DEX artifact"
+    )
+
+    dex_compare.add_argument("planned_diff")
+    dex_compare.add_argument("observed_diff")
 
     # --------------------------------------------------------
     # VERIFY-EXECUTION
@@ -1334,8 +1372,6 @@ def build_parser() -> argparse.ArgumentParser:
     login_cmd.add_argument("--token", help="Use existing token (for automation)")
 
     logout_cmd = sub.add_parser("logout", help="Clear stored authentication")
-
-    sub.add_parser("whoami", help="Show current authenticated user")
 
     register_projects_commands(sub)
 
@@ -1982,32 +2018,13 @@ def main() -> None:
         return handle_identity(args)
 
     elif args.command == "whoami":
-
-        cfg = load_config()
-
-        email = cfg.get("auth", {}).get("email")
-        active_name = cfg.get("identity", {}).get("active")
-
-        if not active_name:
-            print("No active identity. Use: dennis identity use <key>")
-            return
-
-        _, pub_path = resolve_identity_paths(active_name)
-        identity = load_identity(pub_path)
-
-        if email:
-            print(email)
-
-        print(f"name: {active_name}")
-        print(f"id: {identity['derived_key_id']}")
-        print(f"key: ed25519:{identity['derived_key_id']}")
+        return handle_whoami()
 
     # --------------------------------------------------------
     # PROJECTS
     # --------------------------------------------------------
 
     elif args.command == "projects":
-        register_projects_commands(re.sub)
         return handle_projects(args)
         
 
@@ -3109,202 +3126,207 @@ def main() -> None:
 
         print(json.dumps(result, indent=2))
 
+    # --------------------------------------------------------
+    # DEX DIFF
+    # --------------------------------------------------------
 
-
-    elif args.command == "git-diff":
-
-        import tempfile, json
-        from dennis.dex.pack import pack_dex
-        from dennis.dex.canonical_diff import generate_observed_diff_git
+    elif args.command == "dex-diff":
         
+        if args.dex_diff_command == "git":
 
-        # ----------------------------------------
-        # 1. GENERATE CANONICAL DIFF
-        # ----------------------------------------
-        artifact = generate_observed_diff_git()
+            import tempfile, json
+            from dennis.dex.pack import pack_dex
+            
+            
+            # ----------------------------------------
+            # 1. GENERATE CANONICAL DIFF
+            # ----------------------------------------
+            artifact = generate_observed_diff_git()
 
-        # Validate the artifact
-        if not validate_diff_artifact(artifact):
-            raise SystemExit("Generated diff does not conform to dennis.diff.v1 schema")
+            # Validate the artifact
+            if not validate_diff_artifact(artifact):
+                raise SystemExit("Generated diff does not conform to dennis.diff.v1 schema")
 
-        # ----------------------------------------
-        # 2. OUTPUT PATHS (LOCAL)
-        # ----------------------------------------
-        output_dir = Path.cwd() / ".dennis"
-        output_dir.mkdir(exist_ok=True)
+            # ----------------------------------------
+            # 2. OUTPUT PATHS (LOCAL)
+            # ----------------------------------------
+            output_dir = Path.cwd() / ".dennis"
+            output_dir.mkdir(exist_ok=True)
 
-        json_path = output_dir / "diff.json"
-        dex_path = output_dir / "diff.dex"
+            json_path = output_dir / "diff.json"
+            dex_path = output_dir / "diff.dex"
 
-        # ----------------------------------------
-        # 3. WRITE JSON
-        # ----------------------------------------
-        json_path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
+            # ----------------------------------------
+            # 3. WRITE JSON
+            # ----------------------------------------
+            json_path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
 
-        # ----------------------------------------
-        # 4. PACK DEX
-        # ----------------------------------------
-        pack_dex(
-            payload_path=json_path,
-            output_path=dex_path,
-            payload_type="dennis.diff.v1"
-        )
+            # ----------------------------------------
+            # 4. PACK DEX
+            # ----------------------------------------
+            pack_dex(
+                payload_path=json_path,
+                output_path=dex_path,
+                payload_type="dennis.diff.v1"
+            )
 
-        # ----------------------------------------
-        # 5. OUTPUT
-        # ----------------------------------------
-        print("✔ Diff artifact created locally:")
-        print(f"  JSON → {json_path}")
-        print(f"  DEX  → {dex_path}")
-        print()
-        print("Next step:")
-        print(f"  dennis inspect {dex_path}")
-        print(f"  dennis publish {dex_path}")
+            # ----------------------------------------
+            # 5. OUTPUT
+            # ----------------------------------------
+            print("✔ Diff artifact created locally:")
+            print(f"  JSON → {json_path}")
+            print(f"  DEX  → {dex_path}")
+            print()
+            print("Next step:")
+            print(f"  dennis inspect {dex_path}")
+            print(f"  dennis publish {dex_path}")
 
-    elif args.command == "diff-directories":
 
-        import json
-        from dennis.dex.pack import pack_dex
+        elif args.dex_diff_command == "directories":
 
-        source_dir = Path(args.source_dir)
-        target_dir = Path(args.target_dir)
+            import json
+            from dennis.dex.pack import pack_dex
 
-        if not source_dir.exists() or not source_dir.is_dir():
-            raise SystemExit(f"Source directory does not exist: {source_dir}")
+            source_dir = Path(args.source_dir)
+            target_dir = Path(args.target_dir)
 
-        if not target_dir.exists() or not target_dir.is_dir():
-            raise SystemExit(f"Target directory does not exist: {target_dir}")
+            if not source_dir.exists() or not source_dir.is_dir():
+                raise SystemExit(f"Source directory does not exist: {source_dir}")
 
-        # ----------------------------------------
-        # 1. GENERATE CANONICAL DIFF
-        # ----------------------------------------
-        artifact = generate_observed_diff_directories(source_dir, target_dir, verbose=args.verbose)
+            if not target_dir.exists() or not target_dir.is_dir():
+                raise SystemExit(f"Target directory does not exist: {target_dir}")
 
-        if args.create_plan:
-            from dennis.core.diff_to_plan import generate_plan_from_dirs
+            # ----------------------------------------
+            # 1. GENERATE CANONICAL DIFF
+            # ----------------------------------------
+            artifact = generate_observed_diff_directories(source_dir, target_dir, verbose=args.verbose)
 
-            plan = generate_plan_from_dirs(source_dir, target_dir)
-            output_path = "dennis-plan-generated.json"
+            if args.create_plan:
+                from dennis.core.diff_to_plan import generate_plan_from_dirs
 
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(plan, f, indent=2, ensure_ascii=False)
+                plan = generate_plan_from_dirs(source_dir, target_dir)
+                output_path = "dennis-plan-generated.json"
 
-            print(f"[Dennis] Plan generated → {output_path}")
+                with open(output_path, "w", encoding="utf-8") as f:
+                    json.dump(plan, f, indent=2, ensure_ascii=False)
 
-        # Validate the artifact
-        if not validate_diff_artifact(artifact):
-            raise SystemExit("Generated diff does not conform to dennis.diff.v1 schema")
+                print(f"[Dennis] Plan generated → {output_path}")
 
-        # ----------------------------------------
-        # 2. OUTPUT PATHS (LOCAL)
-        # ----------------------------------------
-        output_dir = Path.cwd() / ".dennis"
-        output_dir.mkdir(exist_ok=True)
+            # Validate the artifact
+            if not validate_diff_artifact(artifact):
+                raise SystemExit("Generated diff does not conform to dennis.diff.v1 schema")
 
-        json_path = output_dir / "diff.json"
-        dex_path = output_dir / "diff.dex"
+            # ----------------------------------------
+            # 2. OUTPUT PATHS (LOCAL)
+            # ----------------------------------------
+            output_dir = Path.cwd() / ".dennis"
+            output_dir.mkdir(exist_ok=True)
 
-        # ----------------------------------------
-        # 3. WRITE JSON
-        # ----------------------------------------
-        json_path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
+            json_path = output_dir / "diff.json"
+            dex_path = output_dir / "diff.dex"
 
-        # ----------------------------------------
-        # 4. PACK DEX
-        # ----------------------------------------
-        pack_dex(
-            payload_path=json_path,
-            output_path=dex_path,
-            payload_type="dennis.diff.v1"
-        )
+            # ----------------------------------------
+            # 3. WRITE JSON
+            # ----------------------------------------
+            json_path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
 
-        # ----------------------------------------
-        # 5. OUTPUT
-        # ----------------------------------------
-        print("✔ Diff artifact created locally:")
-        print(f"  JSON → {json_path}")
-        print(f"  DEX  → {dex_path}")
-        print()
-        print("Next step:")
-        print(f"  dennis inspect {dex_path}")
-        print(f"  dennis publish {dex_path}")
+            # ----------------------------------------
+            # 4. PACK DEX
+            # ----------------------------------------
+            pack_dex(
+                payload_path=json_path,
+                output_path=dex_path,
+                payload_type="dennis.diff.v1"
+            )
 
-    elif args.command == "compare":
+            # ----------------------------------------
+            # 5. OUTPUT
+            # ----------------------------------------
+            print("✔ Diff artifact created locally:")
+            print(f"  JSON → {json_path}")
+            print(f"  DEX  → {dex_path}")
+            print()
+            print("Next step:")
+            print(f"  dennis inspect {dex_path}")
+            print(f"  dennis publish {dex_path}")
 
-        import json
-        from dennis.dex.importer import import_dex
-        from dennis.dex.canonical_diff import generate_reconciliation_diff
-        from dennis.dex.pack import pack_dex
+        elif args.dex_diff_command == "compare":
 
-        planned_path = Path(args.planned_diff)
-        observed_path = Path(args.observed_diff)
+            import json
+            from dennis.dex.importer import import_dex
+            from dennis.dex.canonical_diff import generate_reconciliation_diff
+            from dennis.dex.pack import pack_dex
 
-        if not planned_path.exists():
-            raise SystemExit(f"Planned diff artifact not found: {planned_path}")
+            planned_path = Path(args.planned_diff)
+            observed_path = Path(args.observed_diff)
 
-        if not observed_path.exists():
-            raise SystemExit(f"Observed diff artifact not found: {observed_path}")
+            if not planned_path.exists():
+                raise SystemExit(f"Planned diff artifact not found: {planned_path}")
 
-        # ----------------------------------------
-        # 1. LOAD DIFF ARTIFACTS
-        # ----------------------------------------
-        planned_manifest, planned_payload = import_dex(planned_path)
-        observed_manifest, observed_payload = import_dex(observed_path)
+            if not observed_path.exists():
+                raise SystemExit(f"Observed diff artifact not found: {observed_path}")
 
-        planned_diff = json.loads(planned_payload)
-        observed_diff = json.loads(observed_payload)
+            # ----------------------------------------
+            # 1. LOAD DIFF ARTIFACTS
+            # ----------------------------------------
+            planned_manifest, planned_payload = import_dex(planned_path)
+            observed_manifest, observed_payload = import_dex(observed_path)
 
-        # Validate types
-        if planned_diff.get('type') != 'dennis.diff.v1':
-            raise SystemExit(f"Planned artifact is not a diff: {planned_diff.get('type')}")
+            planned_diff = json.loads(planned_payload)
+            observed_diff = json.loads(observed_payload)
 
-        if observed_diff.get('type') != 'dennis.diff.v1':
-            raise SystemExit(f"Observed artifact is not a diff: {observed_diff.get('type')}")
+            # Validate types
+            if planned_diff.get('type') != 'dennis.diff.v1':
+                raise SystemExit(f"Planned artifact is not a diff: {planned_diff.get('type')}")
 
-        # ----------------------------------------
-        # 2. GENERATE RECONCILIATION DIFF
-        # ----------------------------------------
-        reconciliation_diff = generate_reconciliation_diff(planned_diff, observed_diff)
+            if observed_diff.get('type') != 'dennis.diff.v1':
+                raise SystemExit(f"Observed artifact is not a diff: {observed_diff.get('type')}")
 
-        # ----------------------------------------
-        # 3. OUTPUT PATHS (LOCAL)
-        # ----------------------------------------
-        output_dir = Path.cwd() / ".dennis"
-        output_dir.mkdir(exist_ok=True)
+            # ----------------------------------------
+            # 2. GENERATE RECONCILIATION DIFF
+            # ----------------------------------------
+            reconciliation_diff = generate_reconciliation_diff(planned_diff, observed_diff)
 
-        json_path = output_dir / "reconciliation.json"
-        dex_path = output_dir / "reconciliation.dex"
+            # ----------------------------------------
+            # 3. OUTPUT PATHS (LOCAL)
+            # ----------------------------------------
+            output_dir = Path.cwd() / ".dennis"
+            output_dir.mkdir(exist_ok=True)
 
-        # ----------------------------------------
-        # 4. WRITE JSON
-        # ----------------------------------------
-        json_path.write_text(json.dumps(reconciliation_diff, indent=2), encoding="utf-8")
+            json_path = output_dir / "reconciliation.json"
+            dex_path = output_dir / "reconciliation.dex"
 
-        # ----------------------------------------
-        # 5. PACK DEX
-        # ----------------------------------------
-        pack_dex(
-            payload_path=json_path,
-            output_path=dex_path,
-            payload_type="dennis.diff.v1"
-        )
+            # ----------------------------------------
+            # 4. WRITE JSON
+            # ----------------------------------------
+            json_path.write_text(json.dumps(reconciliation_diff, indent=2), encoding="utf-8")
 
-        # ----------------------------------------
-        # 6. OUTPUT SUMMARY
-        # ----------------------------------------
-        summary = reconciliation_diff['payload'].get('reconciliation_summary', {})
-        print("✔ Reconciliation diff created:")
-        print(f"  JSON → {json_path}")
-        print(f"  DEX  → {dex_path}")
-        print()
-        print("Summary:")
-        print(f"  Files: {summary.get('total_files', 0)}")
-        print(f"  Matched changes: {summary.get('matched_changes', 0)}")
-        print(f"  Missing changes: {summary.get('missing_changes', 0)}")
-        print(f"  Unexpected changes: {summary.get('unexpected_changes', 0)}")
-        print()
-        print("Next step:")
-        print(f"  dennis inspect {dex_path}")
+            # ----------------------------------------
+            # 5. PACK DEX
+            # ----------------------------------------
+            pack_dex(
+                payload_path=json_path,
+                output_path=dex_path,
+                payload_type="dennis.diff.v1"
+            )
+
+            # ----------------------------------------
+            # 6. OUTPUT SUMMARY
+            # ----------------------------------------
+            summary = reconciliation_diff['payload'].get('reconciliation_summary', {})
+            print("✔ Reconciliation diff created:")
+            print(f"  JSON → {json_path}")
+            print(f"  DEX  → {dex_path}")
+            print()
+            print("Summary:")
+            print(f"  Files: {summary.get('total_files', 0)}")
+            print(f"  Matched changes: {summary.get('matched_changes', 0)}")
+            print(f"  Missing changes: {summary.get('missing_changes', 0)}")
+            print(f"  Unexpected changes: {summary.get('unexpected_changes', 0)}")
+            print()
+            print("Next step:")
+            print(f"  dennis inspect {dex_path}")
+
 
     # --------------------------------------------------------
     # PACK
@@ -3800,7 +3822,7 @@ def main() -> None:
     # DIFF COMMANDS
     # --------------------------------------------------------
     elif args.command == "git-diff":
-        from dennis.dex.canonical_diff import generate_observed_diff_git
+        
         from dennis.utils.time import timestamp
         import json
 

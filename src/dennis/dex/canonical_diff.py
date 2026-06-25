@@ -8,6 +8,7 @@ import hashlib
 import unicodedata
 import copy
 
+from dennis.core.hash import sha256_file
 
 # Schema constants
 DIFF_SCHEMA_TYPE = "dennis.diff.v1"
@@ -100,11 +101,15 @@ def get_git_tracked_files(path: Path) -> List[str]:
         result = subprocess.run(
             ["git", "-C", str(path), "ls-files"],
             capture_output=True,
-            text=True,
+            text=False,
             check=True,
             timeout=10  # Add timeout for safety
         )
-        return result.stdout.splitlines()
+        return [
+            line.decode("utf-8", errors="replace").strip()
+            for line in result.stdout.splitlines()
+            if line.strip()
+        ]
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
         # Git not available, command failed, or timeout
         return []
@@ -305,7 +310,17 @@ def normalize_to_dennis_diff_v1(diff_artifact: Dict[str, Any]) -> Dict[str, Any]
         file_info['changes'] = filtered_changes
 
     # MINIMAL invariant: Remove files with no changes
-    normalized_files = [f for f in normalized_files if f['changes']]
+    filtered_files = []
+
+    for f in normalized_files:
+        if f.get("kind") == "binary":
+            filtered_files.append(f)
+            continue
+
+        if f["changes"]:
+            filtered_files.append(f)
+
+    normalized_files = filtered_files
 
     return {
         'type': DIFF_SCHEMA_TYPE,
@@ -407,7 +422,7 @@ def generate_observed_diff_git() -> Dict[str, Any]:
         result = subprocess.run(
             ['git', 'diff', '--no-color', '--patch'],
             capture_output=True,
-            text=True,
+            text=False,
             cwd=os.getcwd()
         )
 
@@ -415,13 +430,39 @@ def generate_observed_diff_git() -> Dict[str, Any]:
             raise RuntimeError(f"Git diff failed: {result.stderr}")
 
         diff_text = result.stdout
+        changed_files = get_git_changed_files()
+
+        binary_files = [
+            f
+            for f in changed_files
+            if f["binary"]
+        ]
+
         if not diff_text.strip():
             return normalize_to_dennis_diff_v1({
                 'type': DIFF_SCHEMA_TYPE,
                 'payload': {'files': []}
             })
-
-        artifact = parse_git_diff_to_canonical(diff_text)
+        
+        # print(type(diff_text))
+        # print("changed_files =", changed_files)
+        # print("binary_files =", binary_files)
+        
+        artifact = parse_git_diff_to_canonical(
+            diff_text.decode(
+                "utf-8",
+                errors="replace"
+            )
+        )
+        
+        for f in binary_files:
+            # print("ADDING:", f)
+            artifact["payload"]["files"].append(
+                build_binary_file_entry(
+                    f["path"],
+                    f["status"]
+                )
+            )
         return normalize_to_dennis_diff_v1(artifact)
 
     except subprocess.CalledProcessError as e:
@@ -1511,3 +1552,99 @@ def test_determinism() -> Dict[str, Any]:
         results['details'].append(f"✗ Block determinism test error: {e}")
 
     return results
+
+
+def get_git_changed_files() -> List[Dict[str, Any]]:
+    """
+    Return changed files from git along with their
+    status and whether they are binary.
+    """
+
+    files: Dict[str, Dict[str, Any]] = {}
+
+    # ----------------------------------------
+    # Binary detection
+    # ----------------------------------------
+    result = subprocess.run(
+        ["git", "diff", "--numstat"],
+        capture_output=True,
+        text=True,
+        cwd=os.getcwd()
+    )
+
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+
+        if len(parts) != 3:
+            continue
+
+        added, removed, path = parts
+
+        files[path] = {
+            "path": path,
+            "binary": (
+                added == "-"
+                and removed == "-"
+            )
+        }
+
+    # ----------------------------------------
+    # Status detection
+    # ----------------------------------------
+    result = subprocess.run(
+        ["git", "diff", "--name-status"],
+        capture_output=True,
+        text=True,
+        cwd=os.getcwd()
+    )
+
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+
+        if len(parts) < 2:
+            continue
+
+        git_status = parts[0]
+        path = parts[-1]
+
+        if path not in files:
+            files[path] = {
+                "path": path,
+                "binary": False
+            }
+
+        files[path]["status"] = {
+            "A": "added",
+            "M": "modified",
+            "D": "removed",
+            "R": "renamed",
+        }.get(git_status[0], "modified")
+
+    return list(files.values())
+
+def build_binary_file_entry(
+    path: str,
+    status: str
+) -> Dict[str, Any]:
+
+    file_path = Path(path)
+
+    metadata = {
+        "size": None,
+        "sha256": None
+    }
+
+    if (
+        status != "removed"
+        and file_path.exists()
+    ):
+        metadata["size"] = file_path.stat().st_size
+        metadata["sha256"] = sha256_file(file_path)
+
+    return {
+        "path": path,
+        "status": status,
+        "kind": "binary",
+        "metadata": metadata,
+        "changes": []
+    }

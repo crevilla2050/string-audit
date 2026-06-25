@@ -98,3 +98,23 @@ def handle_identity(args):
 
                 print(f"{marker} {name:<10} {derived_key_id}")
             return
+        
+def handle_whoami():
+    cfg = load_config()
+
+    email = cfg.get("auth", {}).get("email")
+    active_name = cfg.get("identity", {}).get("active")
+
+    if not active_name:
+        print("No active identity. Use: dennis identity use <key>")
+        return
+
+    _, pub_path = resolve_identity_paths(active_name)
+    identity = load_identity(pub_path)
+
+    if email:
+        print(email)
+
+    print(f"name: {active_name}")
+    print(f"id: {identity['derived_key_id']}")
+    print(f"key: ed25519:{identity['derived_key_id']}")
