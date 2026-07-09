@@ -1,3 +1,8 @@
+> **Protocol Stability**
+>
+> Chronicle Protocol v1.0 is considered the normative specification for DeCS implementations.
+> Future revisions SHALL preserve backward compatibility whenever reasonably possible.
+
 # The Chronicle Protocol
 
 **Version: 1.0
@@ -15,6 +20,8 @@ It preserves intentional human decisions and their supporting context.
 History begins only when humans intentionally preserve it.
 
 The Chronicle is independent from the Workspace. The Workspace is mutable; the Chronicle is immutable.
+
+The Chronicle preserves reasoning, not only successful reasoning. Investigations that are abandoned, rejected, or superseded remain valuable institutional knowledge and SHOULD be preserved as committed Scrolls with the appropriate outcome.
 
 ---
 

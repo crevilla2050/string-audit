@@ -1629,7 +1629,7 @@ def build_binary_file_entry(
 
     file_path = Path(path)
 
-    metadata = {
+    metadata: Dict[str, Any] = {
         "size": None,
         "sha256": None
     }
