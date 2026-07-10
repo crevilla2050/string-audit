@@ -8,7 +8,7 @@ import re
 
 HASH_RE = re.compile(r"^[a-f0-9]{64}$")
 
-DEFAULT_FORGE = "https://forge.dennis.dev"
+DEFAULT_FORGE = "https://repo.dennis-forge.com"
 
 def make_qr_uri(plan_hash: str, registry: str | None = None) -> str:
     """
@@ -21,9 +21,7 @@ def make_qr_uri(plan_hash: str, registry: str | None = None) -> str:
 
     registry = registry.rstrip("/")
 
-    return f"http://dennis.local/artifact/{plan_hash}"
-    
-    #return f"{registry}/artifact/{plan_hash}"
+    return f"{registry}/#artifact/{plan_hash}"
 
 
 def generate_ascii_qr(plan_hash: str, registry: str | None = None) -> str:
@@ -36,10 +34,14 @@ def generate_ascii_qr(plan_hash: str, registry: str | None = None) -> str:
     return buf.getvalue()
 
 
-def generate_png_qr(plan_hash: str, path: str) -> None:
+def generate_png_qr(
+    plan_hash: str,
+    path: str,
+    registry: str | None = None,
+) -> None:
     """
     Generate PNG QR file.
     """
-    uri = make_qr_uri(plan_hash)
+    uri = make_qr_uri(plan_hash, registry=registry)
     qr = segno.make(uri)
     qr.save(path, scale=6, border=2)

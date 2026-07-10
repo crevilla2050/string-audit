@@ -71,18 +71,13 @@ from dennis.dex.canonical_diff import (
 from dennis.commands.identity import (
     register_identity_commands,
     handle_identity,
-)
-
-from dennis.commands.identity import (
-    register_identity_commands,
-    handle_identity,
     handle_whoami,
     resolve_identity_paths,
 )
 
 from dennis.commands.projects import register_projects_commands, handle_projects
 from dennis.dex.canonical_diff import generate_observed_diff_git
-
+from dennis.commands.qr import register_qr_commands
 
 def load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -951,18 +946,7 @@ def build_parser() -> argparse.ArgumentParser:
     
     add_remote_argument(pull_cmd)
 
-    # QR GENERATION
-    qr_parser = sub.add_parser("qr", help="Generate Dennis QR codes")
-    qr_parser.add_argument("hash")
-    qr_parser.add_argument("--ascii", action="store_true")
-    qr_parser.add_argument("--png", help="Output PNG file path")
-    qr_parser.add_argument("--qr-path", default=".")
-
-    # QR SCANNING
-    scan_qr = sub.add_parser("scan-qr")
-    scan_qr.add_argument("--ascii", action="store_true")
-    scan_qr.add_argument("--image", action="store_true")
-    scan_qr.add_argument("--from-file", required=True)
+    register_qr_commands(sub)
 
     # IDENTITY
     register_identity_commands(sub)
