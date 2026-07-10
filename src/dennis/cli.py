@@ -78,6 +78,7 @@ from dennis.commands.identity import (
 from dennis.commands.projects import register_projects_commands, handle_projects
 from dennis.dex.canonical_diff import generate_observed_diff_git
 from dennis.commands.qr import register_qr_commands
+from dennis.forge.config import get_forge_ui
 
 def load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -3024,6 +3025,9 @@ def main() -> None:
                 print(message)
 
         registry = data.get("registry")
+
+        if registry is None:
+            registry = get_forge_ui()
 
         if registry:
 

@@ -34,6 +34,18 @@ def load_config() -> dict:
 
     return cfg
 
+DEFAULT_FORGE_UI = "https://repo.dennis-forge.com"
+
+def get_forge_ui() -> str:
+    cfg = load_config()
+
+    return (
+        cfg
+        .get("forge", {})
+        .get("ui", DEFAULT_FORGE_UI)
+        .rstrip("/")
+    )
+
 
 def save_config(data: dict):
     """
