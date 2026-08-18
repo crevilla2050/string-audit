@@ -2,6 +2,7 @@ import os
 from dennis import server
 from dotenv import load_dotenv
 
+from dennis.commands.account import handle_login, handle_logout, handle_user, register_account_commands
 from dennis.dex.pack import collect_project_files, export_dexscope_json, load_dexscope
 
 load_dotenv(os.path.expanduser("~/.dennis/.env"))
@@ -79,6 +80,7 @@ from dennis.commands.projects import register_projects_commands, handle_projects
 from dennis.dex.canonical_diff import generate_observed_diff_git
 from dennis.commands.qr import register_qr_commands
 from dennis.forge.config import get_forge_ui
+from dennis.core.get_configuration import get_env_config
 
 def load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -162,26 +164,7 @@ def add_format_argument(parser):
         help="Dictionary format"
     )
 
-def add_remote_argument(parser):
-    parser.add_argument(
-        "--remote",
-        default="http://127.0.0.1:8000",
-        help="Remote registry URL"
-    )
 
-def get_env_config():
-    import os
-
-    api_prefix = os.getenv("API_PREFIX")
-    server = os.getenv("DENNIS_SERVER")
-
-    if api_prefix is None:
-        api_prefix = "/api"
-
-    return {
-        "server": server,
-        "api_prefix": api_prefix
-    }
 
 def is_git_repo(path: str | Path) -> bool:
     return (Path(path) / ".git").exists()
@@ -522,7 +505,12 @@ def run_interactive_plan(args):
         print("\n[Dennis] Interactive mode cancelled")
         raise SystemExit(0)
 
-
+def add_remote_argument(parser):
+    parser.add_argument(
+        "--remote",
+        default="http://127.0.0.1:8000",
+        help="Remote registry URL"
+    )
 # ============================================================
 # ARGPARSE
 # ============================================================
@@ -736,7 +724,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--exclude-lang",
         help="Comma-separated list of programming languages to exclude"
     )
-
 
 
     git_diff_cmd = sub.add_parser(
@@ -1134,18 +1121,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Project root"
     )
 
-    scope_inspect = scope_sub.add_parser(
-        "inspect",
-        help="Show scope evaluation"
-    )
-
-    scope_inspect.add_argument(
-        "root",
-        nargs="?",
-        default=".",
-        help="Project root"
-    )
-
     scope_json = scope_sub.add_parser(
         "json",
         help="Generate .dexscope.json"
@@ -1338,26 +1313,11 @@ def build_parser() -> argparse.ArgumentParser:
     # USER
     # --------------------------------------------------------
 
-    user_cmd = sub.add_parser("user", help="User management")
-    user_sub = user_cmd.add_subparsers(dest="user_command")
-    user_sub.required = True
+    register_account_commands(sub)   
 
-    # user create
-    user_create = user_sub.add_parser("create", help="Create a new user")
-    user_create.add_argument("email")
-
-    # user verify
-    user_verify = user_sub.add_parser("verify", help="Verify user email")
-    user_verify.add_argument("token")
-
-    login_cmd = sub.add_parser("login", help="Authenticate with Dennis The Forge")
-
-    login_cmd.add_argument("--server", required=True)
-    login_cmd.add_argument("--email", required=True)
-    login_cmd.add_argument("--token", help="Use existing token (for automation)")
-
-    logout_cmd = sub.add_parser("logout", help="Clear stored authentication")
-
+    # --------------------------------------------------------
+    # PROJECTS
+    # --------------------------------------------------------
     register_projects_commands(sub)
 
     return parser
@@ -1389,13 +1349,7 @@ def main() -> None:
         if not server:
             raise SystemExit("Server not configured. Use --server or set DENNIS_SERVER")
 
-    api_prefix = env_cfg.get("api_prefix")
-    api_prefix = api_prefix or "/api"
-
-    if api_prefix is None:
-        api_prefix = "/api"
-
-    api_prefix = api_prefix.rstrip("/")
+    api_prefix = (env_cfg.get("api_prefix") or "/api").rstrip("/")
 
     
     # --------------------------------------------------------
@@ -1951,54 +1905,8 @@ def main() -> None:
     # --------------------------------------------------------
     
     elif args.command == "user":
-
-        if args.user_command == "create":
-
-            if not server:
-                raise SystemExit("Server not configured. Use --server or set DENNIS_SERVER")
-
-            url = f"{server.rstrip('/')}{api_prefix}/users"
-
-            payload = {
-                "email": args.email
-            }
-
-            try:
-                resp = requests.post(
-                    url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"}
-                )
-
-                if resp.status_code not in (200, 201):
-                    raise SystemExit(f"Error: {resp.text}")
-
-                data = resp.json()
-
-                print("✔ User created")
-                print(f"Email: {data.get('email', args.email)}")
-
-            except Exception as e:
-                raise SystemExit(f"Error creating user: {e}")
+        return handle_user(args)
         
-        elif args.user_command == "verify":
-
-            if not server:
-                raise SystemExit("Server not configured")
-
-            url = f"{server.rstrip('/')}{api_prefix}/auth/verify/{args.token}"
-
-            try:
-                resp = requests.get(url)
-
-                if resp.status_code != 200:
-                    raise SystemExit(f"Verification failed: {resp.text}")
-
-                print("✔ Email verified successfully")
-
-            except Exception as e:
-                raise SystemExit(f"Error verifying user: {e}")
-
     elif args.command == "identity":
         return handle_identity(args)
 
@@ -3026,11 +2934,7 @@ def main() -> None:
 
         registry = data.get("registry")
 
-        if registry is None:
-            registry = get_forge_ui()
-
-        if registry:
-
+        if isinstance(registry, dict) and registry:
             print("\nRegistry")
             print("--------")
 
@@ -3729,82 +3633,11 @@ def main() -> None:
             raise SystemExit("Unknown key command")
 
     elif args.command == "login":
-        import urllib.request
-        import json
-        import getpass
-
-        from dennis.forge.config import save_config
-
-        # ----------------------------------------
-        # PASSWORD PROMPT (secure)
-        # ----------------------------------------
-        password = getpass.getpass("Password: ")
-
-        server = args.server.rstrip("/")
-        
-        
-        url = server + api_prefix + "/auth/login"
-
-        payload = json.dumps({
-            "email": args.email,
-            "password": password
-        }).encode("utf-8")
-
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            method="POST",
-            headers={
-                "Content-Type": "application/json",
-                "Content-Length": str(len(payload))
-            }
-        )
-
-        try:
-            with urllib.request.urlopen(req) as resp:
-                result = json.loads(resp.read())
-
-        except Exception as e:
-            raise SystemExit(f"Login failed: {e}")
-
-        token = result.get("access_token")
-
-        if not token:
-            raise SystemExit("Login failed: no token returned")
-
-        save_config({
-            "server": server,
-            "auth": {
-                "token": token
-            }
-        })
-
-        if args.token:
-            save_config({
-                "server": server,
-                "auth": {
-                    "token": args.token
-                }
-            })
-
-            print("✔ Token stored")
-            return
-
-        print("✔ Logged in successfully\n")
-        print(token)
+        handle_login(args)
 
 
     elif args.command == "logout":
-        from dennis.forge.config import load_config, save_config
-
-        config = load_config()
-
-        if "auth" in config:
-            config["auth"] = {}
-
-        save_config(config)
-
-        print("✔ Logged out successfully")
+        handle_logout(args)
 
     # --------------------------------------------------------
     # DIFF COMMANDS
@@ -4090,7 +3923,7 @@ def main() -> None:
 
         print("\n✔ All conformance tests passed\n")
 
-        #--------------------------------------------------------
+    #--------------------------------------------------------
     # SCOPE COMMANDS
     #--------------------------------------------------------
 
@@ -4155,14 +3988,6 @@ def main() -> None:
 
             print(
                 f"[Dennis] Scope exported → {scope_file}"
-            )
-
-            return
-
-        elif args.scope_command == "inspect":
-
-            print(
-                "[Dennis] Scope inspect not implemented yet."
             )
 
             return
