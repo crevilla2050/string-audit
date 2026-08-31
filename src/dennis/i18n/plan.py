@@ -8,9 +8,10 @@ from .apply import load_dictionary, iter_python_files, replace_line
 from dennis.detectors.hardcoded_strings import HardcodedStringDetector
 from dennis.i18n.generator import build_dictionary, write_en_json
 from dennis.scanner import scan_directory
-from dennis.plugins import PLUGINS
+from dennis.plugins import get_transformation_plugin
 from dennis.utils import iter_files
 from dennis.scanner import is_binary_file, is_dennis_generated_file
+from dennis.mickey import inspect_file
 
 
 import subprocess
@@ -31,6 +32,37 @@ LANG_EXTENSIONS = {
     "text": [".txt"],
     "office XML": [".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp"],
 }
+
+TARGET_EXTENSIONS = {
+    "python": [".py"],
+    "php": [".php"],
+    "javascript": [".js", ".jsx", ".ts", ".tsx"],
+    "html": [".html", ".htm"],
+    "css": [".css"],
+    "sql": [".sql"],
+    "java": [".java"],
+    "csharp": [".cs"],
+    "ruby": [".rb"],
+    "go": [".go"],
+    "graph": [".dot", ".graphml"],
+    "rust": [".rs"],
+    "text": [".txt"],
+    "office XML": [".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp"],
+    "web": [
+        ".html",
+        ".htm",
+        ".php",
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".css",
+    ],
+}
+
+def get_target_extensions(target_type: str) -> set[str]:
+    return set(TARGET_EXTENSIONS.get(target_type, []))
+
 
 def get_git_changed_files(root: Path) -> list[Path]:
     try:
@@ -87,7 +119,8 @@ def generate_plan(
     git_mode: str = "tracked",
     lang: str = "python",
     exclude_langs: set[str] | None = None,
-    scan_only: bool = False
+    scan_only: bool = False,
+    file_types: set[str] | None = None,
 ) -> Dict:
 
     # --------------------------------------------------
@@ -98,7 +131,8 @@ def generate_plan(
 
         findings = scan_directory(
             root,
-            git_mode=git_mode
+            git_mode=git_mode,
+            file_types=file_types,
         )
 
         return [
@@ -106,10 +140,7 @@ def generate_plan(
             for f in findings
         ]
     
-    # --------------------------------------------------
-    # Ensure dictionary file exists
-    # --------------------------------------------------
-    plugin = PLUGINS.get(lang, PLUGINS["python"])
+
 
     if not dict_path.exists():
         print(f"[Dennis] Dictionary not found. Creating new dictionary: {dict_path}")
@@ -125,7 +156,11 @@ def generate_plan(
 
         print("[Dennis] Dictionary empty. Scanning project for dennis to work with...")
 
-        findings = scan_directory(root, git_mode=git_mode)
+        findings = scan_directory(
+            root,
+            git_mode=git_mode,
+            file_types=file_types,
+        )
 
         discovered = [
             f.text
@@ -178,7 +213,11 @@ def generate_plan(
     # Generate transformation plan
     # --------------------------------------------------
 
-    findings = scan_directory(root, git_mode=git_mode)
+    findings = scan_directory(
+        root,
+        git_mode=git_mode,
+        file_types=file_types,
+    )
 
     # Decouple scanning from transformation: process all code files
     
@@ -200,13 +239,37 @@ def generate_plan(
             # print(f"[DEBUG] Skipping JSON {file_path}")
             continue
 
-        # Only process code files
-        if file_path.suffix.lower() not in [".py"]:  # add other langs as needed
+        # --------------------------------------------------
+        # File-type filtering
+        # --------------------------------------------------
+
+        ext = file_path.suffix.lower()
+
+        if file_types is not None and ext not in file_types:
             continue
 
-        # print(f"[DEBUG] Processing {file_path}")
+        # --------------------------------------------------
+        # Resolve transformation plugin
+        # --------------------------------------------------
 
-        lines = file_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        plugin = get_transformation_plugin(
+            file_path,
+            None if file_types is not None else lang,
+        )
+
+        if plugin is None:
+            continue
+
+        if not hasattr(plugin, "transform_line"):
+            continue
+
+        admission = inspect_file(file_path)
+
+        if not admission["admitted"]:
+            continue
+
+        lines = admission["text"].splitlines()
+        
         file_hash = sha256_file(file_path)
 
         for idx, line in enumerate(lines, start=1):

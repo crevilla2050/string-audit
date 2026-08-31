@@ -54,12 +54,20 @@ def is_binary_file(path: Path, chunk_size: int = 1024) -> bool:
         return True
 
 
-def scan_directory(root: Path, git_mode: str = "tracked") -> List[Finding]:
+def scan_directory(
+    root: Path,
+    git_mode: str = "tracked",
+    file_types: set[str] | None = None,
+) -> List[Finding]:
     findings: List[Finding] = []
 
     detector = HardcodedStringDetector()
     
     for file_path in iter_files(root, git_mode=git_mode):
+        
+        if file_types is not None:
+            if file_path.suffix.lower() not in file_types:
+                continue
 
         if is_dennis_generated_file(file_path):
             continue

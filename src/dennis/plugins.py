@@ -30,7 +30,9 @@ def load_plugins():
         plugins.append({
             "name": module.PLUGIN_NAME,
             "extensions": module.SUPPORTED_EXTENSIONS,
-            "scan": module.scan_file
+            "scan": module.scan_file,
+            "target_types": getattr(module, "TARGET_TYPES", []),
+            "embedders": getattr(module, "SUPPORTED_EMBEDDERS", []),
         })
 
     return plugins

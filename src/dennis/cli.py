@@ -725,6 +725,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comma-separated list of programming languages to exclude"
     )
 
+    plan_cmd.add_argument(
+        "--file-types",
+        nargs="+",
+        metavar="EXT",
+        help=(
+            "Limit the plan to specific file types. "
+            "Examples: --file-types .php .html .js; "
+            "common types: .py .php .html .htm .js .jsx .ts .tsx .css .md .txt"
+        )
+    )
 
     git_diff_cmd = sub.add_parser(
         "git-diff",
