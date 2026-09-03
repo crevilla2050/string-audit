@@ -24,6 +24,11 @@ from dennis.scanner import scan_directory
 from dennis.reporters.human import print_human_report
 from dennis.reporters.json_reporter import write_json_report
 
+from dennis.utils import (
+    is_git_repo,
+    git_unignored_files,
+    )
+
 from dennis.i18n.generator import (
     load_findings,
     build_dictionary,
@@ -81,6 +86,8 @@ from dennis.dex.canonical_diff import generate_observed_diff_git
 from dennis.commands.qr import register_qr_commands
 from dennis.forge.config import get_forge_ui
 from dennis.core.get_configuration import get_env_config
+from dennis.utils import get_filesystem_scope, create_dexscope
+
 
 def load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -171,18 +178,34 @@ def is_git_repo(path: str | Path) -> bool:
 
 import subprocess
 
-def get_git_tracked_files(path: str | Path) -> list[str]:
-    result = subprocess.run(
-        ["git", "-C", str(path), "ls-files"],
-        capture_output=True,
-        text=False,
-        check=True
-    )
-    return [
-        line.decode("utf-8", errors="replace").strip()
-        for line in result.stdout.splitlines()
-        if line.strip()
-    ]
+
+
+def get_scope_files(path: str | Path) -> list[str]:
+    """
+    Return the canonical file list used to generate .dexscope.
+
+    Git is authoritative when the project is a Git repository.
+    Dennis includes tracked files and untracked files that are
+    not excluded by Git's ignore rules.
+
+    Otherwise Dennis falls back to a native Python filesystem walk.
+    """
+    root = Path(path).resolve()
+
+    if is_git_repo(root):
+        try:
+            return sorted(
+                p.relative_to(root).as_posix()
+                for p in git_unignored_files(root)
+            )
+        except (subprocess.SubprocessError, OSError):
+            print(
+                "[Dennis] WARNING: Git scope discovery failed; "
+                "falling back to filesystem scan."
+            )
+
+    return get_filesystem_scope(root)
+
 
 def is_binary_file(path: Path) -> bool:
     try:
@@ -1427,12 +1450,18 @@ def main() -> None:
 
             if root_path.is_file() and root_path.suffix == ".json":
                 try:
-                    spec = json.loads(root_path.read_text(encoding="utf-8"))
+                    spec = json.loads(
+                        root_path.read_text(encoding="utf-8")
+                    )
                 except Exception as e:
-                    raise SystemExit(f"[Dennis] ERROR: Failed to read spec → {e}")
+                    raise SystemExit(
+                        f"[Dennis] ERROR: Failed to read spec → {e}"
+                    )
 
                 if "version" not in spec:
-                    raise SystemExit("[Dennis] ERROR: Invalid spec (missing version)")
+                    raise SystemExit(
+                        "[Dennis] ERROR: Invalid spec (missing version)"
+                    )
 
                 print(f"[Dennis] Using spec: {root_path}")
 
@@ -1446,7 +1475,7 @@ def main() -> None:
         if getattr(args, "interactive", False):
             return run_interactive_plan(args)
 
-        # ----------------------------------------
+                # ----------------------------------------
         # Detect mode (spec support)
         # ----------------------------------------
 
@@ -1474,9 +1503,19 @@ def main() -> None:
                 for h in spec.get("helpers", [])
             ]
 
+        if not spec_mode and args.root:
+            create_dexscope(Path(args.root))
+
         if not spec_mode and args.root in ("export", "import"):
             args.plan_command = args.root
             args.root = None
+
+        # --------------------------------------------------------
+        # Ensure project has a canonical .dexscope
+        # --------------------------------------------------------
+
+        if args.root:
+            create_dexscope(Path(args.root))
 
         if args.plan_command is None:
             args.plan_command = "run"
@@ -3943,7 +3982,7 @@ def main() -> None:
 
             root_dir = Path(args.root).resolve()
 
-            files = collect_project_files(root_dir)
+            files = get_scope_files(root_dir)
 
             scope_file = root_dir / ".dexscope"
 
@@ -3974,12 +4013,7 @@ def main() -> None:
                 ""
             ]
 
-            for file_path in files:
-
-                rel_path = str(
-                    file_path.relative_to(root_dir)
-                )
-
+            for rel_path in files:
                 # User previously commented this out
                 if rel_path in excluded_paths:
                     continue

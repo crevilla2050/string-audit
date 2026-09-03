@@ -13,6 +13,7 @@ from hashlib import sha256
 from pathlib import Path
 from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
+import pytest
 
 from dennis.dex.manifest import build_manifest, validate_lineage_structure, build_root_lineage, build_derived_lineage, build_detached_lineage   
 from dennis.core.hash import canonical_hash
@@ -155,6 +156,43 @@ def collect_scoped_files(root_dir):
     return sorted(files)
 
 def collect_project_files(root_dir):
+    """
+    Collect files belonging to a Dennis project.
+
+    The .dennis directory is mandatory Dennis project context and
+    is always included in the collection, regardless of generic
+    ignore rules.
+
+    Returns:
+        Sorted list of project file Paths.
+
+    Raises:
+        RuntimeError:
+            If the required .dennis directory does not exist.
+    """
+
+    root_dir = Path(root_dir)
+
+    # --------------------------------------------------------
+    # Dennis project context is mandatory
+    # --------------------------------------------------------
+
+    dennis_dir = root_dir / ".dennis"
+
+    if not dennis_dir.is_dir():
+        raise RuntimeError(
+            "[Dennis] ERROR: Dennis project context not found.\n"
+            "\n"
+            "The required '.dennis/' directory is missing.\n"
+            "\n"
+            "Run 'dennis plan <path>' to recreate the project "
+            "environment files needed."
+        )
+
+    # --------------------------------------------------------
+    # Ignore specifications
+    # --------------------------------------------------------
+
     gitignore_spec = load_gitignore(root_dir)
 
     default_spec = PathSpec.from_lines(
@@ -173,11 +211,16 @@ def collect_project_files(root_dir):
 
     files = []
 
+    # --------------------------------------------------------
+    # Normal project filesystem collection
+    # --------------------------------------------------------
+
     for file_path in sorted(root_dir.rglob("*")):
 
         if not file_path.is_file():
             continue
 
+        # Existing DEX artifacts are not project input.
         if file_path.name.endswith(".dex"):
             continue
 
@@ -188,7 +231,24 @@ def collect_project_files(root_dir):
 
         files.append(file_path)
 
-    return files
+    # --------------------------------------------------------
+    # Dennis project context
+    #
+    # This is deliberately added AFTER generic filtering.
+    # .dennis belongs to Dennis and therefore overrides
+    # generic project ignore rules.
+    # --------------------------------------------------------
+
+    for file_path in sorted(dennis_dir.rglob("*")):
+
+        if not file_path.is_file():
+            continue
+
+        if file_path not in files:
+            files.append(file_path)
+
+    return sorted(files)
+
 
 def export_dexscope_json(root_dir):
 

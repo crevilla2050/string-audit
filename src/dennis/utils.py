@@ -4,6 +4,9 @@ from typing import Iterable
 
 from datetime import datetime
 
+from pathspec import PathSpec
+from pathspec.patterns import GitWildMatchPattern
+
 def get_dennis_home() -> Path:
     return Path.home() / ".dennis"
 
@@ -39,6 +42,81 @@ def build_clean_filename(original_path, filters):
     new_name = f"{base}.cleaned.{filters_str}.{timestamp}{suffix}"
 
     return path.with_name(new_name)
+
+def get_scope_files(path: str | Path) -> list[str]:
+    """
+    Return the canonical file list used to generate .dexscope.
+
+    Git is authoritative when the project is a Git repository.
+    Dennis includes tracked files and untracked files that are
+    not excluded by Git's ignore rules.
+
+    Otherwise Dennis falls back to a native Python filesystem walk.
+    """
+    root = Path(path).resolve()
+
+    if is_git_repo(root):
+        try:
+            return sorted(
+                p.relative_to(root).as_posix()
+                for p in git_unignored_files(root)
+            )
+        except (subprocess.SubprocessError, OSError):
+            print(
+                "[Dennis] WARNING: Git scope discovery failed; "
+                "falling back to filesystem scan."
+            )
+
+    return get_filesystem_scope(root)
+
+
+def create_dexscope(root: Path) -> bool:
+    """
+    Create .dexscope if it does not already exist.
+
+    Scope discovery is performed here so this utility remains independent
+    of the CLI layer.
+
+    Git is authoritative when the project is a Git repository.
+    Otherwise, native filesystem discovery is used.
+
+    Returns:
+        True if .dexscope was created.
+        False if it already existed.
+    """
+    root = Path(root).resolve()
+    scope_file = root / ".dexscope"
+
+    if scope_file.exists():
+        return False
+
+    if is_git_repo(root):
+        try:
+            files = sorted(
+                p.relative_to(root).as_posix()
+                for p in git_unignored_files(root)
+            )
+        except (subprocess.SubprocessError, OSError):
+            print(
+                "[Dennis] WARNING: Git scope discovery failed; "
+                "falling back to filesystem scan."
+            )
+            files = get_filesystem_scope(root)
+    else:
+        files = get_filesystem_scope(root)
+
+    lines = [
+        "# Dennis Scope v1",
+        "",
+        *files,
+    ]
+
+    scope_file.write_text(
+        "\n".join(lines) + "\n",
+        encoding="utf-8",
+    )
+
+    return True
 
 
 def is_git_repo(root: Path) -> bool:
@@ -86,7 +164,9 @@ def git_tracked_python_files(root: Path) -> Iterable[Path]:
 def git_unignored_files(root: Path) -> Iterable[Path]:
     """
     Yield all files in the repository that are not ignored by Git.
-    This includes tracked files and untracked files excluded by .gitignore.
+
+    This includes tracked files and untracked files that are
+    not excluded by Git's ignore rules.
     """
     yield from git_tracked_files(root)
 
@@ -101,6 +181,51 @@ def git_unignored_files(root: Path) -> Iterable[Path]:
     for entry in result.stdout.split(b"\x00"):
         if entry:
             yield root / entry.decode("utf-8", errors="ignore")
+
+
+def get_filesystem_scope(root: Path) -> list[str]:
+    """
+    Return the canonical project file list using a native filesystem walk.
+
+    This is the platform-independent fallback used when Git is unavailable
+    or the project is not a Git repository.
+
+    Paths are returned relative to the project root and normalized to POSIX
+    separators so .dexscope remains deterministic across operating systems.
+
+    .gitignore is honored when present.
+    """
+    root = Path(root).resolve()
+
+    gitignore = root / ".gitignore"
+    spec = None
+
+    if gitignore.exists():
+        lines = gitignore.read_text(
+            encoding="utf-8"
+        ).splitlines()
+
+        spec = PathSpec.from_lines(
+            GitWildMatchPattern,
+            lines,
+        )
+
+    files = []
+
+    for path in root.rglob("*"):
+
+        if not path.is_file():
+            continue
+
+        relative = path.relative_to(root)
+        normalized = relative.as_posix()
+
+        if spec and spec.match_file(normalized):
+            continue
+
+        files.append(normalized)
+
+    return sorted(files)
 
 
 def load_gitignore(root: Path):

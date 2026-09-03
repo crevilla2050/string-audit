@@ -1,3 +1,4 @@
+from importlib.resources import path
 import json
 import subprocess
 from pathlib import Path
@@ -9,6 +10,7 @@ import unicodedata
 import copy
 
 from dennis.core.hash import sha256_file
+from dennis.utils import git_tracked_files, is_git_repo
 
 # Schema constants
 DIFF_SCHEMA_TYPE = "dennis.diff.v1"
@@ -83,36 +85,6 @@ def is_binary_file(file_path: Path) -> bool:
             return bool(data.translate(None, text_chars))
     except:
         return True
-
-
-def is_git_repo(path: Path) -> bool:
-    """Check if a directory is a git repository."""
-    return (path / ".git").exists()
-
-
-def get_git_tracked_files(path: Path) -> List[str]:
-    """
-    Get list of git-tracked files in a repository.
-    Returns relative paths from the repository root.
-    
-    Falls back to empty list if git command fails.
-    """
-    try:
-        result = subprocess.run(
-            ["git", "-C", str(path), "ls-files"],
-            capture_output=True,
-            text=False,
-            check=True,
-            timeout=10  # Add timeout for safety
-        )
-        return [
-            line.decode("utf-8", errors="replace").strip()
-            for line in result.stdout.splitlines()
-            if line.strip()
-        ]
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-        # Git not available, command failed, or timeout
-        return []
 
 
 def should_ignore_file(rel_path: Path) -> bool:
@@ -599,7 +571,10 @@ def generate_observed_diff_directories(
 
     if is_git_repo(source_dir):
         try:
-            tracked_files = get_git_tracked_files(source_dir)
+            tracked_files = [
+                p.relative_to(source_dir).as_posix()
+                for p in git_tracked_files(source_dir)
+            ]
             file_paths = set(Path(p) for p in tracked_files)
             # if verbose:
                 # print(f"[DEBUG] total file_paths: {len(file_paths)}")
