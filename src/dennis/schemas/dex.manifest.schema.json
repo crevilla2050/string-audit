@@ -90,15 +90,9 @@
                       "type": "integer"
                     },
                     "state": {
-                      "type": "string",
-                      "enum": [
-                        "ORIGINAL",
-                        "MODIFIED",
-                        "REVISION",
-                        "REQUIRED",
-                        "ELLIOT_NESS",
-                        "IGNORE"
-                      ]
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 31
                     },
                     "original": {
                       "type": "string"

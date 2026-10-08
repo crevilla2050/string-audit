@@ -17,30 +17,44 @@ REGION_VERSION = 2
 OPEN_MARKER = "{[#"
 CLOSE_MARKER = "#]}"
 
+ORIGINAL = 0
+MODIFIED = 1
+REVISION = 2
+REQUIRED = 4
+ELLIOT_NESS = 8
+IGNORE = 16
+
 REGION_STATES = {
-    "ORIGINAL",
-    "MODIFIED",
-    "REVISION",
-    "REQUIRED",
-    "ELLIOT_NESS",
-    "IGNORE"
+    "ORIGINAL": ORIGINAL,
+    "MODIFIED": MODIFIED,
+    "REVISION": REVISION,
+    "REQUIRED": REQUIRED,
+    "ELLIOT_NESS": ELLIOT_NESS,
+    "IGNORE": IGNORE,
 }
 
 _REGION_ID_ALPHABET = string.ascii_uppercase + string.digits
+_REGION_STATE_MASK = (
+    MODIFIED
+    | REVISION
+    | REQUIRED
+    | ELLIOT_NESS
+    | IGNORE
+)
 
 # Example:
-# {[#ORIGINAL_F6N:"Hello world"#]}
+# {[#0_F6N:"Hello world"#]}
 _STATE_PATTERN = "|".join(
-    re.escape(state)
+    re.escape(str(state))
     for state in sorted(
-        REGION_STATES,
+        REGION_STATES.keys(),
         key=len,
         reverse=True,
     )
 )
 
 REGION_PATTERN = re.compile(
-    rf'\{{\[#({_STATE_PATTERN})_([A-Z0-9]{{3}}):'
+    rf'\{{\[#(\d+|{_STATE_PATTERN})_([A-Z0-9]{{3}}):'
     rf'"(.*?)"'
     rf'#\]\}}',
     re.DOTALL,
@@ -55,7 +69,7 @@ class Region:
     start_column: int
     end_line: int
     end_column: int
-    state: str
+    state: int
     original: str
     modified: str | None
     hash: str
@@ -79,6 +93,30 @@ def _region_hash(original: str) -> str:
     return hashlib.sha256(
         original.encode("utf-8")
     ).hexdigest()
+
+
+def _normalize_region_state(state: int | str) -> int:
+    if isinstance(state, str):
+        if state in REGION_STATES:
+            state = REGION_STATES[state]
+        else:
+            try:
+                state = int(state)
+            except ValueError as exc:
+                raise ValueError(
+                    f"invalid region state: {state}"
+                ) from exc
+
+    if (
+        not isinstance(state, int)
+        or state < 0
+        or state & ~_REGION_STATE_MASK
+    ):
+        raise ValueError(
+            f"invalid region state: {state}"
+        )
+
+    return state
 
 
 def generate_region_id() -> str:
@@ -233,7 +271,9 @@ def detect_regions(
 
     for match in REGION_PATTERN.finditer(text):
 
-        state = match.group(1)
+        state = _normalize_region_state(
+            match.group(1)
+        )
         region_id = match.group(2)
 
         encoded_text = match.group(3)
@@ -264,7 +304,7 @@ def detect_regions(
 
         modified = (
             original
-            if state == "MODIFIED"
+            if state & MODIFIED
             else None
         )
 
@@ -289,14 +329,11 @@ def detect_regions(
 def format_region(
     text: str,
     *,
-    state: str = "ORIGINAL",
+    state: int | str = ORIGINAL,
     region_id: str | None = None,
 ) -> str:
 
-    if state not in REGION_STATES:
-        raise ValueError(
-            f"invalid region state: {state}"
-        )
+    state = _normalize_region_state(state)
 
     if region_id is None:
         region_id = generate_region_id()
