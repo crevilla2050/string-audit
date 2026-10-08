@@ -8,6 +8,9 @@ import re
 import secrets
 import string
 
+from copy import deepcopy
+from dennis.core.hash import canonical_hash
+
 
 REGION_VERSION = 2
 
@@ -376,6 +379,27 @@ def regions_to_dict(
     }
 
 
+def regions_to_observed_files(
+    files: dict[str, list[Region]],
+) -> list[dict]:
+    """
+    Convert detected Region objects into the normalized
+    observation format consumed by reconcile_region_state().
+    """
+
+    return [
+        {
+            "file": filename,
+            "regions": [
+                region.to_dict()
+                for region in regions
+            ],
+        }
+        for filename, regions
+        in sorted(files.items())
+    ]
+
+
 def write_regions_json(
     output: Path,
     files: dict[str, list[Region]],
@@ -405,3 +429,236 @@ def write_regions_json(
         ) + "\n",
         encoding="utf-8",
     )
+
+def _history_hash_payload(entry: dict) -> dict:
+    payload = deepcopy(entry)
+    payload.pop("state_hash", None)
+    return payload
+
+
+def compute_region_state_hash(entry: dict) -> str:
+    """
+    Compute the deterministic hash of a Region history entry.
+
+    The state_hash field itself is excluded from the hashed payload.
+    """
+    return canonical_hash(
+        _history_hash_payload(entry)
+    )
+
+
+def verify_region_state_hash(entry: dict) -> bool:
+    """
+    Verify the deterministic hash of a Region history entry.
+    """
+    expected = entry.get("state_hash")
+
+    if not expected:
+        return False
+
+    return expected == compute_region_state_hash(entry)
+
+def append_region_history(
+    state: dict,
+    changes: list[dict],
+) -> dict:
+    """
+    Append one Region state transition.
+
+    `changes` contains only affected files.
+
+    Existing history is never modified.
+    """
+
+    result = {
+        "version": state["version"],
+        "files": deepcopy(
+            state.get("files", [])
+        ),
+        "history": deepcopy(
+            state.get("history", [])
+        ),
+    }
+
+    history = result["history"]
+
+    previous_hash = (
+        history[-1]["state_hash"]
+        if history
+        else None
+    )
+
+    sequence = len(history)
+
+    entry = {
+        "sequence": sequence,
+        "previous_hash": previous_hash,
+        "changes": deepcopy(changes),
+    }
+
+    entry["state_hash"] = (
+        compute_region_state_hash(entry)
+    )
+
+    history.append(entry)
+
+    return result
+
+def verify_region_history(history: list[dict]) -> bool:
+    """
+    Verify the complete append-only Region history chain.
+    """
+
+    previous_hash = None
+
+    for sequence, entry in enumerate(history):
+
+        if entry.get("sequence") != sequence:
+            return False
+
+        if entry.get("previous_hash") != previous_hash:
+            return False
+
+        if not verify_region_state_hash(entry):
+            return False
+
+        previous_hash = entry["state_hash"]
+
+    return True
+
+def _files_to_map(files: list[dict]) -> dict[str, list[dict]]:
+    return {
+        entry["file"]: deepcopy(entry.get("regions", []))
+        for entry in files
+    }
+
+def _files_from_map(
+    files_map: dict[str, list[dict]],
+) -> list[dict]:
+    return [
+        {
+            "file": filename,
+            "regions": deepcopy(
+                files_map[filename]
+            ),
+        }
+        for filename in sorted(files_map)
+    ]
+
+def _region_semantic_key(region: dict) -> tuple:
+    """
+    Return the semantic identity of a Region.
+
+    Placement is deliberately excluded. A Region may move within
+    a document without becoming a different Region.
+    """
+
+    return (
+        region.get("id"),
+        region.get("state"),
+        region.get("original"),
+        region.get("modified"),
+        region.get("hash"),
+    )
+
+def _regions_semantically_equal(
+    before: list[dict],
+    after: list[dict],
+) -> bool:
+    """
+    Return True when two Region collections contain the same
+    semantic Regions, regardless of placement or ordering.
+    """
+
+    before_map = {
+        _region_semantic_key(region): region
+        for region in before
+    }
+
+    after_map = {
+        _region_semantic_key(region): region
+        for region in after
+    }
+
+    return set(before_map) == set(after_map)
+
+
+def reconcile_region_state(
+    state: dict,
+    observed_files: list[dict],
+) -> tuple[dict, list[dict]]:
+    """
+    Reconcile an existing Region state against a new observation.
+
+    Returns:
+        (new_state, changes)
+
+    Only files whose Region state differs are included in changes.
+    """
+
+    current = _files_to_map(
+        state.get("files", [])
+    )
+
+    observed = _files_to_map(
+        observed_files
+    )
+
+    changes = []
+
+    all_files = sorted(
+        set(current) | set(observed)
+    )
+
+    for filename in all_files:
+        before = current.get(filename)
+        after = observed.get(filename)
+
+        if before == after:
+            continue
+
+        if (
+            before is not None
+            and after is not None
+            and _regions_semantically_equal(
+                before,
+                after,
+            )
+        ):
+            current[filename] = deepcopy(after)
+            continue
+
+        changes.append({
+            "file": filename,
+            "before": deepcopy(before),
+            "after": deepcopy(after),
+        })
+
+        if after is None:
+            current.pop(filename, None)
+        else:
+            current[filename] = deepcopy(after)
+
+    if not changes:
+        return {
+            "version": state["version"],
+            "files": _files_from_map(current),
+            "history": deepcopy(
+                state.get("history", [])
+            ),
+        }, []
+
+    new_state = {
+        "version": state["version"],
+        "files": _files_from_map(current),
+        "history": deepcopy(
+            state.get("history", [])
+        ),
+    }
+
+    new_state = append_region_history(
+        new_state,
+        changes,
+    )
+
+    return new_state, changes

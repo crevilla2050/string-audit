@@ -26,7 +26,8 @@ def build_manifest(
     payload_type,
     execution=None,
     created_by="dennis",
-    lineage=None
+    lineage=None,
+    regions=None
 ):
     """
     Build a base DEX manifest structure.
@@ -37,7 +38,7 @@ def build_manifest(
     created_by         : software identifier
     """
 
-    return {
+    manifest = {
         "meta": {
             "format": "dex",
             "version": 1,
@@ -59,6 +60,11 @@ def build_manifest(
         "execution": execution or {},
         "signatures": [],
     }
+
+    if regions is not None:
+        manifest["regions"] = regions
+
+    return manifest
 
 def build_root_lineage(payload_hash):
     """
@@ -115,13 +121,18 @@ def semantic_subset(manifest):
 
     payload = manifest["payload"]
 
-    return {
+    subset = {
         "payload_hash_algorithm": payload["hash"]["algorithm"],
         "payload_hash_value": payload["hash"]["value"],
         "payload_type": payload["type"],
         "execution": manifest.get("execution", {}),
         "lineage": manifest.get("lineage", {}),
     }
+
+    if "regions" in manifest:
+        subset["regions"] = manifest["regions"]
+
+    return subset
 
 
 def validate_lineage_structure(manifest):

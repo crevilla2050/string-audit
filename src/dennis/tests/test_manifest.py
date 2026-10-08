@@ -16,11 +16,20 @@ def test_build_derived_lineage():
             "hash": {
                 "value": "parent_hash_123"
             }
+        },
+        "lineage": {
+            "lineage_id": "root_lineage_789"
         }
     }
+
     payload_hash = "child_hash_456"
-    lineage = build_derived_lineage(parent_manifest, payload_hash)
-    assert lineage["lineage_id"] == payload_hash
+
+    lineage = build_derived_lineage(
+        parent_manifest,
+        payload_hash
+    )
+
+    assert lineage["lineage_id"] == "root_lineage_789"
     assert lineage["parent"] == "parent_hash_123"
     assert lineage["type"] == "derived"
 

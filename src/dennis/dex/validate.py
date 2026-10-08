@@ -17,6 +17,7 @@ import hashlib
 
 from dennis.dex.manifest import verify_signatures, semantic_subset
 from dennis.core.hash import canonical_hash
+from dennis.core.regions import detect_regions, REGION_VERSION
 
 XDEX_MAGIC = b"XDEX1"
 HEADER_HASH_SIZE = 32
@@ -183,6 +184,77 @@ def _build_verifier(files, external_keys=None):
 
     return verifier
 
+# ------------------------------------------------------------
+# Regions Validation
+# ------------------------------------------------------------
+
+def _validate_regions(manifest, files):
+    """
+    Validate the Regions component against the files embedded in the DEX.
+
+    Regions are semantic metadata, but their source content must still
+    correspond exactly to the Region declarations carried by the manifest.
+    """
+
+    regions_manifest = manifest.get("regions")
+
+    # Regions are optional.
+    if regions_manifest is None:
+        return True
+
+    if regions_manifest.get("version") != REGION_VERSION:
+        return False
+
+    expected_files = regions_manifest.get("files", [])
+
+    # Build the canonical Region representation from the embedded files.
+    actual_files = []
+
+    for file_entry in expected_files:
+        relative_file = file_entry.get("file")
+
+        if not relative_file:
+            return False
+
+        archive_path = f"payload/files/{relative_file}"
+        file_bytes = files.get(archive_path)
+
+        if file_bytes is None:
+            return False
+
+        try:
+            text = file_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            return False
+
+        regions, errors = detect_regions(relative_file, text)
+
+        if errors:
+            return False
+
+        actual_regions = []
+
+        for region in regions:
+            region_data = region.to_dict()
+            region_data["file"] = relative_file
+            actual_regions.append(region_data)
+
+        actual_files.append({
+            "file": relative_file,
+            "regions": actual_regions,
+        })
+
+    expected = {
+        "version": regions_manifest["version"],
+        "files": expected_files,
+    }
+
+    actual = {
+        "version": REGION_VERSION,
+        "files": actual_files,
+    }
+
+    return canonical_hash(expected) == canonical_hash(actual)
 
 # ------------------------------------------------------------
 # Provenance (minimal for 0.7.0)
@@ -254,7 +326,17 @@ def validate_dex_file(path: str, signature_files=None):
         results["schema"] = False
 
     # --------------------------------------------------
-    # 2. Signatures
+    # 2. Regions
+    # --------------------------------------------------
+    results["regions"] = _validate_regions(manifest, files)
+
+    if results["regions"]:
+        print("[OK] Regions integrity verified")
+    else:
+        print("[FAIL] Regions integrity mismatch")
+
+    # --------------------------------------------------
+    # 3. Signatures
     # --------------------------------------------------
     external_keys = _load_external_keys(signature_files)
     verifier = _build_verifier(files, external_keys)
@@ -263,14 +345,14 @@ def validate_dex_file(path: str, signature_files=None):
     results["signatures"] = sig_results
 
     # --------------------------------------------------
-    # 3. Provenance
+    # 4. Provenance
     # --------------------------------------------------
     provenance = manifest.get("provenance", [])
     results["provenance"] = _validate_provenance_chain(provenance)
     results["provenance_steps"] = len(provenance)
     
     # --------------------------------------------------
-    # 4. Identity
+    # 5. Identity
     # --------------------------------------------------
     results["payload_hash"] = manifest.get("payload", {}).get("hash", {}).get("value")
     results["container"] = "dex"

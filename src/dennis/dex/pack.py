@@ -15,8 +15,15 @@ from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
 import pytest
 
-from dennis.dex.manifest import build_manifest, validate_lineage_structure, build_root_lineage, build_derived_lineage, build_detached_lineage   
+from dennis.dex.manifest import (
+    build_manifest,
+    validate_lineage_structure,
+    build_root_lineage,
+    build_derived_lineage,
+    build_detached_lineage,
+)
 from dennis.core.hash import canonical_hash
+from dennis.core.regions import detect_regions, REGION_VERSION
 
 DEFAULT_IGNORES = [
     ".git",
@@ -301,6 +308,58 @@ def build_dexscope_json(root_dir):
         "comments": scope["comments"]
     }
 
+def _build_regions_manifest(root_dir, files_to_scan):
+    """
+    Build the canonical Regions component for a DEX.
+
+    Region file paths are stored relative to the project root so the
+    manifest remains portable and deterministic across machines.
+    """
+
+    region_files = []
+
+    for file_path in sorted(files_to_scan):
+        if not file_path.is_file():
+            continue
+
+        try:
+            text = file_path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+
+        regions, errors = detect_regions(file_path, text)
+
+        if errors:
+            raise ValueError(
+                f"Region detection failed for {file_path}: "
+                + "; ".join(error.message for error in errors)
+            )
+
+        if not regions:
+            continue
+
+        relative_file = file_path.relative_to(root_dir).as_posix()
+
+        region_files.append({
+            "file": relative_file,
+            "regions": [
+                {
+                    **region.to_dict(),
+                    "file": relative_file,
+                }
+                for region in regions
+            ],
+        })
+
+    if not region_files:
+        return None
+
+    return {
+        "version": REGION_VERSION,
+        "files": region_files,
+    }
+
+
 # ------------------------------------------------------------
 # Main packer
 # ------------------------------------------------------------
@@ -325,6 +384,25 @@ def pack_dex(
     output_path = Path(output_path)
 
     payload_obj = json.loads(payload_path.read_text())
+
+    root_dir = payload_path.parent
+
+    files_to_pack = []
+    regions_manifest = None
+
+    if include_files:
+        scope_files = collect_scoped_files(root_dir)
+
+        if scope_files is not None:
+            print("[Dennis] Using .dexscope")
+            files_to_pack = scope_files
+        else:
+            files_to_pack = collect_project_files(root_dir)
+
+        regions_manifest = _build_regions_manifest(
+            root_dir,
+            files_to_pack,
+        )
 
     # --------------------------------------------------------
     # Normalize helpers (v1 → v2)
@@ -453,7 +531,8 @@ def pack_dex(
     manifest = build_manifest(
         payload_hash_value=payload_hash,
         payload_type=payload_type,
-        lineage=lineage
+        lineage=lineage,
+        regions=regions_manifest,
     )
 
     validate_lineage_structure(manifest)
@@ -493,17 +572,6 @@ def pack_dex(
             # ----------------------------------------
             # FILE SELECTION
             # ----------------------------------------
-
-            scope_files = collect_scoped_files(root_dir)
-
-            if scope_files is not None:
-
-                print("[Dennis] Using .dexscope")
-                files_to_pack = scope_files
-
-            else:
-                files_to_pack = collect_project_files(root_dir)
-                
 
             for file_path in files_to_pack:
 

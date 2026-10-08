@@ -12,8 +12,10 @@ import io
 from pathlib import Path
 
 from dennis.core.hash import canonical_hash
-from dennis.dex.validate import validate_manifest
-
+from dennis.dex.validate import (
+    validate_manifest,
+    _validate_regions,
+)
 
 ALLOWED_FILES = {
     "manifest.json",
@@ -113,6 +115,14 @@ def import_dex(path):
 
         payload_bytes = payload_file.read()
 
+        archive_files = {}
+
+        for member in members:
+            file_obj = tar.extractfile(member)
+
+            if file_obj is not None:
+                archive_files[member.name] = file_obj.read()
+
 
     # --------------------------------------------------------
     # Verify payload hash
@@ -127,6 +137,9 @@ def import_dex(path):
 
     if payload_hash_actual != payload_hash_expected:
         raise ValueError("Payload hash mismatch")
+    
+    if not _validate_regions(manifest, archive_files):
+        raise ValueError("Regions integrity mismatch")
 
     return manifest, payload_bytes
 

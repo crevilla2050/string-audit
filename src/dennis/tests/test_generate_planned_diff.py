@@ -1,8 +1,10 @@
 import json
 import tempfile
 from pathlib import Path
+import pytest
 
 from dennis.dex.canonical_diff import generate_planned_diff, normalize_plan_path
+from dennis.dex.pack import collect_project_files
 
 
 def test_normalize_plan_path_ignores_payload_subdir():
@@ -170,3 +172,79 @@ def test_generate_planned_diff_loads_helper_from_helper_source_if_not_in_snapsho
         assert file_paths["helpers/helper_test.py"]["status"] == "added"
         assert file_paths["helpers/helper_test.py"]["changes"][0]["type"] == "insert"
         assert file_paths["helpers/helper_test.py"]["changes"][0]["after"] == ['def helper():', '    return True']
+
+
+def test_collect_project_files_requires_dennis_directory(tmp_path):
+    project_file = tmp_path / "hello.txt"
+    project_file.write_text("hello", encoding="utf-8")
+
+    with pytest.raises(
+        RuntimeError,
+        match="Dennis project context not found"
+    ):
+        collect_project_files(tmp_path)
+
+def test_collect_project_files_includes_dennis_context(tmp_path):
+    project_file = tmp_path / "hello.txt"
+    project_file.write_text("hello", encoding="utf-8")
+
+    dennis_dir = tmp_path / ".dennis"
+    dennis_dir.mkdir()
+
+    provenance = dennis_dir / "provenance.json"
+    provenance.write_text("{}", encoding="utf-8")
+
+    files = collect_project_files(tmp_path)
+
+    assert project_file in files
+    assert provenance in files
+
+def test_collect_project_files_honors_gitignore(tmp_path):
+    (tmp_path / ".gitignore").write_text(
+        "ignored.txt\n",
+        encoding="utf-8"
+    )
+
+    ignored = tmp_path / "ignored.txt"
+    ignored.write_text("ignore me", encoding="utf-8")
+
+    dennis_dir = tmp_path / ".dennis"
+    dennis_dir.mkdir()
+
+    provenance = dennis_dir / "provenance.json"
+    provenance.write_text("{}", encoding="utf-8")
+
+    files = collect_project_files(tmp_path)
+
+    assert ignored not in files
+    assert provenance in files
+
+def test_collect_project_files_dennis_overrides_gitignore(tmp_path):
+    (tmp_path / ".gitignore").write_text(
+        ".dennis/\n",
+        encoding="utf-8"
+    )
+
+    dennis_dir = tmp_path / ".dennis"
+    dennis_dir.mkdir()
+
+    provenance = dennis_dir / "provenance.json"
+    provenance.write_text("{}", encoding="utf-8")
+
+    files = collect_project_files(tmp_path)
+
+    assert provenance in files
+
+def test_collect_project_files_excludes_dex_artifacts(tmp_path):
+    dex = tmp_path / "old-artifact.dex"
+    dex.write_bytes(b"not project input")
+
+    dennis_dir = tmp_path / ".dennis"
+    dennis_dir.mkdir()
+
+    provenance = dennis_dir / "provenance.json"
+    provenance.write_text("{}", encoding="utf-8")
+
+    files = collect_project_files(tmp_path)
+
+    assert dex not in files

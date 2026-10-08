@@ -36,6 +36,86 @@
 
     "signatures": {
       "type": "array"
+    },
+
+    "regions": {
+      "type": "object",
+      "required": ["version", "files"],
+      "properties": {
+        "version": {
+          "type": "integer"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["file", "regions"],
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "regions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "file",
+                    "start_line",
+                    "start_column",
+                    "end_line",
+                    "end_column",
+                    "state",
+                    "original",
+                    "modified",
+                    "hash"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "file": {
+                      "type": "string"
+                    },
+                    "start_line": {
+                      "type": "integer"
+                    },
+                    "start_column": {
+                      "type": "integer"
+                    },
+                    "end_line": {
+                      "type": "integer"
+                    },
+                    "end_column": {
+                      "type": "integer"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "ORIGINAL",
+                        "MODIFIED",
+                        "REVISION",
+                        "REQUIRED",
+                        "ELLIOT_NESS",
+                        "IGNORE"
+                      ]
+                    },
+                    "original": {
+                      "type": "string"
+                    },
+                    "modified": {
+                      "type": ["string", "null"]
+                    },
+                    "hash": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
