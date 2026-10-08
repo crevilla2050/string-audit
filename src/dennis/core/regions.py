@@ -582,6 +582,96 @@ def _regions_semantically_equal(
 
     return set(before_map) == set(after_map)
 
+def _region_revision(region: dict) -> int:
+    """
+    Return the Region revision.
+
+    Older Region state without an explicit revision is treated
+    as revision 1 for backwards compatibility.
+    """
+
+    return region.get("revision", 1)
+
+
+def _stamp_region_revision(
+    region: dict,
+    revision: int,
+) -> dict:
+    result = deepcopy(region)
+    result["revision"] = revision
+    return result
+
+
+def _normalize_new_regions(
+    regions: list[dict],
+) -> list[dict]:
+    return [
+        _stamp_region_revision(
+            region,
+            1,
+        )
+        for region in regions
+    ]
+
+
+def _reconcile_region_revisions(
+    before: list[dict],
+    after: list[dict],
+) -> list[dict]:
+    """
+    Preserve stable Region IDs and assign revisions.
+
+    Existing semantic Regions keep their current revision.
+    New Regions start at revision 1.
+    Semantically changed Regions increment their revision.
+    """
+
+    before_by_id = {
+        region.get("id"): region
+        for region in before
+    }
+
+    result = []
+
+    for region in after:
+        region_id = region.get("id")
+        previous = before_by_id.get(region_id)
+
+        if previous is None:
+            result.append(
+                _stamp_region_revision(
+                    region,
+                    1,
+                )
+            )
+            continue
+
+        previous_revision = _region_revision(
+            previous
+        )
+
+        if (
+            _region_semantic_key(previous)
+            == _region_semantic_key(region)
+        ):
+            result.append(
+                _stamp_region_revision(
+                    region,
+                    previous_revision,
+                )
+            )
+        else:
+            result.append(
+                _stamp_region_revision(
+                    region,
+                    previous_revision + 1,
+                )
+            )
+
+    return result
+
+
+
 
 def reconcile_region_state(
     state: dict,
@@ -617,27 +707,63 @@ def reconcile_region_state(
         if before == after:
             continue
 
-        if (
-            before is not None
-            and after is not None
-            and _regions_semantically_equal(
+        if before is None:
+            if after is None:
+                continue
+
+            normalized_after = _normalize_new_regions(
+                after
+            )
+
+            changes.append({
+                "file": filename,
+                "before": None,
+                "after": deepcopy(
+                    normalized_after
+                ),
+            })
+
+            current[filename] = normalized_after
+            continue
+
+        if after is None:
+            changes.append({
+                "file": filename,
+                "before": deepcopy(before),
+                "after": None,
+            })
+
+            current.pop(filename, None)
+            continue
+
+        if _regions_semantically_equal(
+            before,
+            after,
+        ):
+            current[filename] = (
+                _reconcile_region_revisions(
+                    before,
+                    after,
+                )
+            )
+            continue
+
+        normalized_after = (
+            _reconcile_region_revisions(
                 before,
                 after,
             )
-        ):
-            current[filename] = deepcopy(after)
-            continue
+        )
 
         changes.append({
             "file": filename,
             "before": deepcopy(before),
-            "after": deepcopy(after),
+            "after": deepcopy(
+                normalized_after
+            ),
         })
 
-        if after is None:
-            current.pop(filename, None)
-        else:
-            current[filename] = deepcopy(after)
+        current[filename] = normalized_after
 
     if not changes:
         return {
