@@ -8,6 +8,7 @@ import re
 import secrets
 import string
 
+
 from copy import deepcopy
 from dennis.core.hash import canonical_hash
 
