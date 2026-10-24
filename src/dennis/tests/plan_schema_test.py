@@ -70,6 +70,7 @@ def test_supported_operation_forms_pass_schema_validation():
     [
         lambda plan: plan.pop("meta"),
         lambda plan: plan["meta"].pop("tool"),
+        lambda plan: plan["meta"].__setitem__("version", ""),
         lambda plan: plan["meta"].__setitem__("generated_at", "not-a-timestamp"),
         lambda plan: plan["changes"][0].__setitem__("line", 0),
         lambda plan: plan["changes"][0].__setitem__("type", "replace"),
