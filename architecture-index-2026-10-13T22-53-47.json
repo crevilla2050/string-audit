@@ -1,0 +1,84 @@
+{
+    "findings": [
+        {
+            "classification": "UNKNOWN_DUPLICATION",
+            "confidence": 0.5,
+            "evidence_hash": "93289772f1651234ed163c0e17786a9cdd42074b80c47e4f60dae56779e10bac"
+        },
+        {
+            "classification": "UNKNOWN_DUPLICATION",
+            "confidence": 0.5,
+            "evidence_hash": "69af1cf7378089212f7522eed390a94fa5b4e0713504816d3d2195d2aa13a5a9"
+        },
+        {
+            "classification": "UNKNOWN_DUPLICATION",
+            "confidence": 0.5,
+            "evidence_hash": "321b0fa6965e76b20c0a559af95f13e45a2bef44c690406b238be238651f4478"
+        },
+        {
+            "classification": "SHARED_UTILITY_CANDIDATE",
+            "confidence": 0.95,
+            "evidence_hash": "55ff64b538e228f3e75a874e124a5c09b9c03a644078aad6921d559b6b93daa3"
+        },
+        {
+            "classification": "UNKNOWN_DUPLICATION",
+            "confidence": 0.5,
+            "evidence_hash": "7db709bf752db6d88718a015a7a6f1ebb7158780953a7bda7a7632ddd27fe300"
+        },
+        {
+            "classification": "INTERFACE_IMPLEMENTATION",
+            "confidence": 0.9,
+            "evidence_hash": "1a06007cc5ec059e82dcc22548362afd388540831816f74db2c47880d0774763"
+        },
+        {
+            "classification": "INTERFACE_IMPLEMENTATION",
+            "confidence": 0.9,
+            "evidence_hash": "9ffd5b68d238546329f0f6ed759f3da5b36532bcc79f8b5ad646ddf4c6e7db72"
+        },
+        {
+            "classification": "INTERFACE_IMPLEMENTATION",
+            "confidence": 0.9,
+            "evidence_hash": "6e7eabbcfc0513dce788eb8d3d4f6abc6fe7e7522553fe50994b12394afc7343"
+        },
+        {
+            "classification": "INTERFACE_IMPLEMENTATION",
+            "confidence": 0.9,
+            "evidence_hash": "f4b8e758f1ec15c93ef938d32d294d3714d38c4b8bb0cebd1997f048e27a2d96"
+        },
+        {
+            "classification": "ABSTRACT_CONTRACT",
+            "confidence": 0.99,
+            "evidence_hash": "0899903e1896b17662833c031e342d396c5c0012372c7287e7abc49745a604d7"
+        },
+        {
+            "classification": "UNKNOWN_DUPLICATION",
+            "confidence": 0.5,
+            "evidence_hash": "9cd3b6f84476276e355f68418e439f22dd1b1ed1a69f6c82d093f759db035efe"
+        },
+        {
+            "classification": "SHARED_UTILITY_CANDIDATE",
+            "confidence": 0.95,
+            "evidence_hash": "71d637177ccea823c107660f8df2ad7be558b9e59766f57e4745da57db3d5a49"
+        },
+        {
+            "classification": "SHARED_UTILITY_CANDIDATE",
+            "confidence": 0.95,
+            "evidence_hash": "2ac6eadc313ac91262403b01afbe7281de4d5cfc85f6686b5f4b6b88ee850652"
+        },
+        {
+            "classification": "UNKNOWN_DUPLICATION",
+            "confidence": 0.5,
+            "evidence_hash": "ce2bdc2d234dfe4c73b055b0d4b6bba9533f3504594bbfead6877c04f30f4be3"
+        },
+        {
+            "classification": "UNKNOWN_DUPLICATION",
+            "confidence": 0.5,
+            "evidence_hash": "c0dcaf4bc0748f14294fa105a2557578c7fd38ad06dc325361abe41e69f4325e"
+        },
+        {
+            "classification": "SHARED_UTILITY_CANDIDATE",
+            "confidence": 0.95,
+            "evidence_hash": "c8f1d46da07026968456483790478d9aa722cf5bba1bb3116ad42c95fa815a64"
+        }
+    ]
+}

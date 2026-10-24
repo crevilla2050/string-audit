@@ -2,17 +2,25 @@
 import json
 from importlib import resources
 
+import jsonschema
+
 
 def _load_schema():
-    # Prefer Dennis-native location
-    try:
-        with resources.files("dennis.schemas").joinpath("plan.schema.json").open("r") as f:
-            return json.load(f)
-    except ModuleNotFoundError:
-        # Backward compatibility fallback
-        with resources.files("dennis.schemas").joinpath("plan.schema.json").open("r") as f:
-            return json.load(f)
-        
+    with resources.files("dennis.schemas").joinpath("plan.schema.json").open(
+        "r", encoding="utf-8"
+    ) as schema_file:
+        return json.load(schema_file)
+
+
 def validate_plan(plan):
-    with resources.files("dennis.schemas").joinpath("plan.schema.json").open("r") as f:
-        schema = _load_schema()
+    """Validate a Dennis plan against the packaged canonical schema.
+
+    Valid plans return normally. Invalid plans raise
+    :class:`jsonschema.ValidationError`; schema-loading errors deliberately
+    propagate to callers.
+    """
+    jsonschema.validate(
+        instance=plan,
+        schema=_load_schema(),
+        format_checker=jsonschema.FormatChecker(),
+    )

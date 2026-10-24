@@ -20,6 +20,8 @@ dependencies = [
 
 [project.scripts]
 dennis = "dennis.cli:main"
+dennis-extract-html = "dennis.plugins.html:main"
+dennis-extract-document = "dennis.plugins.office_documents:main"
 
 [build-system]
 requires = ["hatchling"]

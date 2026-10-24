@@ -1,0 +1,736 @@
+{
+    "0899903e1896b17662833c031e342d396c5c0012372c7287e7abc49745a604d7": {
+        "count": 6,
+        "functions": [
+            {
+                "end_line": 15,
+                "file": "src/dennis/storage/base.py",
+                "line_count": 2,
+                "name": "fetchone",
+                "source_excerpt": [
+                    "    def fetchone(self):",
+                    "        pass"
+                ],
+                "start_line": 14
+            },
+            {
+                "end_line": 19,
+                "file": "src/dennis/storage/base.py",
+                "line_count": 2,
+                "name": "fetchall",
+                "source_excerpt": [
+                    "    def fetchall(self):",
+                    "        pass"
+                ],
+                "start_line": 18
+            },
+            {
+                "end_line": 23,
+                "file": "src/dennis/storage/base.py",
+                "line_count": 2,
+                "name": "begin",
+                "source_excerpt": [
+                    "    def begin(self):",
+                    "        pass"
+                ],
+                "start_line": 22
+            },
+            {
+                "end_line": 27,
+                "file": "src/dennis/storage/base.py",
+                "line_count": 2,
+                "name": "commit",
+                "source_excerpt": [
+                    "    def commit(self):",
+                    "        pass"
+                ],
+                "start_line": 26
+            },
+            {
+                "end_line": 31,
+                "file": "src/dennis/storage/base.py",
+                "line_count": 2,
+                "name": "rollback",
+                "source_excerpt": [
+                    "    def rollback(self):",
+                    "        pass"
+                ],
+                "start_line": 30
+            },
+            {
+                "end_line": 35,
+                "file": "src/dennis/storage/base.py",
+                "line_count": 2,
+                "name": "close",
+                "source_excerpt": [
+                    "    def close(self):",
+                    "        pass"
+                ],
+                "start_line": 34
+            }
+        ],
+        "normalized_hash": "0899903e1896b17662833c031e342d396c5c0012372c7287e7abc49745a604d7",
+        "total_lines": 12
+    },
+    "1a06007cc5ec059e82dcc22548362afd388540831816f74db2c47880d0774763": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 21,
+                "file": "src/dennis/storage/sqlite.py",
+                "line_count": 5,
+                "name": "execute",
+                "source_excerpt": [
+                    "    def execute(self, sql, params=None):",
+                    "        sql = normalize_sql(sql, self.flavor)",
+                    "        self._cursor = self.conn.cursor()",
+                    "        self._cursor.execute(sql, params or [])",
+                    "        return self._cursor"
+                ],
+                "start_line": 17
+            },
+            {
+                "end_line": 27,
+                "file": "src/dennis/storage/mysql.py",
+                "line_count": 5,
+                "name": "execute",
+                "source_excerpt": [
+                    "    def execute(self, sql, params=None):",
+                    "        sql = normalize_sql(sql, self.flavor)",
+                    "        self._cursor = self.conn.cursor()",
+                    "        self._cursor.execute(sql, params or [])",
+                    "        return self._cursor"
+                ],
+                "start_line": 23
+            }
+        ],
+        "normalized_hash": "1a06007cc5ec059e82dcc22548362afd388540831816f74db2c47880d0774763",
+        "total_lines": 10
+    },
+    "2ac6eadc313ac91262403b01afbe7281de4d5cfc85f6686b5f4b6b88ee850652": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 61,
+                "file": "src/dennis/core/regions.py",
+                "line_count": 2,
+                "name": "to_dict",
+                "source_excerpt": [
+                    "    def to_dict(self) -> dict:",
+                    "        return asdict(self)"
+                ],
+                "start_line": 60
+            },
+            {
+                "end_line": 72,
+                "file": "src/dennis/core/regions.py",
+                "line_count": 2,
+                "name": "to_dict",
+                "source_excerpt": [
+                    "    def to_dict(self) -> dict:",
+                    "        return asdict(self)"
+                ],
+                "start_line": 71
+            }
+        ],
+        "normalized_hash": "2ac6eadc313ac91262403b01afbe7281de4d5cfc85f6686b5f4b6b88ee850652",
+        "total_lines": 4
+    },
+    "321b0fa6965e76b20c0a559af95f13e45a2bef44c690406b238be238651f4478": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 369,
+                "file": "src/dennis/cli.py",
+                "line_count": 2,
+                "name": "_context_path",
+                "source_excerpt": [
+                    "def _context_path():",
+                    "    return Path.home() / \".dennis\" / \"context.json\""
+                ],
+                "start_line": 368
+            },
+            {
+                "end_line": 3456,
+                "file": "src/dennis/cli.py",
+                "line_count": 2,
+                "name": "_context_path",
+                "source_excerpt": [
+                    "            def _context_path():",
+                    "                return Path.home() / \".dennis\" / \"context.json\""
+                ],
+                "start_line": 3455
+            }
+        ],
+        "normalized_hash": "321b0fa6965e76b20c0a559af95f13e45a2bef44c690406b238be238651f4478",
+        "total_lines": 4
+    },
+    "55ff64b538e228f3e75a874e124a5c09b9c03a644078aad6921d559b6b93daa3": {
+        "count": 10,
+        "functions": [
+            {
+                "end_line": 1473,
+                "file": "src/dennis/cli.py",
+                "line_count": 2,
+                "name": "ts",
+                "source_excerpt": [
+                    "        def ts():",
+                    "            return datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H-%M-%S\")"
+                ],
+                "start_line": 1472
+            },
+            {
+                "end_line": 1710,
+                "file": "src/dennis/cli.py",
+                "line_count": 2,
+                "name": "ts",
+                "source_excerpt": [
+                    "        def ts():",
+                    "            return datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H-%M-%S\")"
+                ],
+                "start_line": 1709
+            },
+            {
+                "end_line": 1632,
+                "file": "src/dennis/cli.py",
+                "line_count": 2,
+                "name": "ts",
+                "source_excerpt": [
+                    "            def ts():",
+                    "                return datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H-%M-%S\")"
+                ],
+                "start_line": 1631
+            },
+            {
+                "end_line": 3726,
+                "file": "src/dennis/cli.py",
+                "line_count": 2,
+                "name": "ts",
+                "source_excerpt": [
+                    "        def ts():",
+                    "            return datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H-%M-%S\")"
+                ],
+                "start_line": 3725
+            },
+            {
+                "end_line": 3772,
+                "file": "src/dennis/cli.py",
+                "line_count": 2,
+                "name": "ts",
+                "source_excerpt": [
+                    "        def ts():",
+                    "            return datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H-%M-%S\")"
+                ],
+                "start_line": 3771
+            },
+            {
+                "end_line": 15,
+                "file": "src/dennis/dex/keygen.py",
+                "line_count": 8,
+                "name": "ts",
+                "source_excerpt": [
+                    "def ts():",
+                    "    \"\"\"",
+                    "    Return a filesystem-safe UTC timestamp.",
+                    "",
+                    "    Format:",
+                    "    YYYY-MM-DDTHH-MM-SS",
+                    "    \"\"\"",
+                    "    return datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H-%M-%S\")"
+                ],
+                "start_line": 8
+            },
+            {
+                "end_line": 18,
+                "file": "src/dennis/utils/time.py",
+                "line_count": 2,
+                "name": "timestamp",
+                "source_excerpt": [
+                    "def timestamp():",
+                    "    return datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H-%M-%S\")"
+                ],
+                "start_line": 17
+            },
+            {
+                "end_line": 14,
+                "file": "src/dennis/architecture/export.py",
+                "line_count": 6,
+                "name": "timestamp",
+                "source_excerpt": [
+                    "def timestamp():",
+                    "    return datetime.now(",
+                    "        timezone.utc",
+                    "    ).strftime(",
+                    "        \"%Y-%m-%dT%H-%M-%S\"",
+                    "    )"
+                ],
+                "start_line": 9
+            },
+            {
+                "end_line": 5,
+                "file": "src/dennis/goals/discovery.py",
+                "line_count": 2,
+                "name": "ts",
+                "source_excerpt": [
+                    "def ts():",
+                    "    return datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H-%M-%S\")"
+                ],
+                "start_line": 4
+            },
+            {
+                "end_line": 6,
+                "file": "src/dennis/goals/specs.py",
+                "line_count": 4,
+                "name": "timestamp",
+                "source_excerpt": [
+                    "def timestamp():",
+                    "    return datetime.now(timezone.utc).strftime(",
+                    "        \"%Y-%m-%dT%H-%M-%S\"",
+                    "    )"
+                ],
+                "start_line": 3
+            }
+        ],
+        "normalized_hash": "55ff64b538e228f3e75a874e124a5c09b9c03a644078aad6921d559b6b93daa3",
+        "total_lines": 32
+    },
+    "69af1cf7378089212f7522eed390a94fa5b4e0713504816d3d2195d2aa13a5a9": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 147,
+                "file": "src/dennis/cli.py",
+                "line_count": 9,
+                "name": "normalize_change",
+                "source_excerpt": [
+                    "def normalize_change(change, semantic=True):",
+                    "",
+                    "    if not semantic:",
+                    "        return change",
+                    "",
+                    "    return {",
+                    "        k: v for k, v in change.items()",
+                    "        if k not in NON_SEMANTIC_FIELDS",
+                    "    }"
+                ],
+                "start_line": 139
+            },
+            {
+                "end_line": 30,
+                "file": "src/dennis/dex/diff.py",
+                "line_count": 8,
+                "name": "normalize_change",
+                "source_excerpt": [
+                    "def normalize_change(change, semantic=True):",
+                    "    if not semantic:",
+                    "        return change",
+                    "",
+                    "    return {",
+                    "        k: v for k, v in change.items()",
+                    "        if k not in NON_SEMANTIC_FIELDS",
+                    "    }"
+                ],
+                "start_line": 23
+            }
+        ],
+        "normalized_hash": "69af1cf7378089212f7522eed390a94fa5b4e0713504816d3d2195d2aa13a5a9",
+        "total_lines": 17
+    },
+    "6e7eabbcfc0513dce788eb8d3d4f6abc6fe7e7522553fe50994b12394afc7343": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 38,
+                "file": "src/dennis/storage/sqlite.py",
+                "line_count": 2,
+                "name": "rollback",
+                "source_excerpt": [
+                    "    def rollback(self):",
+                    "        self.conn.rollback()"
+                ],
+                "start_line": 37
+            },
+            {
+                "end_line": 42,
+                "file": "src/dennis/storage/mysql.py",
+                "line_count": 2,
+                "name": "rollback",
+                "source_excerpt": [
+                    "    def rollback(self):",
+                    "        self.conn.rollback()"
+                ],
+                "start_line": 41
+            }
+        ],
+        "normalized_hash": "6e7eabbcfc0513dce788eb8d3d4f6abc6fe7e7522553fe50994b12394afc7343",
+        "total_lines": 4
+    },
+    "71d637177ccea823c107660f8df2ad7be558b9e59766f57e4745da57db3d5a49": {
+        "count": 3,
+        "functions": [
+            {
+                "end_line": 14,
+                "file": "src/dennis/dex/generate_keypair_raw.py",
+                "line_count": 2,
+                "name": "now",
+                "source_excerpt": [
+                    "def now():",
+                    "    return datetime.now(timezone.utc).isoformat()"
+                ],
+                "start_line": 13
+            },
+            {
+                "end_line": 62,
+                "file": "src/dennis/core/keys.py",
+                "line_count": 2,
+                "name": "now",
+                "source_excerpt": [
+                    "def now():",
+                    "    return datetime.now(timezone.utc).isoformat()"
+                ],
+                "start_line": 61
+            },
+            {
+                "end_line": 51,
+                "file": "src/dennis/i18n/csvio.py",
+                "line_count": 2,
+                "name": "ts",
+                "source_excerpt": [
+                    "    def ts():",
+                    "        return datetime.now(timezone.utc).isoformat()"
+                ],
+                "start_line": 50
+            }
+        ],
+        "normalized_hash": "71d637177ccea823c107660f8df2ad7be558b9e59766f57e4745da57db3d5a49",
+        "total_lines": 6
+    },
+    "7db709bf752db6d88718a015a7a6f1ebb7158780953a7bda7a7632ddd27fe300": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 2925,
+                "file": "src/dennis/cli.py",
+                "line_count": 5,
+                "name": "get_trust_marker",
+                "source_excerpt": [
+                    "        def get_trust_marker(key_id):",
+                    "            for s in sig_details:",
+                    "                if s.get(\"key_id\") == key_id:",
+                    "                    return \"\u2714\" if s.get(\"trusted\") else \"\u2716\"",
+                    "            return \"?\""
+                ],
+                "start_line": 2921
+            },
+            {
+                "end_line": 2912,
+                "file": "src/dennis/cli.py",
+                "line_count": 5,
+                "name": "get_trust_marker",
+                "source_excerpt": [
+                    "                def get_trust_marker(key_id):",
+                    "                    for s in sig_details:",
+                    "                        if s.get(\"key_id\") == key_id:",
+                    "                            return \"\u2714\" if s.get(\"trusted\") else \"\u2716\"",
+                    "                    return \"?\""
+                ],
+                "start_line": 2908
+            }
+        ],
+        "normalized_hash": "7db709bf752db6d88718a015a7a6f1ebb7158780953a7bda7a7632ddd27fe300",
+        "total_lines": 10
+    },
+    "93289772f1651234ed163c0e17786a9cdd42074b80c47e4f60dae56779e10bac": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 70,
+                "file": "src/dennis/utils.py",
+                "line_count": 25,
+                "name": "get_scope_files",
+                "source_excerpt": [
+                    "def get_scope_files(path: str | Path) -> list[str]:",
+                    "    \"\"\"",
+                    "    Return the canonical file list used to generate .dexscope.",
+                    "",
+                    "    Git is authoritative when the project is a Git repository.",
+                    "    Dennis includes tracked files and untracked files that are",
+                    "    not excluded by Git's ignore rules.",
+                    "",
+                    "    Otherwise Dennis falls back to a native Python filesystem walk.",
+                    "    \"\"\"",
+                    "    root = Path(path).resolve()",
+                    "",
+                    "    if is_git_repo(root):",
+                    "        try:",
+                    "            return sorted(",
+                    "                p.relative_to(root).as_posix()",
+                    "                for p in git_unignored_files(root)",
+                    "            )",
+                    "        except (subprocess.SubprocessError, OSError):",
+                    "            print(",
+                    "                \"[Dennis] WARNING: Git scope discovery failed; \"",
+                    "                \"falling back to filesystem scan.\"",
+                    "            )",
+                    "",
+                    "    return get_filesystem_scope(root)"
+                ],
+                "start_line": 46
+            },
+            {
+                "end_line": 207,
+                "file": "src/dennis/cli.py",
+                "line_count": 25,
+                "name": "get_scope_files",
+                "source_excerpt": [
+                    "def get_scope_files(path: str | Path) -> list[str]:",
+                    "    \"\"\"",
+                    "    Return the canonical file list used to generate .dexscope.",
+                    "",
+                    "    Git is authoritative when the project is a Git repository.",
+                    "    Dennis includes tracked files and untracked files that are",
+                    "    not excluded by Git's ignore rules.",
+                    "",
+                    "    Otherwise Dennis falls back to a native Python filesystem walk.",
+                    "    \"\"\"",
+                    "    root = Path(path).resolve()",
+                    "",
+                    "    if is_git_repo(root):",
+                    "        try:",
+                    "            return sorted(",
+                    "                p.relative_to(root).as_posix()",
+                    "                for p in git_unignored_files(root)",
+                    "            )",
+                    "        except (subprocess.SubprocessError, OSError):",
+                    "            print(",
+                    "                \"[Dennis] WARNING: Git scope discovery failed; \"",
+                    "                \"falling back to filesystem scan.\"",
+                    "            )",
+                    "",
+                    "    return get_filesystem_scope(root)"
+                ],
+                "start_line": 183
+            }
+        ],
+        "normalized_hash": "93289772f1651234ed163c0e17786a9cdd42074b80c47e4f60dae56779e10bac",
+        "total_lines": 50
+    },
+    "9cd3b6f84476276e355f68418e439f22dd1b1ed1a69f6c82d093f759db035efe": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 22,
+                "file": "src/dennis/dex/sign.py",
+                "line_count": 2,
+                "name": "_now",
+                "source_excerpt": [
+                    "def _now():",
+                    "    return datetime.now(timezone.utc).isoformat().replace(\"+00:00\", \"Z\")"
+                ],
+                "start_line": 21
+            },
+            {
+                "end_line": 17,
+                "file": "src/dennis/dex/manifest.py",
+                "line_count": 5,
+                "name": "now_iso",
+                "source_excerpt": [
+                    "def now_iso():",
+                    "    \"\"\"",
+                    "    Return ISO-8601 UTC timestamp suitable for manifests.",
+                    "    \"\"\"",
+                    "    return datetime.now(timezone.utc).isoformat().replace(\"+00:00\", \"Z\")"
+                ],
+                "start_line": 13
+            }
+        ],
+        "normalized_hash": "9cd3b6f84476276e355f68418e439f22dd1b1ed1a69f6c82d093f759db035efe",
+        "total_lines": 7
+    },
+    "9ffd5b68d238546329f0f6ed759f3da5b36532bcc79f8b5ad646ddf4c6e7db72": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 35,
+                "file": "src/dennis/storage/sqlite.py",
+                "line_count": 2,
+                "name": "commit",
+                "source_excerpt": [
+                    "    def commit(self):",
+                    "        self.conn.commit()"
+                ],
+                "start_line": 34
+            },
+            {
+                "end_line": 39,
+                "file": "src/dennis/storage/mysql.py",
+                "line_count": 2,
+                "name": "commit",
+                "source_excerpt": [
+                    "    def commit(self):",
+                    "        self.conn.commit()"
+                ],
+                "start_line": 38
+            }
+        ],
+        "normalized_hash": "9ffd5b68d238546329f0f6ed759f3da5b36532bcc79f8b5ad646ddf4c6e7db72",
+        "total_lines": 4
+    },
+    "c0dcaf4bc0748f14294fa105a2557578c7fd38ad06dc325361abe41e69f4325e": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 46,
+                "file": "src/dennis/core/hash.py",
+                "line_count": 14,
+                "name": "sha256_file",
+                "source_excerpt": [
+                    "def sha256_file(path: Path) -> str:",
+                    "    \"\"\"",
+                    "    Compute SHA-256 hash of a file.",
+                    "",
+                    "    Used for workspace integrity checks when applying plans.",
+                    "    \"\"\"",
+                    "",
+                    "    h = hashlib.sha256()",
+                    "",
+                    "    with open(path, \"rb\") as f:",
+                    "        while chunk := f.read(8192):",
+                    "            h.update(chunk)",
+                    "",
+                    "    return h.hexdigest()"
+                ],
+                "start_line": 33
+            },
+            {
+                "end_line": 113,
+                "file": "src/dennis/i18n/plan.py",
+                "line_count": 6,
+                "name": "sha256_file",
+                "source_excerpt": [
+                    "def sha256_file(path: Path) -> str:",
+                    "    h = hashlib.sha256()",
+                    "    with open(path, \"rb\") as f:",
+                    "        while chunk := f.read(8192):",
+                    "            h.update(chunk)",
+                    "    return h.hexdigest()"
+                ],
+                "start_line": 108
+            }
+        ],
+        "normalized_hash": "c0dcaf4bc0748f14294fa105a2557578c7fd38ad06dc325361abe41e69f4325e",
+        "total_lines": 20
+    },
+    "c8f1d46da07026968456483790478d9aa722cf5bba1bb3116ad42c95fa815a64": {
+        "count": 4,
+        "functions": [
+            {
+                "end_line": 15,
+                "file": "src/dennis/server/federation_sync.py",
+                "line_count": 2,
+                "name": "get_db",
+                "source_excerpt": [
+                    "def get_db():",
+                    "    return mysql.connector.connect(**DB_CONFIG)"
+                ],
+                "start_line": 14
+            },
+            {
+                "end_line": 12,
+                "file": "src/dennis/server/db.py",
+                "line_count": 2,
+                "name": "get_connection",
+                "source_excerpt": [
+                    "def get_connection():",
+                    "    return mysql.connector.connect(**DB_CONFIG)"
+                ],
+                "start_line": 11
+            },
+            {
+                "end_line": 18,
+                "file": "src/dennis/server/routers/federation.py",
+                "line_count": 5,
+                "name": "get_db",
+                "source_excerpt": [
+                    "def get_db():",
+                    "    # This function establishes a connection to the MySQL database using the configuration provided in DB_CONFIG",
+                    "    # It returns a connection object that can be used to interact with the database",
+                    "    # The ** operator unpacks the DB_CONFIG dictionary into keyword arguments for the connect function",
+                    "    return mysql.connector.connect(**DB_CONFIG)"
+                ],
+                "start_line": 14
+            },
+            {
+                "end_line": 17,
+                "file": "src/dennis/server/routers/registry.py",
+                "line_count": 2,
+                "name": "get_db",
+                "source_excerpt": [
+                    "def get_db():",
+                    "    return mysql.connector.connect(**DB_CONFIG)"
+                ],
+                "start_line": 16
+            }
+        ],
+        "normalized_hash": "c8f1d46da07026968456483790478d9aa722cf5bba1bb3116ad42c95fa815a64",
+        "total_lines": 11
+    },
+    "ce2bdc2d234dfe4c73b055b0d4b6bba9533f3504594bbfead6877c04f30f4be3": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 13,
+                "file": "src/dennis/core/export_xml.py",
+                "line_count": 2,
+                "name": "w",
+                "source_excerpt": [
+                    "    def w(line=\"\"):",
+                    "        fp.write(line + \"\\n\")"
+                ],
+                "start_line": 12
+            },
+            {
+                "end_line": 18,
+                "file": "src/dennis/core/export_html.py",
+                "line_count": 2,
+                "name": "w",
+                "source_excerpt": [
+                    "    def w(line=\"\"):",
+                    "        fp.write(line + \"\\n\")"
+                ],
+                "start_line": 17
+            }
+        ],
+        "normalized_hash": "ce2bdc2d234dfe4c73b055b0d4b6bba9533f3504594bbfead6877c04f30f4be3",
+        "total_lines": 4
+    },
+    "f4b8e758f1ec15c93ef938d32d294d3714d38c4b8bb0cebd1997f048e27a2d96": {
+        "count": 2,
+        "functions": [
+            {
+                "end_line": 41,
+                "file": "src/dennis/storage/sqlite.py",
+                "line_count": 2,
+                "name": "close",
+                "source_excerpt": [
+                    "    def close(self):",
+                    "        self.conn.close()"
+                ],
+                "start_line": 40
+            },
+            {
+                "end_line": 45,
+                "file": "src/dennis/storage/mysql.py",
+                "line_count": 2,
+                "name": "close",
+                "source_excerpt": [
+                    "    def close(self):",
+                    "        self.conn.close()"
+                ],
+                "start_line": 44
+            }
+        ],
+        "normalized_hash": "f4b8e758f1ec15c93ef938d32d294d3714d38c4b8bb0cebd1997f048e27a2d96",
+        "total_lines": 4
+    }
+}

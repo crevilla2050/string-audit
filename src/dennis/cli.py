@@ -692,6 +692,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Scan project and output observations only without generating a plan"
     )
 
+    plan_cmd.add_argument(
+        "--use-default-plugins",
+        action="store_true",
+        help=(
+            "Prefer built-in scanner plugins over user-installed plugins "
+            "for extensions handled by built-ins"
+        ),
+    )
+
     # ---------------------------------------------------------
     # MANUAL SUBCOMMAND (KEY FIX)
     # ---------------------------------------------------------
@@ -935,6 +944,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--out",
         default=".",
         help="Output directory (default: current directory)"
+    )
+
+    rehydrate.add_argument(
+        "--set-source-path",
+        help="Project root for resolving relative transformation paths (default: current directory)"
     )
 
     # VALIDATE
@@ -1194,7 +1208,7 @@ def build_parser() -> argparse.ArgumentParser:
         "apply",
         help="Execute transformation plan"
     )
-    apply_cmd.add_argument("plan", help="Path to plan.json or artifact.dex")
+    apply_cmd.add_argument("plan", help="Path to a JSON transformation plan")
 
     apply_cmd.add_argument(
         "--confirm",
@@ -1745,15 +1759,24 @@ def main() -> None:
                 lang.strip() for lang in args.exclude_lang.split(",")
             }
 
-        result = generate_plan(
-            source_dir,
-            dict_path,
-            helpers=helpers,
-            git_mode=git_mode,
-            lang=args.lang,
-            exclude_langs=excluded_langs,
-            scan_only=getattr(args, "scan", False)
-        )
+        try:
+            result = generate_plan(
+                source_dir,
+                dict_path,
+                helpers=helpers,
+                git_mode=git_mode,
+                lang=args.lang,
+                exclude_langs=excluded_langs,
+                scan_only=getattr(args, "scan", False),
+                use_default_plugins=getattr(args, "use_default_plugins", False),
+            )
+        except Exception as exc:
+            from dennis.plugins import PluginResolutionError
+
+            if not isinstance(exc, PluginResolutionError):
+                raise
+
+            raise SystemExit(f"[Dennis] Plugin resolution error: {exc}") from None
 
         if getattr(args, "scan", False):
             scan_ts = ts()
@@ -3415,6 +3438,16 @@ def main() -> None:
 
         artifact = Path(args.artifact)
         out_dir = Path(args.out)
+        source_root = (
+            Path(args.set_source_path).expanduser().resolve()
+            if args.set_source_path
+            else Path.cwd().resolve()
+        )
+
+        if not source_root.is_dir():
+            raise SystemExit(
+                f"[Dennis] Source path is not an existing directory: {source_root}"
+            )
 
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -3427,6 +3460,10 @@ def main() -> None:
 
         plan_path = out_dir / "rehydrated-plan.json"
 
+        if not isinstance(plan.get("meta"), dict):
+            plan["meta"] = {}
+        plan["meta"]["source_root"] = str(source_root)
+
         plan_path.write_text(
             json.dumps(plan, indent=2, ensure_ascii=False) + "\n"
         )
@@ -3436,129 +3473,25 @@ def main() -> None:
     elif args.command == "apply":
 
         from dennis.i18n.apply import apply_plan
-        from dennis.dex.importer import import_dex
-        import tempfile
         from pathlib import Path as _Path
-        import json as _json
 
         plan_path = _Path(args.plan)
 
+        if plan_path.suffix.lower() == ".dex":
+            raise SystemExit(
+                "[Dennis] Direct application of DEX artifacts is not supported.\n"
+                "First rehydrate the artifact:\n"
+                "  dennis rehydrate <artifact.dex> --out <directory>\n"
+                "Then apply the generated plan:\n"
+                "  dennis apply <directory>/rehydrated-plan.json"
+            )
 
-        if plan_path.suffix == ".dex":
-
-            manifest, payload_bytes = import_dex(plan_path)
-
-            # --------------------------------------------------------
-            # LINEAGE ENFORCEMENT (CRITICAL)
-            # --------------------------------------------------------
-
-            def _context_path():
-                return Path.home() / ".dennis" / "context.json"
-
-            def get_active_lineage():
-                path = _context_path()
-                if not path.exists():
-                    return None
-                try:
-                    return json.loads(path.read_text()).get("active_lineage_id")
-                except Exception:
-                    return None
-
-            def save_active_lineage(lineage_id):
-                ctx_dir = _context_path().parent
-                ctx_dir.mkdir(parents=True, exist_ok=True)
-
-                _context_path().write_text(_json.dumps({
-                    "active_lineage_id": lineage_id,
-                    "root_hash": lineage_id
-                }, indent=2))
-
-            lineage = manifest.get("lineage", {})
-            artifact_lineage_id = lineage.get("lineage_id")
-            artifact_type = lineage.get("type")
-
-            active_lineage_id = get_active_lineage()
-
-            print(f"[Dennis] Artifact lineage type: {artifact_type}")
-            if artifact_lineage_id:
-                print(f"[Dennis] Artifact lineage ID: {artifact_lineage_id}")
-
-            # ----------------------------------------
-            # DETACHED
-            # ----------------------------------------
-
-            if artifact_type == "detached" or not artifact_lineage_id:
-                print("[Dennis] WARNING: Detached artifact detected")
-
-                if not args.accept_detached:
-                    raise SystemExit(
-                        "[Dennis] ERROR: Detached artifact requires --accept-detached"
-                    )
-
-                print("[Dennis] Detached artifact explicitly accepted")
-
-            # ----------------------------------------
-            # FIRST RUN (BOOTSTRAP)
-            # ----------------------------------------
-
-            if active_lineage_id is None:
-
-                if artifact_type == "detached":
-                    raise SystemExit(
-                        "[Dennis] ERROR: Cannot initialize lineage from detached artifact"
-                    )
-
-                print(f"[Dennis] Initializing lineage → {artifact_lineage_id}")
-                save_active_lineage(artifact_lineage_id)
-
-            # ----------------------------------------
-            # LINEAGE MISMATCH
-            # ----------------------------------------
-
-            elif artifact_lineage_id != active_lineage_id:
-
-                print("[Dennis] ERROR: Lineage mismatch")
-                print(f"  Active:   {active_lineage_id}")
-                print(f"  Artifact: {artifact_lineage_id}")
-
-                if not args.accept_lineage:
-                    raise SystemExit(
-                        "[Dennis] Refusing to apply artifact from different lineage.\n"
-                        "Use --accept-lineage <lineage_id> to override."
-                    )
-
-                if args.accept_lineage != artifact_lineage_id:
-                    raise SystemExit(
-                        "[Dennis] Provided lineage does not match artifact."
-                    )
-
-                print("[Dennis] WARNING: Lineage override accepted")
-
-            # --------------------------------------------------------
-            # APPLY (only after passing all checks)
-            # --------------------------------------------------------
-
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
-                tmp.write(payload_bytes)
-                tmp_path = _Path(tmp.name)
-
-            try:
-                changes = apply_plan(
-                    tmp_path,
-                    confirm=args.confirm,
-                    helper_mode=args.helper_mode,
-                    artifact_policy=args.artifact_policy
-                )
-            finally:
-                tmp_path.unlink(missing_ok=True)
-
-        else:
-            changes = apply_plan(
-                    plan_path,
-                    confirm=args.confirm,
-                    helper_mode=args.helper_mode,
-                    artifact_policy=args.artifact_policy
-                )
+        changes = apply_plan(
+            plan_path,
+            confirm=args.confirm,
+            helper_mode=args.helper_mode,
+            artifact_policy=args.artifact_policy
+        )
 
     elif args.command == "dict":
 

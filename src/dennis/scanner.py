@@ -58,21 +58,64 @@ def scan_directory(
     root: Path,
     git_mode: str = "tracked",
     file_types: set[str] | None = None,
+    use_default_plugins: bool = False,
 ) -> List[Finding]:
     findings: List[Finding] = []
-
     detector = HardcodedStringDetector()
-    
+
+    from dennis.plugins import load_plugins, resolve_plugins
+    plugins = resolve_plugins(
+        load_plugins(), use_default_plugins=use_default_plugins
+    )
+    html_extensions = {".html", ".htm"}
+    office_extensions = {".docx", ".odt"}
+    normalized_file_types = (
+        {extension.lower() for extension in file_types}
+        if file_types is not None else None
+    )
+
     for file_path in iter_files(root, git_mode=git_mode):
-        
-        if file_types is not None:
-            if file_path.suffix.lower() not in file_types:
-                continue
+        extension = file_path.suffix.lower()
+
+        if normalized_file_types is not None and extension not in normalized_file_types:
+            continue
 
         if is_dennis_generated_file(file_path):
             continue
 
-        if is_binary_file(file_path):
+        matching_plugins = [
+            plugin for plugin in plugins
+            if extension in plugin["extensions"]
+        ]
+        is_office_document = extension in office_extensions and bool(matching_plugins)
+
+        # DOCX/ODT are ZIP packages and look binary to the generic detector.
+        # Let their format-aware plugin inspect them first.
+        if not is_office_document and is_binary_file(file_path):
+            continue
+
+        if is_office_document:
+            for plugin in matching_plugins:
+                try:
+                    results = plugin["scan"](file_path, [])
+                except Exception:
+                    # A malformed or unsupported package is skipped without
+                    # preventing the scan of other files.
+                    continue
+
+                for result in results:
+                    if isinstance(result, Finding):
+                        findings.append(result)
+                    elif isinstance(result, dict):
+                        text = result.get("text") or result.get("original")
+                        if not text:
+                            continue
+                        findings.append(Finding(
+                            file=result.get("file") or str(file_path),
+                            line=result.get("line") or 1,
+                            text=text,
+                            detector=plugin["name"],
+                        ))
             continue
 
         try:
@@ -81,38 +124,30 @@ def scan_directory(
         except Exception:
             continue
 
-        # CORE detector
-        for f in detector.scan_file(file_path, lines):
-            findings.append(f)
+        # HTML has a conservative format-aware extractor. Avoid also treating
+        # attribute values and embedded script strings as generic source strings.
+        if extension not in html_extensions or not matching_plugins:
+            for finding in detector.scan_file(file_path, lines):
+                findings.append(finding)
 
-        # PLUGINS
-        from dennis.plugins import load_plugins
+        for plugin in matching_plugins:
+            try:
+                results = plugin["scan"](file_path, lines)
+            except Exception:
+                continue
 
-        plugins = load_plugins()
-
-        for plugin in plugins:
-            if file_path.suffix in plugin["extensions"]:
-                try:
-                    results = plugin["scan"](file_path, lines)
-
-                    for r in results:
-                        if isinstance(r, Finding):
-                            findings.append(r)
-
-                        elif isinstance(r, dict):
-                            text = r.get("text") or r.get("original")
-                            if not text:
-                                continue
-
-                            findings.append(
-                                Finding(
-                                    file=r.get("file"),
-                                    line=r.get("line"),
-                                    text=text,
-                                    detector=plugin["name"],
-                                )
-                            )
-                except Exception:
-                    continue
+            for result in results:
+                if isinstance(result, Finding):
+                    findings.append(result)
+                elif isinstance(result, dict):
+                    text = result.get("text") or result.get("original")
+                    if not text:
+                        continue
+                    findings.append(Finding(
+                        file=result.get("file") or str(file_path),
+                        line=result.get("line") or 1,
+                        text=text,
+                        detector=plugin["name"],
+                    ))
 
     return findings

@@ -232,7 +232,7 @@ def verify_manifest_signatures(manifest, files):
             signature = base64.b64decode(signature_b64)
             verify_key = VerifyKey(pubkey)
 
-            verified_via = None
+            verification_method = None
 
             if payload_hash:
                 try:

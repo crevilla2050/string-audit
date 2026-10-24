@@ -12,7 +12,11 @@
       "properties": {
         "tool": { "type": "string", "const": "dennis" },
         "version": { "type": "string" },
-        "generated_at": { "type": "string" },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+        },
         "project_root": { "type": ["string", "null"] },
         "source_plan": { "type": ["string", "null"] },
         "notes": { "type": ["string", "null"] }
@@ -25,8 +29,16 @@
   },
   "definitions": {
     "change": {
+      "oneOf": [
+        { "$ref": "#/definitions/replacement_change" },
+        { "$ref": "#/definitions/helper_change" },
+        { "$ref": "#/definitions/helper_remove_change" }
+      ]
+    },
+    "replacement_change": {
       "type": "object",
       "required": ["file", "line", "original", "replacement"],
+      "not": { "required": ["type"] },
       "additionalProperties": true,
       "properties": {
         "id": { "type": "string" },
@@ -38,6 +50,31 @@
         "original_hash": { "type": ["string", "null"] },
         "confidence": { "type": ["number", "null"] },
         "notes": { "type": ["string", "null"] }
+      }
+    },
+    "helper_change": {
+      "type": "object",
+      "required": ["type", "helper_id", "file", "line", "helper_ref", "helper_source"],
+      "additionalProperties": true,
+      "properties": {
+        "type": { "const": "helper" },
+        "helper_id": { "type": "string", "minLength": 1 },
+        "file": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "helper_ref": { "type": "string", "minLength": 1 },
+        "helper_source": { "type": "string", "minLength": 1 }
+      }
+    },
+    "helper_remove_change": {
+      "type": "object",
+      "required": ["type", "helper_id", "file", "line", "helper_ref"],
+      "additionalProperties": true,
+      "properties": {
+        "type": { "const": "helper_remove" },
+        "helper_id": { "type": "string", "minLength": 1 },
+        "file": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "helper_ref": { "type": "string", "minLength": 1 }
       }
     }
   }

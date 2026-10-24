@@ -121,6 +121,7 @@ def generate_plan(
     exclude_langs: set[str] | None = None,
     scan_only: bool = False,
     file_types: set[str] | None = None,
+    use_default_plugins: bool = False,
 ) -> Dict:
 
     # --------------------------------------------------
@@ -133,6 +134,7 @@ def generate_plan(
             root,
             git_mode=git_mode,
             file_types=file_types,
+            use_default_plugins=use_default_plugins,
         )
 
         return [
@@ -160,6 +162,7 @@ def generate_plan(
             root,
             git_mode=git_mode,
             file_types=file_types,
+            use_default_plugins=use_default_plugins,
         )
 
         discovered = [
@@ -217,6 +220,7 @@ def generate_plan(
         root,
         git_mode=git_mode,
         file_types=file_types,
+        use_default_plugins=use_default_plugins,
     )
 
     # Decouple scanning from transformation: process all code files
@@ -322,6 +326,8 @@ def generate_plan(
 
     plan = {
         "meta": {
+            "tool": "dennis",
+            "version": "0.9.3",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "project_root": str(root.resolve()),
             "dictionary": str(dict_path),

@@ -25,9 +25,9 @@ ARTIFACT_PATHS = [
     "rehydrated-plan.json",
     ".dennis",
 ]
-def create_artifact_bundle(payload_hash_short: str):
+def create_artifact_bundle(payload_hash_short: str, root: Path | None = None):
 
-    cwd = Path.cwd()
+    cwd = Path(root).resolve() if root is not None else Path.cwd()
 
     # --------------------------------------
     # staging dir
@@ -67,7 +67,7 @@ def create_artifact_bundle(payload_hash_short: str):
 
     cache_dir = Path.home() / ".dennis" / "artifacts_cache" / f"{now.year}" / f"{now.month:02d}"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    staging = Path.cwd() / ".dennis_staging"
+    staging = cwd / ".dennis_staging"
 
     zip_path = cache_dir / f"artifact_{timestamp}_{short12}.zip"
 
@@ -255,6 +255,21 @@ def apply_plan(
 
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
 
+    source_root_value = (plan.get("meta") or {}).get("source_root")
+    source_root = (
+        Path(source_root_value).expanduser().resolve()
+        if source_root_value
+        else Path.cwd().resolve()
+    )
+    if not source_root.is_dir():
+        raise SystemExit(
+            f"[Dennis] Source root is not an existing directory: {source_root}"
+        )
+
+    def resolve_target(value):
+        target = Path(value).expanduser()
+        return target if target.is_absolute() else source_root / target
+
     payload_hash = canonical_hash(plan)
     payload_hash_short = payload_hash[:12]
 
@@ -263,8 +278,8 @@ def apply_plan(
     helpers = [ch for ch in changes if ch.get("type") == "helper"]
 
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
-    project_name = Path.cwd().name
-    log_path = Path.cwd() / f"{project_name}-{timestamp}.json"
+    project_name = source_root.name
+    log_path = source_root / f"{project_name}-{timestamp}.json"
 
     log = {
         "plan": str(plan_path),
@@ -308,7 +323,7 @@ def apply_plan(
         helper_ref = ch.get("helper_ref")
         if helper_ref:
             helper_name = Path(helper_ref).name
-            helper_path = Path("helpers") / helper_name
+            helper_path = source_root / "helpers" / helper_name
             if helper_path.exists():
                 available_helpers.add(ch.get("helper_id"))
 
@@ -330,11 +345,11 @@ def apply_plan(
         if helper_id in inserted_helpers:
             continue
 
-        target_file = Path(h.get("file"))
+        target_file = resolve_target(h.get("file"))
         insert_line = h.get("line") or 1
         helper_ref = h.get("helper_ref")
 
-        helper_path = Path("helpers") / Path(helper_ref).name
+        helper_path = source_root / "helpers" / Path(helper_ref).name
 
         lines = target_file.read_text(encoding="utf-8").splitlines()
 
@@ -380,7 +395,7 @@ def apply_plan(
 
         if change_type == "helper_remove":
 
-            target_file = Path(change.get("file"))
+            target_file = resolve_target(change.get("file"))
             helper_id = change.get("helper_id")
             helper_ref = change.get("helper_ref")
 
@@ -418,7 +433,7 @@ def apply_plan(
             # ---- helper lifecycle ----
 
             if helper_ref:
-                helper_path = Path("helpers") / Path(helper_ref).name
+                helper_path = source_root / "helpers" / Path(helper_ref).name
 
                 print(f"DEBUG helper_ref: {helper_ref}")
                 print(f"DEBUG helper_mode: {helper_mode}")
@@ -435,11 +450,11 @@ def apply_plan(
                     print("[Dennis] Creating artifact bundle (isolate mode)")
 
                     if not dry_run:
-                        bundle_path = create_artifact_bundle(payload_hash_short)
+                        bundle_path = create_artifact_bundle(payload_hash_short, source_root)
 
                         # after successful bundle → remove originals
                         for name in ARTIFACT_PATHS:
-                            path = Path.cwd() / name
+                            path = source_root / name
 
                             if not path.exists():
                                 continue
@@ -467,7 +482,7 @@ def apply_plan(
     for file_name, file_changes in changes_by_file.items():
 
         file_changes.sort(key=lambda c: c["line"])
-        file_path = Path(file_name)
+        file_path = resolve_target(file_name)
 
         lines = file_path.read_text(encoding="utf-8").splitlines()
         normalized = [l.strip() for l in lines]
@@ -493,9 +508,7 @@ def apply_plan(
 
     if artifact_policy != "keep":
 
-        cwd = Path.cwd()
-
-        for item in cwd.iterdir():
+        for item in source_root.iterdir():
 
             if not is_artifact(item):
                 continue
