@@ -1,7 +1,7 @@
 [project]
 name = "dennis"
-version = "0.9.3"
-description = "Dennis the Forge core engine - The dexscope release"
+version = "0.9.4"
+description = "Dennis the Forge core engine - The Fort Knox DEX release"
 readme = "README.md"
 requires-python = ">=3.9"
 
@@ -15,7 +15,8 @@ dependencies = [
 "cryptography",
 "python-dotenv==1.0.1",
 "requests",
-"pathspec"
+"pathspec",
+"rfc8785>=0.1.4"
 ]
 
 [project.scripts]
@@ -29,9 +30,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dennis"]
+exclude = ["src/dennis/new_feature.py"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/dennis/schemas" = "dennis/schemas"
+"src/dennis/schemas/plan.schema.json" = "dennis/schemas/plan.schema.json"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -41,3 +43,4 @@ include = [
 "README.md",
 "LICENSE",
 ]
+exclude = ["src/dennis/new_feature.py"]

@@ -998,6 +998,22 @@ def build_parser() -> argparse.ArgumentParser:
     dex_verify = dex_sub.add_parser("verify", help="Verify signatures on a DEX artifact")
     dex_verify.add_argument("artifact", help="Path to artifact.dex")
     dex_verify.add_argument("--verbose", action="store_true", help="Show extra verification info (counts only)")
+    dex_attach_evidence = dex_sub.add_parser("attach-evidence", help="Atomically attach Portable Trust Evidence 1.0")
+    dex_attach_evidence.add_argument("artifact", help="Path to artifact.dex")
+    dex_attach_evidence.add_argument("document", help="Path to Portable Trust Evidence 1.0 JSON")
+    dex_issue_evidence = dex_sub.add_parser("issue-and-attach", help="Request evidence and atomically attach it")
+    dex_issue_evidence.add_argument("artifact")
+    dex_issue_evidence.add_argument("--endpoint", required=True, help="HTTPS Tessa issuance endpoint")
+    dex_issue_evidence.add_argument("--request-id", required=True)
+
+    trust_root = sub.add_parser("trust-root", help="Manage independently pinned Trust Roots")
+    trust_root_sub = trust_root.add_subparsers(dest="trust_root_command", required=True)
+    for name in ("inspect", "pin", "rotate"):
+        command = trust_root_sub.add_parser(name)
+        command.add_argument("record")
+    trust_root_sub.choices["pin"].add_argument("--fingerprint", required=True)
+    trust_root_sub.choices["pin"].add_argument("--db", default="~/.dennis_trust_roots.db")
+    trust_root_sub.choices["rotate"].add_argument("--db", default="~/.dennis_trust_roots.db")
 
     # SEARCH
     search_cmd = sub.add_parser("search", help="Search artifacts in registry")
@@ -1994,6 +2010,16 @@ def main() -> None:
         
 
     # --------------------------------------------------------
+    # TRUST ROOT COMMANDS
+    elif args.command == "trust-root":
+        from dennis.core.trust_roots import inspect, pin_bootstrap, rotate
+        record = Path(args.record).read_bytes()
+        if args.trust_root_command == "inspect":
+            print(json.dumps(inspect(record), indent=2)); return
+        db = Path(args.db).expanduser()
+        result = pin_bootstrap(record, args.fingerprint, db) if args.trust_root_command == "pin" else rotate(record, db)
+        print(json.dumps({"key_id": result["key_id"], "status": "pinned" if args.trust_root_command == "pin" else "rotated"}, indent=2)); return
+
     # DEX COMMANDS
     # --------------------------------------------------------
     elif args.command == "dex":
@@ -2070,6 +2096,24 @@ def main() -> None:
             print(json.dumps(result, indent=2))
 
             raise SystemExit(0 if result["accepted"] else 1)
+
+        elif args.dex_command == "attach-evidence":
+            from dennis.dex.trust_evidence import attach_document
+            document_bytes = Path(args.document).read_bytes()
+            result = attach_document(args.artifact, document_bytes)
+            print(json.dumps({
+                "success": True,
+                "evidence_id": result.evidence_id,
+                "key_id": result.key_id,
+            }, indent=2))
+            return
+        elif args.dex_command == "issue-and-attach":
+            from getpass import getpass
+            from dennis.dex.trust_evidence import issue_and_attach, safe_issuance_endpoint
+            safe_issuance_endpoint(args.endpoint)
+            token = getpass("Tessa bearer token: ")
+            result = issue_and_attach(args.artifact, args.endpoint, token, args.request_id)
+            print(json.dumps({"success": True, "evidence_id": result.evidence_id, "key_id": result.key_id}, indent=2)); return
 
 
     # --------------------------------------------------------

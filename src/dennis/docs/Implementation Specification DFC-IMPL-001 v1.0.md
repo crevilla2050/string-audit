@@ -1,0 +1,738 @@
+# Dennis Forge — Plan Validation and Safe Application
+## Implementation Specification DFC-IMPL-001 v1.0
+
+**Status:** Proposed — pending review and approval  
+**Parent contract:** DFC-PLAN-002 v2.0 — *Dennis Forge — Plan Validation and Safe Application Contract*  
+**Target release:** Dennis 0.9.3  
+**Scope:** Canonical plan validation, artifact inspection, apply preflight, mutation safety, and regression testing.
+
+---
+
+## 1. Purpose
+
+This specification translates the safety and correctness objectives of DFC-PLAN-002 v2.0 into implementation requirements for Dennis.
+
+It consolidates recovered architectural decisions, observed implementation behavior, and approved priorities without replacing the parent contract.
+
+The objective is to ensure that Dennis does not begin modifying a workspace until it has established that the plan is valid, the artifact is trustworthy, the requested operations are eligible, and their prerequisites have been satisfied.
+
+This specification does not authorize a general redesign of Dennis.
+
+### Governing principles
+
+1. **Preserve determinism.** Equivalent inputs and conditions must produce reproducible results, except where explicitly nondeterministic metadata is permitted.
+2. **Validate before mutation.** Detect foreseeable failures before the first workspace modification.
+3. **Preserve evidence.** Never silently overwrite, delete, or discard existing user data or diagnostic information.
+4. **Separate concerns.** Schema validity, integrity, scan completeness, authorization, confirmation, and operation eligibility are distinct checks.
+5. **Make failures explicit.** Invalid or incomplete input must not silently become a successful or partially successful operation.
+6. **Keep scope declared.** A plan must not acquire authority to modify resources outside its declared scope.
+7. **Do not promise guarantees that are not implemented and tested.** In particular, preflight is not equivalent to transactional execution or automatic rollback.
+8. **Prefer the smallest sufficient change.** Preserve working architecture unless evidence demonstrates that a change is necessary.
+
+---
+
+## 2. Relationship to the Parent Contract
+
+DFC-PLAN-002 v2.0 remains frozen.
+
+This document supplements that contract by specifying implementation work and acceptance criteria. It does not supersede the parent contract, silently amend its semantics, or authorize a conflicting implementation.
+
+If implementation reveals a contradiction between the two documents:
+
+1. Record the contradiction and the evidence supporting it.
+2. Identify the affected behavior and tests.
+3. Propose a resolution.
+4. Obtain explicit approval before changing the contract or implementing the conflicting behavior.
+
+Existing decisions must retain their original meaning unless a change is explicitly approved.
+
+---
+
+## 3. Evidence and Decision Classification
+
+Every significant finding must be classified before it becomes an implementation requirement.
+
+| Classification | Meaning | Treatment |
+|---|---|---|
+| Confirmed implementation | Behavior directly established by source inspection or tests | Preserve unless a change is approved |
+| Confirmed defect | Reproducible behavior that violates an established requirement | Correct and add regression coverage |
+| Approved requirement | A requirement explicitly accepted by the project owner | Implement within the agreed scope |
+| Proposed behavior | A candidate design not yet approved | Do not treat as binding |
+| Unresolved question | Insufficient evidence to make a safe decision | Investigate before finalizing the relevant contract |
+| Deferred work | Explicitly outside the current implementation phase | Do not expand the current scope |
+
+A field's presence in a schema, a hash's existence, or a test's passing status does not independently prove that the corresponding safety property is enforced at the point where it matters.
+
+---
+
+## 4. Canonical Plan Contract
+
+### 4.1 One authoritative schema
+
+Dennis must have one authoritative, machine-readable plan schema governing plans generated, validated, previewed, and applied by the supported execution paths.
+
+The schema must define:
+
+- Required top-level fields.
+- Metadata requirements.
+- The representation of the target project and its declared scope.
+- The list of operations.
+- Required and optional fields for every supported operation type.
+- Type, format, and value constraints.
+- Helper and other artifact references.
+- Hash representation and semantics.
+- Rules for unknown fields and unsupported operation types.
+- Any conditions required to establish that a plan is complete and eligible for application.
+
+The schema and the generator, validator, preview, and apply implementations must agree.
+
+A plan that one component considers valid must not be rejected by another component because the components implement different contracts.
+
+### 4.2 Reconcile the existing mismatch
+
+Recovered implementation evidence identifies a discrepancy between metadata generated by the plan generator, metadata required by the schema, and metadata consulted during application.
+
+In particular, the existing code has been observed to generate fields such as `meta.project_root` and `meta.dictionary`, while the schema requires fields including `meta.tool`, `meta.version`, and `meta.generated_at`. The apply path has also been observed to consult `meta.source_root` and fall back to the current working directory.
+
+These observations must be verified against the current source before implementation.
+
+The approved resolution must establish:
+
+1. Which metadata fields are canonical.
+2. Which component owns the declared project root.
+3. How a plan identifies its intended target workspace.
+4. Whether relative paths are resolved against that declared root or another explicitly defined base.
+5. How a missing or invalid root is handled.
+6. Whether generation, validation, preview, and application interpret the fields identically.
+
+**A missing target-root declaration must not silently redirect an application to an unintended workspace.**
+
+The canonical field names and exact schema must be finalized from the source and existing contract before code changes begin.
+
+### 4.3 Beta policy
+
+Dennis is pre-1.0 software. The project does not require indefinite backward compatibility with obsolete plan formats.
+
+Once the canonical schema is approved:
+
+- New plans must conform to it.
+- Unsupported legacy plans must fail with clear validation errors.
+- Dennis must not silently reinterpret an obsolete field or operation.
+- A migration utility may be designed separately if it becomes necessary.
+- Existing user data and artifacts must not be destroyed merely because their format is no longer accepted.
+
+Backward compatibility must not be used as a reason to retain an ambiguous or unsafe contract.
+
+---
+
+## 5. Supported Operation Types
+
+The implementation must derive the authoritative operation inventory from the canonical schema, generator, and application dispatch logic.
+
+The recovered implementation identifies at least the following operation semantics:
+
+| Operation | Established or observed purpose | Requirement |
+|---|---|---|
+| `replace` | Replaces an original string with a replacement string | Validate its required fields, target, and applicable preconditions |
+| `helper` | Inserts content from a referenced helper artifact | Validate the reference, helper integrity, target, and marker requirements |
+| `helper_remove` | Removes content associated with helper markers | Validate the reference or marker identity and the target's expected state |
+
+These are the currently identified operation types, not a claim that they constitute the complete inventory.
+
+Before freezing the canonical schema, inspect every operation type accepted by the existing plan generator and application implementation. Any additional file operation, move, deletion, or other mutation must be explicitly documented.
+
+For every supported operation, the contract must define:
+
+- Its required fields.
+- Its declared target.
+- Its prerequisites.
+- Its integrity requirements.
+- Its expected pre-application state.
+- Its mutation behavior.
+- Its failure behavior.
+- Its effect on the execution report.
+- Whether it can be safely inverted and under what conditions.
+
+Unknown operation types must not be treated as successful no-ops.
+
+An operation must not be applied merely because its JSON representation is syntactically valid.
+
+---
+
+## 6. Path and Workspace Rules
+
+### 6.1 `.dexscope` — Authoritative File Scope
+
+The `.dexscope` file defines which files are eligible to be affected by a DEX operation. It must be treated as an explicit scope boundary, not merely as a file-discovery hint.
+
+Dennis must enforce `.dexscope` during scanning, plan validation, and application, as appropriate to each stage.
+
+#### Scope exclusion rules
+
+Files or paths that violate the declared scope must not be processed as eligible targets.
+
+In particular:
+
+1. **Symbolic links:** Symlinks must be ignored as eligible targets. Dennis must not follow a symlink to include or modify a file outside the permitted scope.
+2. **Parent-directory traversal:** Paths containing traversal such as `../../path` must be excluded when they escape the permitted scope.
+3. **Scope violations:** An excluded path must never become eligible merely because it appears in a plan or is referenced by another artifact.
+
+The implementation must evaluate paths safely, including filesystem resolution where applicable, so that alternate path representations cannot bypass these rules.
+
+#### Reporting: Exception 909
+
+Whenever Dennis excludes a candidate because it violates `.dexscope` or these scope-safety rules, it must record a prominent warning in the execution or scan report:
+
+**`Exception 909: Out of scope`**
+
+The report should identify the offending path, explain the exclusion, and indicate the stage at which it was detected. It must not silently discard the event.
+
+Exception 909 is a warning about an excluded candidate, not permission to bypass other safety checks. The excluded file must remain untouched.
+
+### Security Invariant: Symlinks Are Never Followed
+
+**Dennis must not follow symbolic links during file discovery, scope evaluation, artifact processing, or workspace modification.**
+
+This is a security requirement designed to prevent symlink-based attacks, including attempts to access or modify files outside the declared workspace.
+
+1. **Discovery:** Do not traverse directory symlinks or treat file symlinks as eligible targets.
+2. **Scope:** `.dexscope` must not grant permission to follow a symlink, even when its destination appears to be inside the permitted workspace.
+3. **Plan validation:** A manually constructed or modified plan must not bypass the symlink restriction.
+4. **Application:** Recheck the relevant filesystem objects before mutation. A path that was safe during scanning must not become an escape route if the filesystem changes afterward.
+5. **Artifacts:** Apply equivalent protections when reading or extracting DEX contents. Archive paths and entry types must be validated before extraction.
+6. **Reporting:** Record every detected exclusion with a prominent `Exception 909: Out of scope` warning, including the offending path and the reason for exclusion.
+7. **Failure behavior:** Never follow the link as a fallback. Block an operation that requires an excluded path; independent eligible operations may continue only if all mandatory safety gates pass.
+
+**Security acceptance criterion:** A malicious symlink must not allow Dennis to read, overwrite, create, or delete a file outside the operation's explicitly authorized scope.
+
+This requirement must be enforced at the point of access, not merely by filtering filenames during the initial scan.
+
+## The Dennis Reproducibility Principle
+
+A prepared operation must preserve its identity and intended effects independently of the machine on which it was prepared or executed. Given the same validated inputs and equivalent relevant preconditions, Dennis must produce the same intended changes. Differences in environment must be explicitly verified, never silently accommodated. If reproducibility cannot be established, Dennis must refuse execution and explain why.
+
+## Portable Prepared Operation Principle
+
+Dennis shall represent paths within a prepared operation relative to a verified working-tree root. Absolute paths and references to files outside the authorized working tree shall not be used as operation targets.
+
+A successful dry run shall produce a persistent, reusable preparation containing the validated candidate contents, the canonical relative-path operation, its execution policy, and the evidence necessary to verify its integrity.
+
+The same prepared operation may be applied in multiple environments. Each environment must independently verify the working-tree identity, path safety, relevant preconditions, and integrity of the preparation before execution.
+
+Successful execution in one environment does not waive verification in another. If the destination is incompatible or relevant state has changed, Dennis shall report the reason and refuse to execute the stale or incompatible operation.
+
+Execution records and observed results shall remain distinct from the immutable prepared operation.
+
+#### Execution behavior
+
+Out-of-scope candidates are ignored for execution purposes. Dennis may continue processing independent, eligible files, provided the remaining plan satisfies all mandatory validation, integrity, authorization, and preflight requirements.
+
+If a requested operation depends on an excluded path, that operation must be blocked and reported rather than redirected to another target.
+
+#### Mandatory Application Signature Gate
+
+Dennis shall not apply or rehydrate an artifact unless the exact content to be applied is covered by a valid, verified digital signature.
+
+An unsigned artifact may be inspected and prepared, but application must remain blocked until an authorized signing process produces a valid signature and Dennis successfully verifies it.
+
+A temporary signature is acceptable only when it satisfies the same cryptographic verification and authorization requirements as any other permitted signature.
+
+An invalid signature, unverifiable signature, signature/content mismatch, or failure of a mandatory trust or authorization check shall block application. No warning acknowledgment, override of an unsigned-artifact warning, or ordinary confirmation option may bypass this gate.
+
+## External Cryptographic Identity Principle
+
+External Cryptographic Identity Principle: Dennis shall support signing and verification using externally issued cryptographic credentials, subject to explicit trust, certificate-validation, algorithm, and authorization policies. Dennis shall not assume that a certificate is trusted merely because it is present, nor that a signature is authorized merely because it verifies. All artifacts and prepared operations must satisfy the mandatory signature gate before application.
+
+#### Acceptance criteria
+
+- A symlink pointing outside the workspace is excluded and never followed as an eligible target.
+- A symlink pointing inside the workspace is also excluded as a target, unless a future explicit contract changes this rule.
+- A traversal path such as `../../path` that escapes the permitted scope is excluded.
+- Every detected exclusion generates a prominent `Exception 909: Out of scope` report entry.
+- Excluded paths cannot be reintroduced through a manually edited plan.
+- Eligible, independent operations may proceed only after all mandatory safety gates pass.
+- Regression tests verify both the report and the absence of mutations to excluded targets.
+
+### 6.2 Path validation
+
+Before mutation, Dennis must validate every path that an operation may read, create, replace, or otherwise modify.
+
+Validation must establish, as applicable:
+
+- The path is syntactically valid for the supported environment.
+- The resolved target remains within its permitted scope.
+- Path traversal cannot escape the declared root.
+- Unexpected absolute paths are rejected unless explicitly permitted by the contract.
+- Required source files and helper artifacts exist.
+- Existing destinations and collisions are handled according to an explicit policy.
+- Symlinks and other filesystem indirections cannot bypass the scope restriction.
+- The relevant paths remain suitable for the operation when it executes.
+
+The implementation must not assume that string-prefix comparison alone establishes path containment.
+
+Where the filesystem may change between validation and use, the implementation must address that risk to the extent required by the supported execution model.
+
+### 6.3 Missing prerequisites
+
+A missing file or dependency must produce a structured, understandable result.
+
+Dennis must not silently redirect an operation to another file or workspace simply because its declared target cannot be found.
+
+---
+
+## 7. DEX and Archive Inspection
+
+### 7.1 Validate before extraction
+
+Archive contents must be inspected before they are extracted into a destination.
+
+The inspection must validate member names, resolved destinations, entry types, and the applicable artifact layout.
+
+At minimum, the implementation must reject archive entries that could:
+
+- Escape the extraction destination.
+- Use prohibited absolute or traversal paths.
+- Exploit unsafe filesystem entry types.
+- Overwrite unrelated pre-existing user data contrary to the artifact policy.
+
+The implementation may validate archive entries directly or use a demonstrably safe extraction mechanism. The selected approach must be consistent across relevant code paths.
+
+## Mandatory Dry-Run Gate for Plan Application
+
+**Status:** Proposed requirement  
+**Applies to:** `dennis apply plan.json`  
+**Purpose:** Prevent unpreviewed execution and provide verifiable evidence of intended versus actual changes.
+
+### 1. Two-stage execution protocol
+
+Applying a plan requires two explicit stages.
+
+**Stage 1 — Dry run**
+
+The user executes:
+
+```bash
+dennis apply plan.json --dry-run
+```
+
+Dennis must:
+
+1. Load and validate the plan.
+2. Validate DEX integrity and applicable security requirements.
+3. Evaluate `.dexscope` and enforce Core path-safety rules.
+4. Preflight all operations, prerequisites, and target-state conditions.
+5. Generate a persistent, machine-readable dry-run report.
+6. Make no changes to workspace targets.
+
+Immediately before modifying each target, Dennis MUST revalidate the target's expected original state, content integrity, path containment, file type, and applicable operation preconditions.
+
+
+A successful dry run prepares and validates the exact candidate operation. Apply must verify that the prepared candidate and all relevant preconditions remain valid before committing. If validation fails or the relevant state has changed, the operation must abort gracefully without beginning mutation. If an unexpected failure occurs after mutation begins, Dennis must report the actual partial state and must not claim rollback unless rollback has been completed and verified.
+
+**Stage 2 — Apply**
+
+The user executes:
+
+```bash
+dennis apply plan.json
+```
+
+Verification MUST apply to the actual filesystem object being modified, not merely to an earlier path lookup.
+
+If verification fails, Dennis MUST NOT modify that target.
+
+The report must identify the plan, its canonical hash, the intended workspace, the operations evaluated, the expected changes, blocked operations, warnings, and the result of preflight.
+
+If the dry run cannot establish that the plan is eligible for application, Dennis must report the reason and must not produce a report that falsely indicates readiness.
+
+Dennis must refuse to apply the plan directly if no valid, matching dry-run report exists.
+
+The refusal must explain that the user needs to run the dry-run command first.
+
+### 2. Report matching and freshness
+
+A dry-run report is not a blanket authorization to execute a plan.
+
+Before applying, Dennis must verify that:
+
+- The report was generated by a successful dry run.
+- The report identifies the same plan and canonical plan hash.
+- The declared workspace and applicable scope match.
+- The report uses a compatible report schema and implementation version.
+- The report is intact and has not been improperly modified.
+- The target state and relevant prerequisites have not changed in ways that invalidate the preview.
+- The required authorization and confirmation conditions still hold.
+
+A report for another plan, another workspace, or a previous incompatible state must not satisfy the prerequisite.
+
+If the plan or relevant workspace state changes, Dennis must refuse application and require a new dry run.
+
+The implementation must define how it verifies target-state freshness. A timestamp alone is insufficient.
+
+### 3. Apply report
+
+When application proceeds, Dennis must generate a separate execution report.
+
+The apply report must identify its corresponding dry-run report and plan. It must record the operations that were applied, failed, blocked, skipped, or not attempted, together with relevant warnings and errors.
+
+The report must distinguish between:
+
+- Expected changes from the dry run.
+- Changes actually performed.
+- Differences between the expected and observed outcomes.
+- Any unresolved or uncertain final state.
+
+The apply report must never overwrite the dry-run report or a previous execution report.
+
+### 4. Report comparison
+
+Dennis must provide a deterministic way to compare the dry-run and apply reports, whether through an existing diff facility or a dedicated report-comparison command.
+
+The comparison must show:
+
+- Expected operations that were successfully completed.
+- Expected operations that failed or were not completed.
+- Unexpected changes or outcomes.
+- Differences in operation results.
+- Any state that could not be verified.
+
+A successful comparison means the observed results match the dry-run expectations within the guarantees the implementation can actually establish. It must not claim that the entire workspace is identical to an expected state unless that state has been verified.
+
+### 5. Failure behavior
+
+- **No matching dry-run report:** Refuse application.
+- **Invalid or incomplete dry run:** Refuse application.
+- **Changed plan or relevant target state:** Require a new dry run.
+- **Changed prerequisites:** Revalidate and require a new dry run when the change invalidates the preview.
+- **Dry-run report integrity failure:** Refuse application.
+- **Failure during application:** Preserve the dry-run report, generate an accurate execution report when possible, and clearly identify partial or uncertain results.
+- **Report-writing failure:** Never silently report successful verification when the necessary evidence could not be recorded.
+
+The dry-run report is evidence of preflight results, not proof that every future operation is guaranteed to succeed.
+
+### 6. Regression tests
+
+Tests must establish that:
+
+1. Direct application without a valid dry run is refused.
+2. A valid dry run creates a persistent report without modifying workspace targets.
+3. Application succeeds when the report matches and all current safety gates pass.
+4. A different plan cannot reuse the report.
+5. A changed target or prerequisite that invalidates the preview requires another dry run.
+6. A malformed or tampered report cannot authorize application.
+7. Apply creates a distinct report and preserves the dry-run report.
+8. Report comparison accurately identifies failed, missing, and unexpected outcomes.
+9. Runtime failures produce accurate evidence without falsely claiming rollback or complete success.
+10. Existing reports are never silently overwritten.
+
+### 7. Acceptance criterion
+
+**No plan may be applied without a successful, valid, matching dry-run report and fresh verification of the conditions required for safe execution.**
+
+This requirement supplements the canonical plan-validation, path-safety, and apply-preflight requirements in DFC-IMPL-001. It does not replace them.
+
+### 7.2 Consistent inspection paths
+
+Every code path that inspects or rehydrates a DEX must be traced.
+
+The recovered code includes both archive-validation logic and a rehydration path that calls `tar.extractall()`. The exact current call paths and protections must be inspected before concluding which paths are vulnerable.
+
+No extraction path may rely on a later validation step to repair damage that unsafe extraction could already have caused.
+
+### 7.3 Integrity checks
+
+The implementation must preserve the established distinction between:
+
+- Canonical payload identity.
+- Raw artifact identity.
+- Signature-set or trust-state identity.
+- Individual file or helper integrity, where applicable.
+- Plan confirmation.
+
+These concepts must not be treated as interchangeable.
+
+Successful verification of a DEX payload does not, by itself, prove that a workspace target still matches the state expected by an operation.
+
+---
+
+## 8. Apply Eligibility and Preflight
+
+### 8.1 Separate gates
+
+Application eligibility must be evaluated as distinct gates:
+
+1. **Schema validity:** Does the plan conform to the canonical schema?
+2. **Artifact integrity:** Are the relevant payloads and referenced artifacts intact?
+3. **Scan completeness:** Does the plan contain sufficient, trustworthy results for the requested operation?
+4. **Scope and path safety:** Are all targets within the permitted scope?
+5. **Prerequisite validity:** Are required files, helpers, and operation dependencies available?
+6. **State preconditions:** Does the current workspace match the state required for the operation?
+7. **Authorization:** Is the requested operation permitted?
+8. **Confirmation:** Has the user confirmed the applicable plan under the established confirmation protocol?
+9. **Execution readiness:** Can the implementation proceed without a known, preventable validation or setup failure?
+
+A successful hash comparison or a matching confirmation token cannot substitute for the other gates.
+
+The exact order and any required short-circuit behavior must be covered by tests.
+
+### 8.2 Complete preflight before the first mutation
+
+Before the first workspace mutation, Dennis must preflight the complete set of operations eligible for execution.
+
+Preflight must inspect:
+
+- Every operation's structure and supported type.
+- Every target path.
+- Every required source file.
+- Every helper dependency and its integrity.
+- Every operation's required preconditions.
+- Relevant existing target state.
+- Destination and staging collisions.
+- Required execution resources and output destinations.
+- Authorization and confirmation requirements.
+- Any cross-operation dependencies that affect safe execution.
+
+Preflight must not mutate workspace targets.
+
+Where preparation requires writing temporary data, that preparation must follow an explicit policy that preserves existing evidence and avoids destructive collisions.
+
+### 8.3 State verification and hashes
+
+The codebase contains multiple hash-related mechanisms, but their presence alone does not establish safe application.
+
+The implementation audit must trace:
+
+- Where each relevant hash is generated.
+- What exact data it covers.
+- Where it is verified.
+- Whether verification occurs before mutation.
+- Whether the current target state is checked against the operation's expected state.
+- Whether a target can change after verification but before use.
+- How a mismatch is reported.
+
+In particular, the plan confirmation hash must remain conceptually distinct from a hash of the current target file or the expected original content.
+
+Where an operation requires an original-state hash or another precondition, that requirement must be enforced before the operation modifies its target.
+
+A plan that is valid but no longer applicable to the current workspace must be rejected or explicitly blocked according to the operation contract. It must not silently skip the failed operation and report an apparently complete application.
+
+### 8.4 Helper marker boundaries
+
+Dennis-generated helper operations are expected to include both start and end markers.
+
+If a required end marker is missing, the operation must not proceed on the assumption that the helper region is intact.
+
+The established project decision is to rely on the relevant integrity and actual-state checks to reject a mismatch. Do not introduce a new marker-recovery mechanism merely to accommodate manually edited plans or targets.
+
+The implementation must first demonstrate that the necessary checks actually exist and are enforced before mutation. If they do not, add the smallest sufficient enforcement and regression tests.
+
+---
+
+## 9. Failure Handling and Evidence Preservation
+
+### 9.1 Before mutation
+
+If schema validation, artifact inspection, preflight, authorization, or confirmation fails, Dennis must not begin workspace mutations for that application attempt.
+
+The failure must identify the relevant plan or operation and explain the reason sufficiently for the user to correct it.
+
+### 9.2 During mutation
+
+Preflight cannot guarantee that every operation will succeed once execution begins. Filesystem errors, external changes, permission changes, or other runtime failures may still occur.
+
+If execution fails after mutations have begun:
+
+- Report the operations that succeeded, failed, were blocked, or were not attempted.
+- Preserve available diagnostic and execution evidence.
+- Do not claim that the workspace was rolled back unless rollback was actually performed and verified.
+- Do not report full success when the resulting state is partial or uncertain.
+- Avoid cleanup that could destroy evidence needed to understand or recover from the failure.
+
+### 9.3 Logs and reports
+
+Execution evidence must be written according to an explicit report policy.
+
+The existing implementation has been observed to generate timestamped JSON logs, with timestamp precision at the seconds level. The current collision behavior and write ordering must be verified before modifying it.
+
+The required behavior is:
+
+- Every run has an unambiguous report identity.
+- A new run must not silently overwrite a prior report.
+- Report creation and destination handling must be considered before mutation.
+- Reports must distinguish success, failure, blocked work, skipped work, and work not attempted.
+- Reports must not claim stronger guarantees than the execution path provides.
+- A report-writing failure must not be silently concealed.
+
+Report identity, naming, schema, and collision policy must be finalized consistently with the existing reporting architecture.
+
+---
+
+## 10. Regression Test Requirements
+
+The implementation is not complete merely because the validator returns a positive result or a happy-path application succeeds.
+
+Regression coverage must include the following categories.
+
+### 10.1 Canonical plan contract
+
+- Valid canonical plans.
+- Missing required fields.
+- Invalid field types and values.
+- Unsupported operation types.
+- Missing operation-specific fields.
+- Duplicate or conflicting operations where prohibited.
+- Generator output validated against the canonical schema.
+- Consistent interpretation across validation, preview, and application.
+- Invalid legacy plans produce useful errors rather than silent reinterpretation.
+
+### 10.2 Apply eligibility and preflight
+
+- Valid plan with valid prerequisites.
+- Invalid plan with no mutation.
+- Invalid artifact integrity with no mutation.
+- Incomplete or untrustworthy scan results with no unauthorized mutation.
+- Missing required source files.
+- Missing or invalid helper references.
+- Invalid target root.
+- Target outside the declared scope.
+- Failed operation preconditions.
+- Incorrect original-state hash, where applicable.
+- Confirmation failure.
+- Authorization failure.
+- Pre-existing destination or staging collisions.
+
+### 10.3 Archive safety
+
+- Valid DEX archive.
+- Absolute archive member paths.
+- Traversal paths.
+- Unsafe entry types.
+- Malformed archive structure.
+- Payload integrity mismatch.
+- Invalid referenced helper.
+- Pre-existing destination content remains protected.
+- All relevant inspection and rehydration paths enforce the same safety requirements.
+
+### 10.4 Helper behavior
+
+- Valid helper insertion.
+- Valid helper removal.
+- Already-present helper markers.
+- Missing start marker.
+- Missing end marker.
+- Incorrect target state.
+- Incorrect or missing helper artifact.
+- No unintended truncation or deletion when marker boundaries are invalid.
+
+Tests for malformed boundaries must verify rejection or blocking before unsafe mutation, not merely assert that a warning is printed.
+
+### 10.5 Runtime failure and reporting
+
+- Failure before the first mutation.
+- Failure during application.
+- Partial execution with an accurate report.
+- Report destination unavailable.
+- Report filename collision.
+- Existing report preservation.
+- No false claim of rollback or complete success.
+
+### 10.6 Evidence-based acceptance
+
+Each test must establish both the reported outcome and the resulting filesystem state.
+
+Where a test asserts that no mutation occurred, it must verify that state rather than relying exclusively on a log message.
+
+---
+
+## 11. Implementation Sequence
+
+The work must proceed in the following order.
+
+### Phase A — Canonical contract and safety gate
+
+1. Inspect the current schema, generator, validator, preview, apply, and rehydration paths.
+2. Establish the complete operation inventory and canonical metadata fields.
+3. Reconcile the plan format without introducing silent compatibility behavior.
+4. Complete schema validation and useful diagnostics.
+5. Separate validation, integrity, completeness, authorization, confirmation, and execution eligibility.
+6. Implement complete preflight before the first workspace mutation.
+7. Validate archive members before extraction.
+8. Preserve existing user data and diagnostic evidence.
+9. Add regression coverage for the safety-critical cases.
+10. Run the relevant tests and the full existing test suite.
+
+### Phase B — Plugin error-handling audit
+
+After Phase A is stable, review the HTML and Office plugins.
+
+Establish a shared error-handling contract that distinguishes, at minimum:
+
+- Successful and complete scans.
+- Successful but incomplete scans.
+- Scans with warnings.
+- Failed scans.
+- Structured diagnostics and actionable errors.
+
+A plugin must not represent an incomplete or failed scan as a fully successful result.
+
+Preserve existing plugin interfaces where practical, but do not preserve an interface that makes unsafe ambiguity unavoidable without an explicit decision.
+
+### Phase C — Integration and release readiness
+
+1. Run integration and regression tests.
+2. Verify that plugin results satisfy the canonical plan contract.
+3. Confirm that incomplete scan results cannot bypass apply eligibility.
+4. Review failure reports and evidence preservation.
+5. Document known limitations.
+6. Assess readiness for Dennis 0.9.3.
+
+BDEX expansion and unrelated architectural changes remain outside this specification unless separately approved.
+
+---
+
+## 12. Non-Goals
+
+This specification does not authorize:
+
+- A general rewrite of Dennis.
+- A new AI analysis layer inside Dennis.
+- Silent migration of old plans.
+- Automatic recovery of manually damaged helper markers.
+- Expansion of a DEX's declared workspace scope.
+- Automatic deletion of old artifacts, logs, or reports.
+- A guarantee of transactional execution.
+- A guarantee of rollback.
+- New operation types without an explicit contract.
+- Implementation of deferred BDEX features.
+- Changes to the frozen parent contract without approval.
+
+---
+
+## 13. Definition of Done
+
+DFC-IMPL-001 v1.0 may be considered implemented when:
+
+1. The canonical plan contract is explicit and consistently enforced.
+2. Every supported operation type is documented and validated.
+3. Target-root and path interpretation cannot silently redirect operations.
+4. Relevant DEX archive members are validated before extraction.
+5. Apply preflight covers all operations eligible for execution before the first workspace mutation.
+6. Required target-state and integrity checks are enforced at the appropriate points.
+7. Failures are reported accurately without destroying existing evidence.
+8. Regression tests establish both expected results and filesystem state.
+9. The plugin error-handling audit is completed for the agreed scope.
+10. The test suite passes, with any known exceptions documented.
+11. No unsupported guarantee of atomicity or rollback is claimed.
+12. The implementation and its decisions remain traceable to DFC-PLAN-002 v2.0 and the evidence used to derive this specification.
+
+---
+
+## 14. Approval Boundary
+
+This document is a proposed implementation specification.
+
+Review and approval are required before implementation begins. Any unresolved canonical-schema decision must be settled before code depends on it.
+
+Once approved, implementation should proceed incrementally, with each change tied to a specific requirement and regression test.
+
+**The governing rule remains:** preserve the gold nuggets, establish the evidence, and change only what the contract and implementation findings justify.

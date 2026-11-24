@@ -38,6 +38,7 @@ DEFAULT_IGNORES = [
     "venv/",
     ".venv/",
     ".gitignore",
+    ".env",
 
     # 🔥 CRITICAL ADDITIONS
     "payload/",

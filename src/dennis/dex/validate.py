@@ -18,6 +18,8 @@ import hashlib
 from dennis.dex.manifest import verify_signatures, semantic_subset
 from dennis.core.hash import canonical_hash
 from dennis.core.regions import detect_regions, REGION_VERSION
+from dennis.dex.trust_evidence import verify_attachment, load_document
+from dennis.core.trust_resolution import TrustStatus, resolve_trust
 
 XDEX_MAGIC = b"XDEX1"
 HEADER_HASH_SIZE = 32
@@ -343,6 +345,52 @@ def validate_dex_file(path: str, signature_files=None):
 
     sig_results = verify_signatures(manifest, verifier)
     results["signatures"] = sig_results
+
+    # Portable authority evidence is intentionally outside the canonical
+    # payload hash.  Its own signature binds it back to that payload identity.
+    # Resolve key trust independently from mathematical evidence verification.
+    # Resolver failures remain visible rather than degrading a security error
+    # into a favourable SQLite result.
+    evidence_path = "evidence/ilpresim-trust-evidence-1.0.json"
+    trust_resolution = None
+    try:
+        document = load_document(files[evidence_path]) if evidence_path in files else None
+        if document is not None:
+            evidence = document.get("evidence", {})
+            key_id = document.get("signature", {}).get("key_id")
+            if isinstance(key_id, str) and key_id:
+                trust_resolution = resolve_trust(key_id, evidence_timestamp=evidence.get("timestamp"))
+    except Exception as exc:
+        # Attachment parsing is reported by verify_attachment below; resolver
+        # configuration failures are separately visible to callers.
+        trust_resolution = None
+    key_resolver = None
+    if trust_resolution is not None and trust_resolution.public_key is not None:
+        key_resolver = lambda key_id: trust_resolution.public_key if key_id == trust_resolution.key_id else None
+    trust_evidence = verify_attachment(manifest, files, key_resolver)
+    results["trust_evidence"] = {
+        "present": trust_evidence.present,
+        "valid": trust_evidence.valid,
+        "signature_valid": trust_evidence.signature_valid,
+        "key_trusted": trust_evidence.key_trusted,
+        "evidence_id": trust_evidence.evidence_id,
+        "key_id": trust_evidence.key_id,
+        "error": trust_evidence.error,
+    }
+    if trust_resolution is not None:
+        results["trust_resolution"] = {
+            "status": trust_resolution.status.value,
+            "source": trust_resolution.source,
+            "freshness_confirmed": trust_resolution.freshness_confirmed,
+            "error": trust_resolution.error,
+        }
+        results["trust_evidence"]["policy_accepted"] = (
+            trust_evidence.valid
+            and trust_resolution.status is TrustStatus.TRUSTED
+        )
+    else:
+        results["trust_resolution"] = {"status": "UNKNOWN", "source": "not-applicable", "freshness_confirmed": False}
+        results["trust_evidence"]["policy_accepted"] = trust_evidence.valid and not trust_evidence.present
 
     # --------------------------------------------------
     # 4. Provenance

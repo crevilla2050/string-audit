@@ -14,9 +14,15 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 from nacl.signing import SigningKey, VerifyKey
+from nacl.exceptions import BadSignatureError
 
 from dennis.dex.manifest import semantic_subset
 from dennis.core.hash import canonical_hash
+from dennis.dex.trust_evidence import (
+    FINALIZATION_PROFILE,
+    TrustEvidenceError,
+    canonicalize_finalization,
+)
 
 def _now():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -137,20 +143,29 @@ def sign_dex(dex_path, private_key_path, key_id=None):
     manifest = json.loads(files["manifest.json"])
 
     # ------------------------------
-    # Sign semantic subset
+    # A trust-evidence-bearing DEX receives an explicit finalization
+    # commitment. Legacy artifacts retain their existing signature semantics.
     # ------------------------------
 
-    data = _serialize_subset(manifest)
+    profile = None
+    if manifest.get("trust_evidence") is not None:
+        data = canonicalize_finalization(manifest)
+        profile = FINALIZATION_PROFILE
+    else:
+        data = _serialize_subset(manifest)
 
     signature = signing_key.sign(data).signature
 
-    manifest.setdefault("signatures", []).append({
+    signature_entry = {
         "key_id": final_key_id,
         "algorithm": "ed25519",
         "created_at": _now(),
         "signature": base64.b64encode(signature).decode(),
         "derived_key_id": derived_key_id
-    })
+    }
+    if profile is not None:
+        signature_entry["profile"] = profile
+    manifest.setdefault("signatures", []).append(signature_entry)
 
     files["manifest.json"] = json.dumps(
         manifest,
@@ -233,15 +248,27 @@ def verify_manifest_signatures(manifest, files):
             verify_key = VerifyKey(pubkey)
 
             verification_method = None
+            profile = sig.get("profile")
 
-            if payload_hash:
+            if profile is not None:
+                if profile != FINALIZATION_PROFILE:
+                    entry["error"] = "unsupported signature profile"
+                    details.append(entry)
+                    continue
+                try:
+                    verify_key.verify(canonicalize_finalization(manifest), signature)
+                    verification_method = "ed25519_dex_finalization_v1"
+                except (BadSignatureError, TrustEvidenceError, ValueError, TypeError):
+                    verification_method = None
+
+            if verification_method is None and profile is None and payload_hash:
                 try:
                     verify_key.verify(payload_hash_bytes, signature)
                     verification_method = "ed25519_payload_hash"
                 except Exception:
                     verification_method = None
 
-            if verification_method is None:
+            if verification_method is None and profile is None:
                 try:
                     verify_key.verify(subset_bytes, signature)
                     verification_method = "ed25519_semantic_subset"

@@ -58,3 +58,4 @@ string*.json
 *.rar
 *.gz
 test_*.py
+architecture_*.py
